@@ -20,7 +20,6 @@ import toast from "react-hot-toast";
 
 export default function ManagerOrder() {
   const { data: session, status } = useSession();
-  const router = useRouter();
   const [orders, setOrders] = useState([]);
   const [disputes, setDisputes] = useState([]);
   const [riders, setRiders] = useState([]);
@@ -43,9 +42,7 @@ export default function ManagerOrder() {
   });
 
   const BACKENDURL =
-    process.env.NODE_ENV === "production"
-      ? "https://api.chowspace.ng"
-      : "http://localhost:2006";
+    "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
   // Poll orders + disputes
   useEffect(() => {
@@ -90,7 +87,7 @@ export default function ManagerOrder() {
         setOrders(filtered || []);
         setDisputes(resDisputes.data.disputes || []);
       } catch (err) {
-        console.error("Failed to load orders or disputes:", err);
+        console.error(err);
         setError("Failed to load orders or disputes");
       } finally {
         setLoading(false);
@@ -106,9 +103,9 @@ export default function ManagerOrder() {
     const fetchRiders = async () => {
       try {
         const res = await axios.get(`${BACKENDURL}/api/rider/get-riders`);
-        setRiders(Array.isArray(res.data.riders) ? res.data.riders : []);
+        setRiders(res.data.riders || []);
       } catch (err) {
-        console.error("Failed to load riders:", err);
+        console.error(err);
         toast.error("Failed to load riders");
       }
     };
@@ -120,22 +117,10 @@ export default function ManagerOrder() {
     const fetchLocations = async () => {
       try {
         const res = await axios.get(`${BACKENDURL}/api/platform-locations`);
-        const locations = Array.isArray(res.data.locations)
-          ? res.data.locations
-          : [];
-        setPlatformLocations(
-          locations.map((loc) => ({
-            _id: loc._id,
-            name: loc.name || "Unknown",
-            location:
-              typeof loc.location === "string" ? loc.location : "Unknown",
-            price: loc.price || 0,
-          }))
-        );
+        setPlatformLocations(res.data.locations || []);
       } catch (err) {
-        console.error("Failed to load platform locations:", err);
+        console.error(err);
         toast.error("Failed to load platform locations");
-        setPlatformLocations([]);
       }
     };
     fetchLocations();
@@ -173,7 +158,7 @@ export default function ManagerOrder() {
       setLocation({ from: "", to: "" });
       setPrice(0);
     } catch (err) {
-      console.error("Failed to assign rider:", err);
+      console.error(err);
       toast.error("Failed to assign rider");
     } finally {
       setAssigning(false);
@@ -330,12 +315,10 @@ export default function ManagerOrder() {
                   <div className="flex flex-col gap-2 text-sm text-gray-700">
                     <span>
                       <strong>Customer:</strong>{" "}
-                      {order.guestInfo?.name ||
-                        order.customerId?.fullname ||
-                        "N/A"}
+                      {order.guestInfo?.name || order.customerId?.fullname}
                     </span>
                     <span>
-                      <strong>Total:</strong> ₦{order.totalAmount || 0}
+                      <strong>Total:</strong> ₦{order.totalAmount}
                     </span>
                     <span>
                       <strong>Delivery:</strong> {order.deliveryMethod || "N/A"}
@@ -352,16 +335,16 @@ export default function ManagerOrder() {
                   {/* Items */}
                   <details className="mt-3 border-t pt-2 group">
                     <summary className="cursor-pointer font-medium text-gray-700 hover:text-[#AE2108]">
-                      Items ({order.items?.length || 0})
+                      Items ({order.items?.length})
                     </summary>
                     <div className="mt-2 max-h-40 overflow-y-auto text-sm text-gray-600 space-y-1 transition-all duration-300">
-                      {(order.items || []).map((item, idx) => (
+                      {order.items?.map((item, idx) => (
                         <div
                           key={idx}
                           className="flex justify-between border-b py-1"
                         >
-                          <span>{item.name || "Unknown Item"}</span>
-                          <span>x{item.quantity || 0}</span>
+                          <span>{item.name}</span>
+                          <span>x{item.quantity}</span>
                         </div>
                       ))}
                     </div>
@@ -424,7 +407,7 @@ export default function ManagerOrder() {
               <div>
                 <h2 className="text-lg font-bold mb-4">
                   Step 1: Select Rider for Order #
-                  {assignModal._id?.slice(-6).toUpperCase() || "N/A"}
+                  {assignModal._id.slice(-6).toUpperCase()}
                 </h2>
 
                 {/* Dropdown */}
@@ -434,9 +417,9 @@ export default function ManagerOrder() {
                   onChange={(e) => setSelectedRider(e.target.value)}
                 >
                   <option value="">Select a rider</option>
-                  {(riders || []).map((r) => (
+                  {riders.map((r) => (
                     <option key={r._id} value={r._id}>
-                      {r.fullname || "Unknown Rider"} ({r.contact || "N/A"}) -{" "}
+                      {r.fullname} ({r.contact}) -{" "}
                       <span
                         className={`inline-flex items-center gap-1 text-sm ${
                           r.status?.toLowerCase() === "active"
@@ -515,18 +498,12 @@ export default function ManagerOrder() {
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#AE2108]/50"
                   >
                     <option value="">Select delivery location</option>
-                    {(platformLocations || []).map((loc) => (
+                    {platformLocations.map((loc) => (
                       <option key={loc._id} value={loc.name}>
-                        {loc.location || "Unknown Location"} - ₦{loc.price || 0}
+                        {loc.location} - ₦{loc.price}
                       </option>
                     ))}
                   </select>
-                </div>
-
-                <div className="mb-4">
-                  <span className="text-sm font-medium">
-                    Price: ₦{price || 0}
-                  </span>
                 </div>
 
                 <div className="flex gap-2">
