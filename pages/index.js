@@ -51,8 +51,8 @@ export default function Home() {
           axios.get(`${BACKENDURL}/api/vendor/getVendors`),
           axios.get(`${BACKENDURL}/api/getLocations`),
         ]);
-        setVendors(vendorsRes.data.vendors || []);
-        setLocations(locationsRes.data.locations || []);
+        setVendors(vendorsRes.data.vendors);
+        setLocations(locationsRes.data.locations);
       } catch (err) {
         console.error("Error fetching vendors:", err);
       } finally {
