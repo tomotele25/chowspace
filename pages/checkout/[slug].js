@@ -87,7 +87,7 @@ const Checkout = () => {
         const locRes = await axios.get(
           `${BACKENDURL}/api/locations/${vendorData._id}`
         );
-        const formatted = locRes.data.map((loc) => ({
+        const formatted = (locRes.data.locations || []).map((loc) => ({
           name: loc.location,
           fee: loc.price,
         }));
