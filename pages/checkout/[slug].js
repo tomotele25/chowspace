@@ -161,25 +161,32 @@ const Checkout = () => {
     else orderPayload.guestInfo = { name, email: guestEmail, phone, address };
 
     const generateWhatsAppMessage = () => {
-      let message = `I ORDER FROM CHOWSPACE\nORDER DETAILS\nOrder ID : ${orderId}\n`;
+      let message = `*🍽️ CHOWSPACE ORDER*\n\n`; // branded header
+      message += `*ORDER DETAILS*\n*Order ID* : ${orderId}\n`;
+
       cart.forEach((pack, packIndex) => {
-        message += `--•--\nPACK${packIndex + 1}\n--•--\n`;
+        message += `\n*PACK ${packIndex + 1}*\n`;
         pack.forEach((item) => {
-          message += `${item.productName} | qty:${item.quantity}\n`;
+          message += `- ${item.productName} | qty: ${item.quantity}\n`;
         });
-        message += "\n";
       });
-      message += `SUB TOTAL : ₦${formatCurrency(cartTotal)}\n`;
-      message += `DELIVERY PRICE : ₦${formatCurrency(deliveryFee)}\n`;
-      message += `SERVICE FEE : ₦${formatCurrency(serviceCharge)}\n`;
-      message += `TOTAL PRICE : ₦${formatCurrency(finalTotal)}\n`;
-      message += `------CUSTOMER DETAILS------\n`;
+
+      message += `\n*SUB TOTAL* : ₦${formatCurrency(cartTotal)}\n`;
+      message += `*DELIVERY PRICE* : ₦${formatCurrency(deliveryFee)}\n`;
+      message += `*SERVICE FEE* : ₦${formatCurrency(serviceCharge)}\n`;
+      message += `*TOTAL PRICE* : 💳 ₦${formatCurrency(finalTotal)}\n`;
+
+      message += `\n*CUSTOMER DETAILS* 👤🍽️\n`;
       message += `Name : ${deliveryDetails.name}\n`;
       message += `Location : ${deliveryDetails.location}\n`;
       message += `Address : ${deliveryDetails.address}\n`;
-      message += `Phone number : ${deliveryDetails.phone}\n`;
-      message += `---PRICE CONFIRMATION---\n`;
-      message += `https://chowspace.ng/confirm/${orderId}`;
+      message += `Phone : ${deliveryDetails.phone}\n`;
+
+      message += `\n🙏 *Thank you for ordering with CHOWSPACE!*`;
+
+      message += `\n\n*PRICE CONFIRMATION*\n`;
+      message += `🔗 https://chowspace.ng/confirm/${orderId}`;
+
       return encodeURIComponent(message);
     };
 
