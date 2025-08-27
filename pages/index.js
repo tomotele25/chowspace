@@ -65,7 +65,7 @@ export default function Home() {
   const filteredAndSortedVendors = vendors
     .filter((vendor) => {
       const matchSearch =
-        vendor.fullname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        vendor.businessName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         vendor.category?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchLocation =
         selectedLocation === "All" || vendor.location === selectedLocation;
@@ -140,7 +140,6 @@ export default function Home() {
         <Hero />
         <Categories />
         <PromoBanner />
-        <Carousel />
 
         {/* Vendor Links Section with animation */}
         <section id="vendors" className="px-5 py-5 bg-[#fffdfc]">
@@ -174,7 +173,7 @@ export default function Home() {
             <p>No vendors available.</p>
           )}
         </section>
-
+        <Carousel />
         {/* Vendor Cards */}
         <section className="relative px-5 sm:px-10 md:px-20 py-16 bg-[#fffdfc] overflow-hidden">
           <div className="max-w-7xl mx-auto">

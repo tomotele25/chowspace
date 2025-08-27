@@ -40,6 +40,7 @@ const OrderAnalysis = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [filterDate, setFilterDate] = useState("");
+  const [filterType, setFilterType] = useState("daily"); // New state for filter type
   const [filteredOrders, setFilteredOrders] = useState([]);
 
   useEffect(() => {
@@ -92,14 +93,40 @@ const OrderAnalysis = () => {
     );
   };
 
-  const getVendorOrders = (vendorId, date = null) => {
+  // Helper to get the start and end of the week for a given date
+  const getWeekRange = (date) => {
+    const selectedDate = new Date(date);
+    const dayOfWeek = selectedDate.getUTCDay();
+    const startOfWeek = new Date(selectedDate);
+    startOfWeek.setUTCDate(
+      selectedDate.getUTCDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)
+    ); // Monday
+    startOfWeek.setUTCHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6); // Sunday
+    endOfWeek.setUTCHours(23, 59, 59, 999);
+
+    return { startOfWeek, endOfWeek };
+  };
+
+  const getVendorOrders = (vendorId, date = null, type = "daily") => {
     let filtered = orders.filter(
       (order) => order.vendorId?._id?.toString() === vendorId.toString()
     );
+
     if (date) {
-      filtered = filtered.filter((order) =>
-        isSameUTCDate(new Date(order.createdAt), date)
-      );
+      if (type === "daily") {
+        filtered = filtered.filter((order) =>
+          isSameUTCDate(new Date(order.createdAt), new Date(date))
+        );
+      } else if (type === "weekly") {
+        const { startOfWeek, endOfWeek } = getWeekRange(date);
+        filtered = filtered.filter((order) => {
+          const orderDate = new Date(order.createdAt);
+          return orderDate >= startOfWeek && orderDate <= endOfWeek;
+        });
+      }
     }
     return filtered;
   };
@@ -120,13 +147,14 @@ const OrderAnalysis = () => {
     const vendorOrders = getVendorOrders(vendor._id);
     setFilteredOrders(vendorOrders);
     setFilterDate("");
+    setFilterType("daily"); // Reset to daily when opening modal
     setModalOpen(true);
   };
 
   const applyDateFilter = () => {
     if (!selectedVendor) return;
     const date = filterDate ? new Date(filterDate) : null;
-    const vendorOrders = getVendorOrders(selectedVendor._id, date);
+    const vendorOrders = getVendorOrders(selectedVendor._id, date, filterType);
     setFilteredOrders(vendorOrders);
   };
 
@@ -135,6 +163,7 @@ const OrderAnalysis = () => {
     const vendorOrders = getVendorOrders(selectedVendor._id);
     setFilteredOrders(vendorOrders);
     setFilterDate("");
+    setFilterType("daily");
   };
 
   const getFilteredSummary = () => {
@@ -259,11 +288,20 @@ const OrderAnalysis = () => {
             </div>
 
             <div className="flex gap-2 mb-4 items-center">
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="border px-2 py-1 rounded"
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+              </select>
               <input
                 type="date"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
                 className="border px-2 py-1 rounded"
+                disabled={filterType === "weekly" && !filterDate} // Optional: Disable until a date is selected
               />
               <button
                 onClick={applyDateFilter}
@@ -343,7 +381,8 @@ const OrderAnalysis = () => {
               </>
             ) : (
               <p className="text-gray-500">
-                No orders found for selected date.
+                No orders found for selected{" "}
+                {filterType === "daily" ? "date" : "week"}.
               </p>
             )}
           </div>

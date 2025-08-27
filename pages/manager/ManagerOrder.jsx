@@ -14,6 +14,7 @@ import {
   UtensilsCrossed,
   Settings,
   LocationEditIcon,
+  MoreHorizontal,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -21,21 +22,29 @@ export default function ManagerOrder() {
   const { data: session, status } = useSession();
   const [orders, setOrders] = useState([]);
   const [disputes, setDisputes] = useState([]);
+  const [riders, setRiders] = useState([]);
+  const [selectedRider, setSelectedRider] = useState("");
+  const [assignModal, setAssignModal] = useState(null);
+  const [assigning, setAssigning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [newOrderIds, setNewOrderIds] = useState([]);
+  const [assignStep, setAssignStep] = useState(1);
+  const [location, setLocation] = useState({ from: "", to: "" });
+  const [price, setPrice] = useState(0);
+  const [platformLocations, setPlatformLocations] = useState([]);
   const audioRef = useRef(null);
   const [dateFilter, setDateFilter] = useState(() => {
     const today = new Date();
     return today.toISOString().slice(0, 10);
   });
 
-  const router = useRouter();
   const BACKENDURL =
     "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
+  // Poll orders + disputes
   useEffect(() => {
     if (status !== "authenticated") return;
 
@@ -66,20 +75,16 @@ export default function ManagerOrder() {
 
         if (newOnes.length > 0) {
           setNewOrderIds((prev) => [...prev, ...newOnes.map((o) => o._id)]);
-
           if (audioRef.current) {
             audioRef.current.muted = false;
             audioRef.current.volume = 1;
             audioRef.current.currentTime = 0;
-            audioRef.current.play().catch((err) => {
-              console.warn("Notification sound failed", err);
-            });
+            audioRef.current.play().catch(() => {});
           }
-
           toast.success("New order received!");
         }
 
-        setOrders(filtered);
+        setOrders(filtered || []);
         setDisputes(resDisputes.data.disputes || []);
       } catch (err) {
         console.error(err);
@@ -92,10 +97,72 @@ export default function ManagerOrder() {
     return () => clearInterval(interval);
   }, [status, session, dateFilter, orders]);
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  // Fetch riders when modal opens
+  useEffect(() => {
+    if (!assignModal) return;
+    const fetchRiders = async () => {
+      try {
+        const res = await axios.get(`${BACKENDURL}/api/rider/get-riders`);
+        setRiders(res.data.riders || []);
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to load riders");
+      }
+    };
+    fetchRiders();
+  }, [assignModal]);
 
-  const handleLogout = () => {
-    signOut({ callbackUrl: "/Login" });
+  // Fetch platform locations
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const res = await axios.get(`${BACKENDURL}/api/platform-locations`);
+        setPlatformLocations(res.data.locations || []);
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to load platform locations");
+      }
+    };
+    fetchLocations();
+  }, []);
+
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const handleLogout = () => signOut({ callbackUrl: "/Login" });
+
+  const assignOrderToRider = async () => {
+    if (!selectedRider || !assignModal || !location.from || !location.to) {
+      toast.error("Please complete all fields");
+      return;
+    }
+    setAssigning(true);
+    try {
+      await axios.post(`${BACKENDURL}/api/rider/assign-order`, {
+        orderId: assignModal._id,
+        riderId: selectedRider,
+        from: location.from,
+        to: location.to,
+        price,
+      });
+
+      toast.success("Order assigned successfully!");
+      setOrders((prev) =>
+        prev.map((o) =>
+          o._id === assignModal._id
+            ? { ...o, rider: selectedRider, status: "assigned" }
+            : o
+        )
+      );
+      setAssignModal(null);
+      setSelectedRider("");
+      setAssignStep(1);
+      setLocation({ from: "", to: "" });
+      setPrice(0);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to assign rider");
+    } finally {
+      setAssigning(false);
+    }
   };
 
   const filteredOrders =
@@ -105,7 +172,7 @@ export default function ManagerOrder() {
 
   return (
     <div className="flex h-screen bg-gray-50 relative">
-      {/* Mobile Topbar */}
+      {/* Sidebar + Mobile Header */}
       <div className="md:hidden flex justify-between items-center px-4 py-3 bg-white shadow z-30 w-full fixed top-0">
         <h1 className="text-xl font-bold text-[#AE2108]">Manager Panel</h1>
         <button onClick={toggleSidebar}>
@@ -113,7 +180,6 @@ export default function ManagerOrder() {
         </button>
       </div>
 
-      {/* Sidebar */}
       <aside
         className={`fixed top-0 left-0 z-40 h-full w-64 bg-white shadow-xl flex flex-col justify-between transition-transform duration-300 ease-in-out ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -126,63 +192,54 @@ export default function ManagerOrder() {
               <X />
             </button>
           </div>
-
           <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
             <Link
               href="/vendors/ManagerDashboard"
               className="flex items-center gap-2 text-gray-700 font-semibold hover:text-[#AE2108]"
             >
-              <LayoutDashboard size={18} />
-              Dashboard
+              <LayoutDashboard size={18} /> Dashboard
             </Link>
             <Link
               href="/vendors/ManageLocation"
               className="flex items-center gap-2 text-gray-700 hover:text-[#AE2108]"
             >
-              <LocationEditIcon size={18} />
-              Locations
+              <LocationEditIcon size={18} /> Locations
             </Link>
             <Link
               href="/manager/ManagerOrder"
               className="flex items-center gap-2 text-[#AE2108] font-semibold"
             >
-              <UtensilsCrossed size={18} />
-              Orders
+              <UtensilsCrossed size={18} /> Orders
             </Link>
             <Link
               href="/vendors/ManageProducts"
               className="flex items-center gap-2 text-gray-700 hover:text-[#AE2108]"
             >
-              <PackageOpen size={18} />
-              Products
+              <PackageOpen size={18} /> Products
             </Link>
             <Link
               href="/manager/Profile"
               className="flex items-center gap-2 text-gray-700 hover:text-[#AE2108]"
             >
-              <Settings size={18} />
-              Profile
+              <Settings size={18} /> Profile
             </Link>
           </nav>
         </div>
-
-        {/* Logout */}
         <div className="p-4 border-t">
           <button
             onClick={handleLogout}
             className="flex items-center gap-2 text-red-600 hover:bg-red-100 px-3 py-2 rounded-lg w-full transition"
           >
-            <LogOut size={18} />
-            Logout
+            <LogOut size={18} /> Logout
           </button>
         </div>
       </aside>
 
       <audio ref={audioRef} src="/notification.mp3" preload="auto" />
 
-      {/* Main Content */}
+      {/* Main */}
       <main className="flex-1 pt-16 md:pt-0 md:ml-64 p-6 overflow-auto">
-        {/* Filters */}
+        {/* Header + Date Filter */}
         <div className="flex flex-col gap-4 mb-6 md:flex-row md:items-center md:justify-between">
           <h1 className="text-2xl font-bold text-[#AE2108]">Manage Orders</h1>
           <div className="flex flex-wrap gap-4 items-center">
@@ -201,7 +258,7 @@ export default function ManagerOrder() {
           </div>
         </div>
 
-        {/* Orders List */}
+        {/* Orders */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-12 h-12 border-4 border-gray-200 border-t-[#AE2108] rounded-full animate-spin mb-4"></div>
@@ -241,9 +298,20 @@ export default function ManagerOrder() {
                           </span>
                         )}
                     </div>
+                    <button
+                      onClick={() => setAssignModal(order)}
+                      disabled={order.status !== "pending"}
+                      className={`text-sm px-3 py-1 rounded-lg transition ${
+                        order.status === "pending"
+                          ? "bg-[#AE2108] text-white hover:bg-[#941B06]"
+                          : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                      }`}
+                    >
+                      <MoreHorizontal />
+                    </button>
                   </div>
 
-                  {/* Order Details */}
+                  {/* Details */}
                   <div className="flex flex-col gap-2 text-sm text-gray-700">
                     <span>
                       <strong>Customer:</strong>{" "}
@@ -298,6 +366,166 @@ export default function ManagerOrder() {
           </div>
         )}
       </main>
+
+      {/* Assign Rider Modal */}
+      {assignModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-lg relative">
+            <button
+              onClick={() => setAssignModal(null)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 text-lg font-bold"
+            >
+              ✕
+            </button>
+
+            {/* Step Indicator */}
+            <div className="flex items-center justify-between mb-6">
+              {[1, 2, 3].map((step) => (
+                <div key={step} className="flex-1 flex items-center">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                      assignStep >= step
+                        ? "bg-[#AE2108] text-white"
+                        : "bg-gray-200 text-gray-600"
+                    }`}
+                  >
+                    {step}
+                  </div>
+                  {step < 3 && (
+                    <div
+                      className={`flex-1 h-1 mx-2 ${
+                        assignStep > step ? "bg-[#AE2108]" : "bg-gray-200"
+                      }`}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Steps */}
+            {assignStep === 1 && (
+              <div>
+                <h2 className="text-lg font-bold mb-4">
+                  Step 1: Select Rider for Order #
+                  {assignModal._id.slice(-6).toUpperCase()}
+                </h2>
+
+                {/* Dropdown */}
+                <select
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-[#AE2108]/50"
+                  value={selectedRider}
+                  onChange={(e) => setSelectedRider(e.target.value)}
+                >
+                  <option value="">Select a rider</option>
+                  {riders.map((r) => (
+                    <option key={r._id} value={r._id}>
+                      {r.fullname} ({r.contact}) -{" "}
+                      <span
+                        className={`inline-flex items-center gap-1 text-sm ${
+                          r.status?.toLowerCase() === "active"
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            r.status?.toLowerCase() === "active"
+                              ? "bg-green-500"
+                              : "bg-red-500"
+                          }`}
+                        ></span>
+                        {r.status?.toUpperCase() || "N/A"}
+                      </span>
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={() => {
+                    if (!selectedRider) {
+                      toast.error("Please select a rider");
+                      return;
+                    }
+                    const rider = riders.find((r) => r._id === selectedRider);
+                    if (rider?.status?.toLowerCase() !== "active") {
+                      toast.error("Cannot assign to an inactive rider");
+                      return;
+                    }
+                    setAssignStep(2);
+                  }}
+                  className="w-full bg-[#AE2108] text-white px-4 py-2 rounded-lg hover:bg-[#941B06]"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+
+            {assignStep === 2 && (
+              <div>
+                <h2 className="text-lg font-bold mb-4">Step 2: Delivery</h2>
+
+                {/* From (Pickup) */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1">
+                    Pickup (From)
+                  </label>
+                  <input
+                    type="text"
+                    value={location.from}
+                    onChange={(e) =>
+                      setLocation((prev) => ({ ...prev, from: e.target.value }))
+                    }
+                    placeholder="Enter pickup location"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#AE2108]/50"
+                  />
+                </div>
+
+                {/* To (Delivery) */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1">
+                    Delivery (To)
+                  </label>
+                  <select
+                    value={location.to}
+                    onChange={(e) => {
+                      const to = e.target.value;
+                      setLocation((prev) => ({ ...prev, to }));
+                      const selectedLoc = platformLocations.find(
+                        (loc) => loc.name === to
+                      );
+                      setPrice(selectedLoc?.price || 0);
+                    }}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#AE2108]/50"
+                  >
+                    <option value="">Select delivery location</option>
+                    {platformLocations.map((loc) => (
+                      <option key={loc._id} value={loc.name}>
+                        {loc.location} - ₦{loc.price}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setAssignStep(1)}
+                    className="w-full bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={assignOrderToRider}
+                    className="w-full bg-[#AE2108] text-white px-4 py-2 rounded-lg hover:bg-[#941B06]"
+                    disabled={assigning}
+                  >
+                    {assigning ? "Assigning..." : "Assign Rider"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

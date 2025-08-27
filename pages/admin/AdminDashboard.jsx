@@ -20,6 +20,8 @@ import axios from "axios";
 const menuItems = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
   { name: "Manage Vendors", icon: Users, path: "/admin/ManageVendor" },
+  { name: "Manage Riders", icon: Users, path: "/admin/ManageRiders" },
+  { name: "Assigned Orders", icon: Users, path: "/admin/AssignedOrders" },
   { name: "Settings", icon: Settings, path: "/admin/settings" },
   { name: "Promotion", icon: Settings, path: "/admin/Promotion" },
   { name: "Order Analysis", icon: Settings, path: "/admin/OrderAnalysis" },
