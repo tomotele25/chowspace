@@ -10,6 +10,7 @@ import {
   PackageOpen,
   LogOut,
   Pencil,
+  Save,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
@@ -32,14 +33,13 @@ export default function ManageProducts() {
     name: "",
     price: "",
     category: "",
-    description: "",
     available: true,
     image: null,
     imagePreview: null,
   });
 
-  // ✅ New state for search
   const [search, setSearch] = useState("");
+  const [dragIndex, setDragIndex] = useState(null);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -82,7 +82,6 @@ export default function ManageProducts() {
       name: product.productName,
       price: product.price,
       category: product.category,
-      description: product.description || "",
       available: product.available,
       image: null,
       imagePreview: product.image.startsWith("http")
@@ -135,7 +134,6 @@ export default function ManageProducts() {
         name: "",
         price: "",
         category: "",
-        description: "",
         available: true,
         image: null,
         imagePreview: null,
@@ -151,32 +149,68 @@ export default function ManageProducts() {
   };
 
   const handleToggle = async (productId) => {
+    setProducts((prev) =>
+      prev.map((p) =>
+        p._id === productId ? { ...p, available: !p.available } : p
+      )
+    );
+
     try {
-      const res = await axios.patch(
+      await axios.patch(
         `${BACKENDURL}/api/product/${productId}/toggle-availability`,
         {},
-        {
-          headers: {
-            Authorization: `Bearer ${session?.user?.accessToken}`,
-          },
-        }
+        { headers: { Authorization: `Bearer ${session?.user?.accessToken}` } }
       );
-
-      const updatedProduct = res.data.product;
-      setProducts((prev) =>
-        prev.map((p) => (p._id === updatedProduct._id ? updatedProduct : p))
-      );
-      toast.success(
-        `Product is now ${
-          updatedProduct.available ? "Available" : "Unavailable"
-        }`
-      );
+      toast.success("Updated availability");
     } catch (err) {
       toast.error("Failed to update availability");
+      // rollback if error
+      setProducts((prev) =>
+        prev.map((p) =>
+          p._id === productId ? { ...p, available: !p.available } : p
+        )
+      );
     }
   };
 
-  // ✅ Filtered products
+  const handleDragStart = (index) => {
+    setDragIndex(index);
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    if (dragIndex === index) return;
+
+    const updated = [...products];
+    const draggedItem = updated[dragIndex];
+    updated.splice(dragIndex, 1);
+    updated.splice(index, 0, draggedItem);
+
+    setDragIndex(index);
+    setProducts(updated);
+  };
+
+  const saveReorder = async () => {
+    try {
+      const payload = {
+        products: products.map((p, index) => ({
+          id: p._id,
+          position: index,
+        })),
+      };
+
+      await axios.patch(`${BACKENDURL}/api/product/rearrange`, payload, {
+        headers: {
+          Authorization: `Bearer ${session?.user?.accessToken}`,
+        },
+      });
+
+      toast.success("Product order saved!");
+    } catch (err) {
+      toast.error("Failed to save new order");
+    }
+  };
+
   const filteredProducts = products.filter((prod) =>
     prod.productName.toLowerCase().includes(search.toLowerCase())
   );
@@ -185,7 +219,7 @@ export default function ManageProducts() {
     <div className="flex min-h-screen bg-gray-100">
       <Toaster position="top-right" />
 
-      {/* Sidebar (skipped same as before) */}
+      {/* Sidebar */}
       <aside className="w-64 bg-white shadow-md p-4 hidden md:flex flex-col justify-between sticky top-0 h-screen">
         <div>
           <h2 className="text-xl font-bold text-[#AE2108] mb-6">
@@ -225,7 +259,6 @@ export default function ManageProducts() {
             <span>Back</span>
           </button>
 
-          {/* ✅ Search Input */}
           <input
             type="text"
             placeholder="Search by name..."
@@ -239,10 +272,13 @@ export default function ManageProducts() {
           {filteredProducts.length === 0 ? (
             <p className="text-gray-500">No products found.</p>
           ) : (
-            filteredProducts.map((prod) => (
+            filteredProducts.map((prod, index) => (
               <div
                 key={prod._id}
-                className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 text-sm relative"
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 text-sm relative cursor-move"
               >
                 {prod.image && (
                   <img
@@ -293,59 +329,80 @@ export default function ManageProducts() {
           )}
         </div>
 
-        {showModal && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md relative">
-              <button
-                onClick={() => {
-                  setShowModal(false);
-                  setEditMode(false);
-                  setFormData({
-                    name: "",
-                    price: "",
-                    category: "",
-                    description: "",
-                    available: true,
-                    image: null,
-                    imagePreview: null,
-                  });
-                }}
-                className="absolute top-3 right-3 text-gray-500 hover:text-black"
-              >
-                <X size={20} />
-              </button>
+        {/* Save Reorder */}
+        <button
+          onClick={saveReorder}
+          className="fixed bottom-6 right-20 bg-green-600 hover:bg-green-700 text-white p-4 rounded-full shadow-lg z-50 flex items-center justify-center transition-all duration-200 hover:scale-110"
+        >
+          <Save size={22} />
+        </button>
 
-              <h2 className="text-xl font-semibold text-[#AE2108] mb-4">
-                {editMode ? "Edit Product" : "Add Product"}
-              </h2>
+        {/* Add Product */}
+        <button
+          onClick={() => setShowModal(true)}
+          className="fixed bottom-6 right-6 bg-[#AE2108] hover:bg-[#941B06] text-white p-4 rounded-full shadow-lg z-50"
+        >
+          <Plus size={24} />
+        </button>
+      </main>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md relative">
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-5 right-3 text-gray-500 hover:text-[#AE2108]"
+            >
+              <X size={22} />
+            </button>
+
+            <h2 className="text-xl font-bold mb-6 text-[#AE2108]">
+              {editMode ? "Edit Product" : "Add New Product"}
+            </h2>
+
+            <form onSubmit={handleSubmit} className="space-y-2">
+              {/* Product Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Name
+                </label>
                 <input
                   type="text"
                   name="name"
-                  placeholder="Product Name"
                   value={formData.name}
                   onChange={handleChange}
+                  className="w-full border rounded-md p-2"
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                 />
+              </div>
 
+              {/* Price */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Price
+                </label>
                 <input
-                  type="text"
+                  type="number"
                   name="price"
-                  placeholder="Price (₦)"
                   value={formData.price}
                   onChange={handleChange}
+                  className="w-full border rounded-md p-2"
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                 />
+              </div>
 
+              {/* Category Dropdown */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category
+                </label>
                 <select
                   name="category"
                   value={formData.category}
                   onChange={handleChange}
+                  className="w-full border rounded-md p-2"
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                 >
                   <option value="">Select Category</option>
                   <option value="African">African</option>
@@ -369,77 +426,56 @@ export default function ManageProducts() {
                   <option value="Lunch">Lunch</option>
                   <option value="Dinner">Dinner</option>
                 </select>
+              </div>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="available"
-                    checked={formData.available}
-                    onChange={handleChange}
+              {/* Availability */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name="available"
+                  checked={formData.available}
+                  onChange={handleChange}
+                  className="w-4 h-4"
+                />
+                <label className="text-sm text-gray-700">Available</label>
+              </div>
+
+              {/* Image Upload at bottom */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Product Image
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="w-full border rounded-md p-2"
+                />
+                {formData.imagePreview && (
+                  <img
+                    src={formData.imagePreview}
+                    alt="Preview"
+                    className="w-full h-32 object-cover mt-3 rounded-lg border"
                   />
-                  <label className="text-sm text-gray-700">Available</label>
-                </div>
+                )}
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Product Image
-                  </label>
-
-                  <label
-                    htmlFor="imageUpload"
-                    className="flex items-center justify-center px-4 py-2 border border-dashed border-gray-400 rounded-lg text-gray-600 cursor-pointer hover:border-[#AE2108] hover:text-[#AE2108]"
-                  >
-                    {formData.image
-                      ? "Change Image"
-                      : "Click to select an image"}
-                  </label>
-
-                  <input
-                    id="imageUpload"
-                    type="file"
-                    accept="image/*"
-                    name="image"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-
-                  {formData.imagePreview && (
-                    <img
-                      src={formData.imagePreview}
-                      alt="Preview"
-                      className="mt-2 w-full h-40 object-cover rounded-md"
-                    />
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`w-full py-3 rounded-lg font-medium text-white transition ${
-                    loading
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-[#AE2108] hover:bg-[#941B06]"
-                  }`}
-                >
-                  {loading
-                    ? "Submitting..."
-                    : editMode
-                    ? "Update Product"
-                    : "Add Product"}
-                </button>
-              </form>
-            </div>
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#AE2108] text-white py-2 rounded-md hover:bg-[#941B06] transition"
+              >
+                {loading
+                  ? "Saving..."
+                  : editMode
+                  ? "Update Product"
+                  : "Add Product"}
+              </button>
+            </form>
           </div>
-        )}
-
-        {/* Floating Add Button */}
-        <button
-          onClick={() => setShowModal(true)}
-          className="fixed bottom-6 right-6 bg-[#AE2108] hover:bg-[#941B06] text-white p-4 rounded-full shadow-lg z-50"
-        >
-          <Plus size={24} />
-        </button>
-      </main>
+        </div>
+      )}
     </div>
   );
 }

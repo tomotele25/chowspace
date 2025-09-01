@@ -53,7 +53,6 @@ const Checkout = () => {
   );
 
   const packFee = cart.length * 300;
-  const bankCharge = 50;
 
   let serviceCharge = 0;
   if (vendor?.paymentPreference === "direct") {
@@ -62,8 +61,7 @@ const Checkout = () => {
     serviceCharge = Math.ceil(cartTotal * 0.035);
   }
 
-  const finalTotal =
-    cartTotal + deliveryFee + packFee + bankCharge + serviceCharge;
+  const finalTotal = cartTotal + deliveryFee + packFee + serviceCharge;
 
   useEffect(() => {
     if (session?.user) {
@@ -172,6 +170,7 @@ const Checkout = () => {
       });
 
       message += `\n*SUB TOTAL* : ₦${formatCurrency(cartTotal)}\n`;
+      message += `*PACKING FEE* : ₦${formatCurrency(packFee)}\n`;
       message += `*DELIVERY PRICE* : ₦${formatCurrency(deliveryFee)}\n`;
       message += `*SERVICE FEE* : ₦${formatCurrency(serviceCharge)}\n`;
       message += `*TOTAL PRICE* : 💳 ₦${formatCurrency(finalTotal)}\n`;
@@ -369,10 +368,6 @@ const Checkout = () => {
             <div className="flex justify-between">
               <span>Delivery Fee</span>
               <span>₦{formatCurrency(deliveryFee)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Bank Charges</span>
-              <span>₦{formatCurrency(bankCharge)}</span>
             </div>
             {serviceCharge > 0 && (
               <div className="flex justify-between">

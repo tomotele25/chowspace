@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
 import Image from "next/image";
-
 import {
   ArrowLeftCircle,
   Plus,
@@ -16,7 +15,6 @@ import {
   X,
 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
-
 import Head from "next/head";
 
 const VendorMenuPage = () => {
@@ -51,6 +49,7 @@ const VendorMenuPage = () => {
     0
   );
 
+  // Fetch vendor + products
   useEffect(() => {
     if (!slug) return;
     const fetchData = async () => {
@@ -74,11 +73,12 @@ const VendorMenuPage = () => {
     fetchData();
   }, [slug]);
 
-  // 🔥 Sort products so "drinks" go to the bottom
+  // Sort by vendor "position" first, then push drinks to bottom
   const sortedProducts = [...products].sort((a, b) => {
+    if (a.position !== b.position) return a.position - b.position;
+
     const aIsDrink = a.category?.toLowerCase().includes("drink");
     const bIsDrink = b.category?.toLowerCase().includes("drink");
-
     if (aIsDrink && !bIsDrink) return 1;
     if (!aIsDrink && bIsDrink) return -1;
     return 0;
@@ -178,8 +178,10 @@ const VendorMenuPage = () => {
                     <div className="w-full h-28 relative">
                       <Image
                         priority
-                        src={product.image || "https://placehold.co/150x150"}
-                        alt="Product"
+                        src={
+                          product.image || "https://placehold.co/150x150/png"
+                        }
+                        alt={product.productName}
                         fill
                         className="object-cover rounded-t-xl"
                       />
@@ -249,7 +251,7 @@ const VendorMenuPage = () => {
             <p className="text-gray-500">No items on the menu yet.</p>
           )}
 
-          {/* Minimizable Cart Drawer */}
+          {/* Cart (mobile + desktop) */}
           {currentPack.length > 0 && (
             <>
               {/* Mobile drawer */}
