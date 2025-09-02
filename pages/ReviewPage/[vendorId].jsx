@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { Star } from "lucide-react";
 import axios from "axios";
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
 import toast, { Toaster } from "react-hot-toast";
 
 const ReviewSection = ({ vendorId }) => {
   const [reviewText, setReviewText] = useState("");
   const [rating, setRating] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const BACKENDURL = "https://chowspace-backend.vercel.app";
 
@@ -20,9 +21,9 @@ const ReviewSection = ({ vendorId }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Ensure user is logged in
+    // If not logged in, show modal
     if (!session?.user) {
-      toast.error("You need to log in to submit a review.");
+      setShowLoginModal(true);
       return;
     }
 
@@ -57,6 +58,11 @@ const ReviewSection = ({ vendorId }) => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleLogin = () => {
+    // Redirect back to the same page after login
+    signIn("credentials", { callbackUrl: `/ReviewPage/${vendorId}` });
   };
 
   return (
@@ -101,6 +107,28 @@ const ReviewSection = ({ vendorId }) => {
           {submitting ? "Submitting..." : "Submit Review"}
         </button>
       </form>
+
+      {/* Login Modal */}
+      {showLoginModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-xl shadow-lg max-w-sm w-full text-center">
+            <h2 className="text-lg font-semibold mb-4">Login Required</h2>
+            <p className="mb-6">You must be logged in to submit a review.</p>
+            <button
+              onClick={handleLogin}
+              className="bg-[#AE2108] hover:bg-[#911c06] text-white py-2 px-4 rounded-md w-full mb-3"
+            >
+              Login
+            </button>
+            <button
+              onClick={() => setShowLoginModal(false)}
+              className="border border-gray-300 py-2 px-4 rounded-md w-full"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
