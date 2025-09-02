@@ -11,11 +11,108 @@ import {
   LogOut,
   Pencil,
   Save,
+  GripVertical,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
+
+// dnd-kit imports
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+// ✅ Sortable Item (Product Card)
+function SortableProduct({
+  product,
+  index,
+  handleEdit,
+  handleToggle,
+  BACKENDURL,
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: product._id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 text-sm relative"
+    >
+      {/* 🔥 Drag Handle */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="absolute top-2 left-2 p-1.5 rounded-full bg-gray-200 hover:bg-[#AE2108] hover:text-white text-gray-600 cursor-grab active:cursor-grabbing transition-colors"
+      >
+        <GripVertical size={18} />
+      </button>
+
+      {product.image && (
+        <img
+          src={
+            product.image.startsWith("http")
+              ? product.image
+              : `${BACKENDURL}/uploads/${product.image}`
+          }
+          alt={product.productName}
+          className="w-full h-28 object-cover rounded-md mb-2"
+        />
+      )}
+      <h3 className="font-semibold text-[#AE2108] truncate">
+        {product.productName}
+      </h3>
+      <p className="text-gray-600 text-xs">₦{product.price}</p>
+      <p className="text-gray-400 text-xs mb-2">{product.category}</p>
+
+      <div className="flex items-center justify-between">
+        <span
+          className={`text-xs font-medium ${
+            product.available ? "text-green-600" : "text-red-600"
+          }`}
+        >
+          {product.available ? "Available" : "Unavailable"}
+        </span>
+        <label className="inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            checked={product.available}
+            onChange={() => handleToggle(product._id)}
+            className="sr-only peer"
+          />
+          <div className="w-10 h-5 bg-red-400 peer-checked:bg-green-500 rounded-full relative transition-colors">
+            <div className="w-4 h-4 bg-white rounded-full shadow absolute top-0.5 left-0.5 peer-checked:translate-x-5 transform transition-transform" />
+          </div>
+        </label>
+      </div>
+
+      <button
+        onClick={() => handleEdit(product)}
+        className="absolute top-2 right-2 text-gray-500 hover:text-[#AE2108]"
+      >
+        <Pencil size={20} />
+      </button>
+    </div>
+  );
+}
 
 export default function ManageProducts() {
   const router = useRouter();
@@ -39,7 +136,6 @@ export default function ManageProducts() {
   });
 
   const [search, setSearch] = useState("");
-  const [dragIndex, setDragIndex] = useState(null);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -173,23 +269,7 @@ export default function ManageProducts() {
     }
   };
 
-  const handleDragStart = (index) => {
-    setDragIndex(index);
-  };
-
-  const handleDragOver = (e, index) => {
-    e.preventDefault();
-    if (dragIndex === index) return;
-
-    const updated = [...products];
-    const draggedItem = updated[dragIndex];
-    updated.splice(dragIndex, 1);
-    updated.splice(index, 0, draggedItem);
-
-    setDragIndex(index);
-    setProducts(updated);
-  };
-
+  // ✅ Save new order
   const saveReorder = async () => {
     try {
       const payload = {
@@ -214,6 +294,18 @@ export default function ManageProducts() {
   const filteredProducts = products.filter((prod) =>
     prod.productName.toLowerCase().includes(search.toLowerCase())
   );
+
+  // ✅ Setup DnD sensors (mouse + touch)
+  const sensors = useSensors(useSensor(PointerSensor), useSensor(TouchSensor));
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      const oldIndex = products.findIndex((p) => p._id === active.id);
+      const newIndex = products.findIndex((p) => p._id === over.id);
+      setProducts((items) => arrayMove(items, oldIndex, newIndex));
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -268,66 +360,33 @@ export default function ManageProducts() {
           />
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {filteredProducts.length === 0 ? (
-            <p className="text-gray-500">No products found.</p>
-          ) : (
-            filteredProducts.map((prod, index) => (
-              <div
-                key={prod._id}
-                draggable
-                onDragStart={() => handleDragStart(index)}
-                onDragOver={(e) => handleDragOver(e, index)}
-                className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 text-sm relative cursor-move"
-              >
-                {prod.image && (
-                  <img
-                    src={
-                      prod.image.startsWith("http")
-                        ? prod.image
-                        : `${BACKENDURL}/uploads/${prod.image}`
-                    }
-                    alt={prod.productName}
-                    className="w-full h-28 object-cover rounded-md mb-2"
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={filteredProducts.map((p) => p._id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {filteredProducts.length === 0 ? (
+                <p className="text-gray-500">No products found.</p>
+              ) : (
+                filteredProducts.map((prod, index) => (
+                  <SortableProduct
+                    key={prod._id}
+                    product={prod}
+                    index={index}
+                    handleEdit={handleEdit}
+                    handleToggle={handleToggle}
+                    BACKENDURL={BACKENDURL}
                   />
-                )}
-                <h3 className="font-semibold text-[#AE2108] truncate">
-                  {prod.productName}
-                </h3>
-                <p className="text-gray-600 text-xs">₦{prod.price}</p>
-                <p className="text-gray-400 text-xs mb-2">{prod.category}</p>
-
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`text-xs font-medium ${
-                      prod.available ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {prod.available ? "Available" : "Unavailable"}
-                  </span>
-                  <label className="inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={prod.available}
-                      onChange={() => handleToggle(prod._id)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-10 h-5 bg-red-400 peer-checked:bg-green-500 rounded-full relative transition-colors">
-                      <div className="w-4 h-4 bg-white rounded-full shadow absolute top-0.5 left-0.5 peer-checked:translate-x-5 transform transition-transform" />
-                    </div>
-                  </label>
-                </div>
-
-                <button
-                  onClick={() => handleEdit(prod)}
-                  className="absolute top-2 right-2 text-gray-500 hover:text-[#AE2108]"
-                >
-                  <Pencil size={20} />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
+                ))
+              )}
+            </div>
+          </SortableContext>
+        </DndContext>
 
         {/* Save Reorder */}
         <button
@@ -357,114 +416,78 @@ export default function ManageProducts() {
               <X size={22} />
             </button>
 
-            <h2 className="text-xl font-bold mb-6 text-[#AE2108]">
-              {editMode ? "Edit Product" : "Add New Product"}
+            <h2 className="text-xl font-semibold mb-4 text-[#AE2108]">
+              {editMode ? "Edit Product" : "Add Product"}
             </h2>
 
-            <form onSubmit={handleSubmit} className="space-y-2">
-              {/* Product Name */}
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name
-                </label>
+                <label className="block text-sm font-medium">Name</label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className="w-full border rounded-md p-2"
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
                   required
                 />
               </div>
 
-              {/* Price */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Price
-                </label>
+                <label className="block text-sm font-medium">Price</label>
                 <input
                   type="number"
                   name="price"
                   value={formData.price}
                   onChange={handleChange}
-                  className="w-full border rounded-md p-2"
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
                   required
                 />
               </div>
 
-              {/* Category Dropdown */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category
-                </label>
-                <select
+                <label className="block text-sm font-medium">Category</label>
+                <input
+                  type="text"
                   name="category"
                   value={formData.category}
                   onChange={handleChange}
-                  className="w-full border rounded-md p-2"
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
                   required
-                >
-                  <option value="">Select Category</option>
-                  <option value="African">African</option>
-                  <option value="Fast Food">Fast Food</option>
-                  <option value="Pastry">Pastry</option>
-                  <option value="Rice Dishes">Rice Dishes</option>
-                  <option value="Swallows">Swallows</option>
-                  <option value="Soups & Stews">Soups & Stews</option>
-                  <option value="Snacks">Snacks</option>
-                  <option value="Grilled/Fried">Grilled/Fried</option>
-                  <option value="Beverages">Beverages</option>
-                  <option value="Smoothies">Smoothies</option>
-                  <option value="Small Chops">Small Chops</option>
-                  <option value="Shawarma & Sandwiches">
-                    Shawarma & Sandwiches
-                  </option>
-                  <option value="Bakery">Bakery</option>
-                  <option value="Drinks">Drinks</option>
-                  <option value="Desserts">Desserts</option>
-                  <option value="Breakfast">Breakfast</option>
-                  <option value="Lunch">Lunch</option>
-                  <option value="Dinner">Dinner</option>
-                </select>
+                />
               </div>
 
-              {/* Availability */}
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   name="available"
                   checked={formData.available}
                   onChange={handleChange}
-                  className="w-4 h-4"
                 />
-                <label className="text-sm text-gray-700">Available</label>
+                <span className="text-sm">Available</span>
               </div>
 
-              {/* Image Upload at bottom */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Product Image
-                </label>
+                <label className="block text-sm font-medium">Image</label>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleImageChange}
-                  className="w-full border rounded-md p-2"
+                  className="mt-1 w-full"
                 />
                 {formData.imagePreview && (
                   <img
                     src={formData.imagePreview}
                     alt="Preview"
-                    className="w-full h-32 object-cover mt-3 rounded-lg border"
+                    className="mt-2 h-32 w-full object-cover rounded-lg"
                   />
                 )}
               </div>
 
-              {/* Submit */}
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#AE2108] text-white py-2 rounded-md hover:bg-[#941B06] transition"
+                className="w-full bg-[#AE2108] hover:bg-[#941B06] text-white px-4 py-2 rounded-lg shadow-md"
               >
                 {loading
                   ? "Saving..."

@@ -28,8 +28,7 @@ const Checkout = () => {
   const router = useRouter();
   const { slug } = router.query;
   const { data: session } = useSession();
-  const BACKENDURL =
-    "https://chowspace-backend.vercel.app" || "http://localhost:2005";
+  const BACKENDURL = "https://chowspace-backend.vercel.app";
 
   const { cart, addToCart, removeFromCart } = useCart();
   const isSubmitting = useRef(false);
@@ -51,18 +50,11 @@ const Checkout = () => {
     (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
     0
   );
-
   const packFee = cart.length * 300;
-
-  let serviceCharge = 0;
-  if (vendor?.paymentPreference === "direct") {
-    serviceCharge = 60;
-  } else if (vendor?.paymentPreference === "online") {
-    serviceCharge = Math.ceil(cartTotal * 0.035);
-  }
-
+  const serviceCharge = 60; // fixed for WhatsApp/direct payments
   const finalTotal = cartTotal + deliveryFee + packFee + serviceCharge;
 
+  // Prefill user info if logged in
   useEffect(() => {
     if (session?.user) {
       setDeliveryDetails((prev) => ({
@@ -73,9 +65,9 @@ const Checkout = () => {
     }
   }, [session]);
 
+  // Fetch vendor and locations
   useEffect(() => {
     if (!slug) return;
-
     const fetchVendorAndLocations = async () => {
       try {
         const vendorRes = await axios.get(`${BACKENDURL}/api/vendor/${slug}`);
@@ -85,17 +77,17 @@ const Checkout = () => {
         const locRes = await axios.get(
           `${BACKENDURL}/api/locations/${vendorData._id}`
         );
-        const formatted = (locRes.data.locations || []).map((loc) => ({
-          name: loc.location,
-          fee: loc.price,
-        }));
-        setLocations(formatted);
+        setLocations(
+          (locRes.data.locations || []).map((loc) => ({
+            name: loc.location,
+            fee: loc.price,
+          }))
+        );
       } catch (err) {
-        console.error("Fetch error:", err);
+        console.error(err);
         toast.error("Could not load vendor or locations");
       }
     };
-
     fetchVendorAndLocations();
   }, [slug]);
 
@@ -110,7 +102,7 @@ const Checkout = () => {
   };
 
   const handlePay = async () => {
-    if (loading || isSubmitting.current) return; // ✅ prevent duplicates
+    if (loading || isSubmitting.current) return;
     isSubmitting.current = true;
     setLoading(true);
 
@@ -121,7 +113,6 @@ const Checkout = () => {
       isSubmitting.current = false;
       return;
     }
-
     if (!vendor?._id) {
       toast.error("Vendor not loaded.");
       setLoading(false);
@@ -155,37 +146,37 @@ const Checkout = () => {
       paymentStatus: "pending",
     };
 
-    if (session?.user?.id) orderPayload.customerId = session.user.id;
-    else orderPayload.guestInfo = { name, email: guestEmail, phone, address };
+    // Add customer or guest info
+    if (session?.user?.id) {
+      orderPayload.customerId = session.user.id;
+      orderPayload.customerInfo = {
+        fullname: session.user.fullname,
+        email: session.user.email,
+        phone,
+        address,
+      };
+    } else {
+      orderPayload.guestInfo = { name, email: guestEmail, phone, address };
+    }
 
     const generateWhatsAppMessage = () => {
-      let message = `*🍽️ CHOWSPACE ORDER*\n\n`; // branded header
-      message += `*ORDER DETAILS*\n*Order ID* : ${orderId}\n`;
-
+      let message = `*🍽️ CHOWSPACE ORDER*\n\n*ORDER DETAILS*\n*Order ID*: ${orderId}\n`;
       cart.forEach((pack, packIndex) => {
         message += `\n*PACK ${packIndex + 1}*\n`;
-        pack.forEach((item) => {
-          message += `- ${item.productName} | qty: ${item.quantity}\n`;
-        });
+        pack.forEach(
+          (item) =>
+            (message += `- ${item.productName} | qty: ${item.quantity}\n`)
+        );
       });
-
-      message += `\n*SUB TOTAL* : ₦${formatCurrency(cartTotal)}\n`;
-      message += `*PACKING FEE* : ₦${formatCurrency(packFee)}\n`;
-      message += `*DELIVERY PRICE* : ₦${formatCurrency(deliveryFee)}\n`;
-      message += `*SERVICE FEE* : ₦${formatCurrency(serviceCharge)}\n`;
-      message += `*TOTAL PRICE* : 💳 ₦${formatCurrency(finalTotal)}\n`;
-
-      message += `\n*CUSTOMER DETAILS* 👤🍽️\n`;
-      message += `Name : ${deliveryDetails.name}\n`;
-      message += `Location : ${deliveryDetails.location}\n`;
-      message += `Address : ${deliveryDetails.address}\n`;
-      message += `Phone : ${deliveryDetails.phone}\n`;
-
+      message += `\n*SUB TOTAL*: ₦${formatCurrency(cartTotal)}\n`;
+      message += `*PACKING FEE*: ₦${formatCurrency(packFee)}\n`;
+      message += `*DELIVERY PRICE*: ₦${formatCurrency(deliveryFee)}\n`;
+      message += `*SERVICE FEE*: ₦${formatCurrency(serviceCharge)}\n`;
+      message += `*TOTAL PRICE*: 💳 ₦${formatCurrency(finalTotal)}\n`;
+      message += `\n*CUSTOMER DETAILS* 👤\nName: ${name}\nLocation: ${location}\nAddress: ${address}\nPhone: ${phone}\n`;
       message += `\n🙏 *Thank you for ordering with CHOWSPACE!*`;
-
-      message += `\n\n*PRICE CONFIRMATION*\n`;
-      message += `🔗 https://chowspace.ng/confirm/${orderId}`;
-
+      message += `\n\n*PRICE CONFIRMATION*\n🔗 https://chowspace.ng/confirm/${orderId}`;
+      message += `\n\n*Leave a Review* ✍️\n🔗 https://chowspace.ng/ReviewPage/${vendor._id}`;
       return encodeURIComponent(message);
     };
 
@@ -200,7 +191,7 @@ const Checkout = () => {
       toast.error("Could not process order");
     } finally {
       setLoading(false);
-      isSubmitting.current = false; // ✅ release lock
+      isSubmitting.current = false;
     }
   };
 
@@ -290,7 +281,6 @@ const Checkout = () => {
         <h2 className="text-2xl font-semibold text-gray-900 mb-6 text-center">
           Delivery Details
         </h2>
-
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -299,8 +289,8 @@ const Checkout = () => {
           className="space-y-6"
         >
           {["name", "phone", "address", "email"]
-            .filter((field) =>
-              !session ? true : field === "phone" || field === "address"
+            .filter(
+              (field) => !session || field === "phone" || field === "address"
             )
             .map((field) => (
               <div key={field}>
@@ -369,12 +359,10 @@ const Checkout = () => {
               <span>Delivery Fee</span>
               <span>₦{formatCurrency(deliveryFee)}</span>
             </div>
-            {serviceCharge > 0 && (
-              <div className="flex justify-between">
-                <span>Service Fee</span>
-                <span>₦{formatCurrency(serviceCharge)}</span>
-              </div>
-            )}
+            <div className="flex justify-between">
+              <span>Service Fee</span>
+              <span>₦{formatCurrency(serviceCharge)}</span>
+            </div>
             <div className="flex justify-between text-lg font-semibold pt-4 border-t mt-3">
               <span>Total:</span>
               <span>₦{formatCurrency(finalTotal)}</span>
@@ -387,16 +375,10 @@ const Checkout = () => {
             className={`mt-8 w-full font-bold py-3 rounded-full shadow-lg text-lg transition ${
               loading
                 ? "bg-gray-400 cursor-not-allowed"
-                : vendor?.paymentPreference === "direct"
-                ? "bg-green-500 hover:bg-green-600 text-white"
-                : "bg-[#AE2108] hover:bg-[#941B06] text-white"
+                : "bg-green-500 hover:bg-green-600 text-white"
             }`}
           >
-            {loading
-              ? "Processing..."
-              : vendor?.paymentPreference === "direct"
-              ? "Pay via WhatsApp"
-              : "Pay Now"}
+            {loading ? "Processing..." : "Pay via WhatsApp"}
           </button>
         </form>
       </section>
