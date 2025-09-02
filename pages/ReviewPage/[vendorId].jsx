@@ -10,8 +10,8 @@ const ReviewSection = ({ vendorId }) => {
   const [reviewText, setReviewText] = useState("");
   const [rating, setRating] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const BACKENDURL =
-    "https://chowspace-backend.vercel.app" || "http://localhost:2005";
+
+  const BACKENDURL = "https://chowspace-backend.vercel.app";
 
   const { data: session } = useSession();
 
@@ -20,13 +20,13 @@ const ReviewSection = ({ vendorId }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Check if user is logged in
+    // Ensure user is logged in
     if (!session?.user) {
       toast.error("You need to log in to submit a review.");
       return;
     }
 
-    if (!reviewText || !rating) {
+    if (!reviewText.trim() || !rating) {
       toast.error("Please enter a review and select a rating.");
       return;
     }
