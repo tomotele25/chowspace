@@ -14,6 +14,7 @@ import {
   Save,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 export default function ManageLocation() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -21,7 +22,6 @@ export default function ManageLocation() {
   const [price, setPrice] = useState("");
   const [message, setMessage] = useState(null);
 
-  // ✅ missing states added
   const [vendorId, setVendorId] = useState(null);
   const [locations, setLocations] = useState([]);
   const [editingId, setEditingId] = useState(null);
@@ -31,12 +31,13 @@ export default function ManageLocation() {
     "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
   const { data: session } = useSession();
+  const router = useRouter();
   const token = session?.user?.accessToken;
   const managerId = session?.user?.id;
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  // ✅ Fetch vendor + locations
+  // Fetch vendor + locations
   useEffect(() => {
     if (!managerId) return;
 
@@ -83,13 +84,11 @@ export default function ManageLocation() {
     }
   };
 
-  // ✅ Start editing
   const startEditing = (loc) => {
     setEditingId(loc._id);
     setEditValues({ location: loc.location, price: loc.price });
   };
 
-  // ✅ Save edit
   const saveEdit = async (id) => {
     if (!token || !managerId) return;
 
@@ -100,7 +99,6 @@ export default function ManageLocation() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Update local state
       const updatedLoc = res.data.locations.find((l) => l._id === id);
       setLocations((prev) =>
         prev.map((loc) => (loc._id === id ? updatedLoc : loc))
@@ -186,8 +184,18 @@ export default function ManageLocation() {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 p-6  ml-10 overflow-y-auto bg-gray-50">
-        <div className="max-w-3xl mx-auto mt-8">
+      <div className="flex-1 p-6  overflow-y-auto bg-gray-50">
+        {/* Back button */}
+        <div className="mb-4">
+          <button
+            onClick={() => router.back()}
+            className="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300"
+          >
+            ← Back
+          </button>
+        </div>
+
+        <div className="max-w-3xl mx-auto mt-4">
           <div className="bg-white rounded-xl shadow-md p-6 mb-6">
             <h1 className="text-2xl font-bold text-gray-800 mb-6">
               Add Delivery Location

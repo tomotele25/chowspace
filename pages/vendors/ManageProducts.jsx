@@ -137,6 +137,27 @@ export default function ManageProducts() {
 
   const [search, setSearch] = useState("");
 
+  const categories = [
+    "African",
+    "Fast Food",
+    "Pastry",
+    "Rice Dishes",
+    "Swallows",
+    "Soups & Stews",
+    "Snacks",
+    "Grilled/Fried",
+    "Beverages",
+    "Smoothies",
+    "Small Chops",
+    "Shawarma & Sandwiches",
+    "Bakery",
+    "Drinks",
+    "Desserts",
+    "Breakfast",
+    "Lunch",
+    "Dinner",
+  ];
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -447,14 +468,20 @@ export default function ManageProducts() {
 
               <div>
                 <label className="block text-sm font-medium">Category</label>
-                <input
-                  type="text"
+                <select
                   name="category"
                   value={formData.category}
                   onChange={handleChange}
                   className="mt-1 w-full border rounded-lg px-3 py-2"
                   required
-                />
+                >
+                  <option value="">Select Category</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex items-center gap-2">

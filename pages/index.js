@@ -80,7 +80,13 @@ export default function Home() {
         a.promotionExpiresAt && new Date(a.promotionExpiresAt) > new Date();
       const bPromo =
         b.promotionExpiresAt && new Date(b.promotionExpiresAt) > new Date();
-      return bPromo - aPromo;
+
+      if (aPromo !== bPromo) return bPromo - aPromo;
+
+      if (a.status === "opened" && b.status === "closed") return -1;
+      if (a.status === "closed" && b.status === "opened") return 1;
+
+      return 0;
     });
 
   const totalPages = Math.ceil(
