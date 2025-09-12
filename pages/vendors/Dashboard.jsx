@@ -26,6 +26,7 @@ const menuItems = [
   { name: "Orders", icon: PackageOpen, path: "/vendors/Orders" },
   { name: "Reviews", icon: Star, path: "/vendors/Reviews" },
   { name: "Products", icon: UtensilsCrossed, path: "/vendors/ManageProducts" },
+  { name: "Location", icon: UtensilsCrossed, path: "/vendors/Location" },
   { name: "Wallet", icon: Wallet, path: "/vendors/Wallet" },
   { name: "Profile", icon: User, path: "/vendors/Profile" },
   { name: "Subscribe", icon: Rocket, path: "/vendors/Subscribe" },

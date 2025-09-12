@@ -41,6 +41,7 @@ function SortableProduct({
   index,
   handleEdit,
   handleToggle,
+  handleDelete,
   BACKENDURL,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
@@ -106,9 +107,16 @@ function SortableProduct({
 
       <button
         onClick={() => handleEdit(product)}
-        className="absolute top-2 right-2 text-gray-500 hover:text-[#AE2108]"
+        className="absolute top-2 right-8 text-gray-500 hover:text-[#AE2108]"
       >
         <Pencil size={20} />
+      </button>
+
+      <button
+        onClick={() => handleDelete(product._id)}
+        className="absolute top-2 right-2 text-red-500 hover:text-red-700"
+      >
+        <X size={20} />
       </button>
     </div>
   );
@@ -125,7 +133,6 @@ export default function ManageProducts() {
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editId, setEditId] = useState(null);
-
   const [formData, setFormData] = useState({
     name: "",
     price: "",
@@ -134,8 +141,11 @@ export default function ManageProducts() {
     image: null,
     imagePreview: null,
   });
-
   const [search, setSearch] = useState("");
+
+  // ✅ Delete modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
 
   const categories = [
     "African",
@@ -210,6 +220,26 @@ export default function ManageProducts() {
     setShowModal(true);
   };
 
+  const handleDelete = (productId) => {
+    setDeleteId(productId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await axios.delete(`${BACKENDURL}/api/product-delete/${deleteId}`, {
+        headers: { Authorization: `Bearer ${session?.user?.accessToken}` },
+      });
+      setProducts((prev) => prev.filter((p) => p._id !== deleteId));
+      toast.success("Product deleted successfully");
+    } catch (err) {
+      toast.error("Failed to delete product");
+    } finally {
+      setShowDeleteModal(false);
+      setDeleteId(null);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -281,7 +311,6 @@ export default function ManageProducts() {
       toast.success("Updated availability");
     } catch (err) {
       toast.error("Failed to update availability");
-      // rollback if error
       setProducts((prev) =>
         prev.map((p) =>
           p._id === productId ? { ...p, available: !p.available } : p
@@ -290,7 +319,6 @@ export default function ManageProducts() {
     }
   };
 
-  // ✅ Save new order
   const saveReorder = async () => {
     try {
       const payload = {
@@ -316,7 +344,6 @@ export default function ManageProducts() {
     prod.productName.toLowerCase().includes(search.toLowerCase())
   );
 
-  // ✅ Setup DnD sensors (mouse + touch)
   const sensors = useSensors(useSensor(PointerSensor), useSensor(TouchSensor));
 
   const handleDragEnd = (event) => {
@@ -340,7 +367,7 @@ export default function ManageProducts() {
           </h2>
           <nav className="space-y-3">
             <Link
-              href="/vendor/dashboard"
+              href="/vendors/Dashboard"
               className="flex items-center gap-2 text-gray-700 hover:text-[#AE2108]"
             >
               <LayoutDashboard size={18} /> Dashboard
@@ -401,6 +428,7 @@ export default function ManageProducts() {
                     index={index}
                     handleEdit={handleEdit}
                     handleToggle={handleToggle}
+                    handleDelete={handleDelete} // ✅ added delete
                     BACKENDURL={BACKENDURL}
                   />
                 ))
@@ -426,7 +454,7 @@ export default function ManageProducts() {
         </button>
       </main>
 
-      {/* Modal */}
+      {/* Add/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md relative">
@@ -523,6 +551,35 @@ export default function ManageProducts() {
                   : "Add Product"}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm relative">
+            <h2 className="text-xl font-semibold mb-4 text-red-600">
+              Confirm Delete
+            </h2>
+            <p className="text-gray-700 mb-6">
+              Are you sure you want to delete this product? This action cannot
+              be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}
