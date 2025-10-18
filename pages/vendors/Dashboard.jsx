@@ -15,6 +15,8 @@ import {
   Rocket,
   Star,
   Bell,
+  MapPin,
+  BarChart,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/router";
@@ -26,7 +28,8 @@ const menuItems = [
   { name: "Orders", icon: PackageOpen, path: "/vendors/Orders" },
   { name: "Reviews", icon: Star, path: "/vendors/Reviews" },
   { name: "Products", icon: UtensilsCrossed, path: "/vendors/ManageProducts" },
-  { name: "Location", icon: UtensilsCrossed, path: "/vendors/Location" },
+  { name: "Analytics", icon: BarChart, path: "/vendors/Analytics" },
+  { name: "Location", icon: MapPin, path: "/vendors/Location" },
   { name: "Wallet", icon: Wallet, path: "/vendors/Wallet" },
   { name: "Profile", icon: User, path: "/vendors/Profile" },
   { name: "Subscribe", icon: Rocket, path: "/vendors/Subscribe" },
@@ -147,7 +150,7 @@ export default function VendorDashboard() {
                 <X size={24} />
               </button>
             </div>
-            <nav className="mt-4 space-y-1 px-4 flex-1 overflow-auto">
+            <nav className="mt-2 space-y-1 px-4 flex-1 overflow-auto">
               {menuItems.map(({ name, icon: Icon, path }) => (
                 <Link
                   key={name}
@@ -160,7 +163,7 @@ export default function VendorDashboard() {
               ))}
             </nav>
           </div>
-          <div className="px-4 py-4 border-t">
+          <div className="px-4 py-1 border-t">
             <button
               onClick={handleLogout}
               className="flex items-center gap-3 text-red-500 hover:bg-red-100 px-3 py-2 rounded-md w-full"
