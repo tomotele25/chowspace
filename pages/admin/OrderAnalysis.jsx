@@ -382,7 +382,7 @@ export default function AdminAnalytics() {
                     onClick={() => openVendorModal(vendor)}
                     className="mt-3 text-sm text-white bg-[#AE2108] hover:bg-[#941B06] px-3 py-2 rounded-md"
                   >
-                    View Customers
+                    View Customer
                   </button>
                 </div>
               );
