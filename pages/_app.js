@@ -9,7 +9,7 @@ import Loader from "@/components/Loader";
 import { useState, useEffect } from "react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
-import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import PWAInstallPrompt from "../components/PWAInstallPromt";
 
 export default function App({ Component, pageProps }) {
   const router = useRouter();
