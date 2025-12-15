@@ -4,10 +4,11 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#AE2108" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </Head>
-
-      <body className="antialiased">
+      <body>
         <Main />
         <NextScript />
       </body>

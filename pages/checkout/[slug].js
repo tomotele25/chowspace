@@ -8,6 +8,8 @@ import { useRouter } from "next/router";
 import toast, { Toaster } from "react-hot-toast";
 import { useSession } from "next-auth/react";
 
+const CHRISTMAS = true; // enable Christmas decorations
+
 const formatCurrency = (amount) =>
   typeof amount === "number" ? amount.toLocaleString() : "0";
 
@@ -36,6 +38,9 @@ const Checkout = () => {
   const [vendor, setVendor] = useState(null);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const [orderFor, setOrderFor] = useState("myself");
+
   const [deliveryDetails, setDeliveryDetails] = useState({
     name: "",
     phone: "",
@@ -51,21 +56,19 @@ const Checkout = () => {
     0
   );
   const packFee = cart.length * 300;
-  const serviceCharge = 60; // fixed for WhatsApp/direct payments
+  const serviceCharge = 60;
   const finalTotal = cartTotal + deliveryFee + packFee + serviceCharge;
 
-  // Prefill user info if logged in
   useEffect(() => {
-    if (session?.user) {
+    if (session?.user && orderFor === "myself") {
       setDeliveryDetails((prev) => ({
         ...prev,
         name: session.user.fullname || "",
         email: session.user.email || "",
       }));
     }
-  }, [session]);
+  }, [session, orderFor]);
 
-  // Fetch vendor and locations
   useEffect(() => {
     if (!slug) return;
     const fetchVendorAndLocations = async () => {
@@ -146,8 +149,7 @@ const Checkout = () => {
       paymentStatus: "pending",
     };
 
-    // Add customer or guest info
-    if (session?.user?.id) {
+    if (orderFor === "myself" && session?.user?.id) {
       orderPayload.customerId = session.user.id;
       orderPayload.customerInfo = {
         fullname: session.user.fullname,
@@ -203,22 +205,66 @@ const Checkout = () => {
     );
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 relative">
       <Toaster position="top-right" reverseOrder={false} />
-      <h1 className="text-3xl font-extrabold mb-8 text-gray-900 text-center sm:text-left">
+
+      {/* 🎄 Christmas Rope Lights */}
+      {CHRISTMAS && (
+        <svg
+          className="absolute top-0 left-0 w-full h-12 z-20"
+          viewBox="0 0 300 50"
+          preserveAspectRatio="none"
+        >
+          <path
+            d="M0 25 Q 50 0, 100 25 T 300 25"
+            fill="none"
+            stroke="#333"
+            strokeWidth="2"
+          />
+          {[...Array(7)].map((_, i) => (
+            <circle
+              key={i}
+              cx={i * 50 + 25}
+              cy={25 + Math.sin(i) * 5}
+              r="4"
+              className={`bulb bulb-${i % 4}`}
+            />
+          ))}
+        </svg>
+      )}
+
+      {/* Subtle falling snow */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        {[...Array(50)].map((_, i) => (
+          <span
+            key={i}
+            className="absolute text-white text-xs animate-fall"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              opacity: Math.random(),
+            }}
+          >
+            ❄
+          </span>
+        ))}
+      </div>
+
+      <h1 className="text-3xl font-extrabold mb-8 text-gray-900 text-center sm:text-left relative z-10">
         Checkout from{" "}
         <span className="text-[#AE2108]">{vendor.businessName}</span>
       </h1>
 
+      {/* Cart Items */}
       {cart.length === 0 || cart.every((pack) => pack.length === 0) ? (
-        <p className="text-center text-gray-500 py-10 text-lg">
+        <p className="text-center text-gray-500 py-10 text-lg relative z-10">
           Your cart is empty.
         </p>
       ) : (
         cart.map((pack, packIndex) => (
           <div
             key={packIndex}
-            className="mb-10 bg-white rounded-lg shadow-lg p-5"
+            className="mb-10 bg-white rounded-lg shadow-lg p-5 relative z-10"
           >
             <h2 className="font-semibold text-xl mb-5 text-[#AE2108]">
               Pack {packIndex + 1}
@@ -277,10 +323,35 @@ const Checkout = () => {
         ))
       )}
 
-      <section className="bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
+      {/* Delivery Details */}
+      <section className="bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto relative z-10">
         <h2 className="text-2xl font-semibold text-gray-900 mb-6 text-center">
           Delivery Details
         </h2>
+
+        <div className="flex justify-center mb-6 gap-4 relative z-10">
+          <button
+            onClick={() => setOrderFor("myself")}
+            className={`px-8 py-2 rounded-t-lg font-semibold transition border-b-4 ${
+              orderFor === "myself"
+                ? "border-[#AE2108] bg-red-50 text-[#AE2108]"
+                : "border-transparent bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            For Myself
+          </button>
+          <button
+            onClick={() => setOrderFor("friend")}
+            className={`px-8 py-2 rounded-t-lg font-semibold transition border-b-4 ${
+              orderFor === "friend"
+                ? "border-[#AE2108] bg-red-50 text-[#AE2108]"
+                : "border-transparent bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            For a Friend
+          </button>
+        </div>
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -288,11 +359,10 @@ const Checkout = () => {
           }}
           className="space-y-6"
         >
-          {["name", "phone", "address", "email"]
-            .filter(
-              (field) => !session || field === "phone" || field === "address"
-            )
-            .map((field) => (
+          {["name", "phone", "address", "email"].map((field) => {
+            if (orderFor === "myself" && session?.user && field === "email")
+              return null;
+            return (
               <div key={field}>
                 <label
                   htmlFor={field}
@@ -316,11 +386,14 @@ const Checkout = () => {
                   value={deliveryDetails[field]}
                   onChange={handleChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-[#AE2108] focus:border-[#AE2108] transition"
-                  placeholder={`Enter your ${field}`}
+                  placeholder={`Enter ${field}${
+                    orderFor === "friend" ? " of your friend" : ""
+                  }`}
                   required={field !== "email"}
                 />
               </div>
-            ))}
+            );
+          })}
 
           <div>
             <label
@@ -382,6 +455,47 @@ const Checkout = () => {
           </button>
         </form>
       </section>
+
+      {/* ❄️ Animations */}
+      <style jsx>{`
+        @keyframes fall {
+          0% {
+            transform: translateY(-10px);
+          }
+          100% {
+            transform: translateY(100vh);
+          }
+        }
+        .animate-fall {
+          animation: fall linear infinite;
+        }
+
+        /* Christmas bulbs animation */
+        .bulb {
+          animation: glow 2.5s infinite alternate;
+          filter: drop-shadow(0 0 6px currentColor);
+        }
+        .bulb-0 {
+          fill: #facc15;
+        }
+        .bulb-1 {
+          fill: #22c55e;
+        }
+        .bulb-2 {
+          fill: #ef4444;
+        }
+        .bulb-3 {
+          fill: #3b82f6;
+        }
+        @keyframes glow {
+          0% {
+            opacity: 0.4;
+          }
+          100% {
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   );
 };

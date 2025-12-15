@@ -25,7 +25,6 @@ const VendorMenuPage = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
   const [cartOpen, setCartOpen] = useState(true);
 
   const BACKENDURL =
@@ -49,7 +48,6 @@ const VendorMenuPage = () => {
     0
   );
 
-  // Fetch vendor + products
   useEffect(() => {
     if (!slug) return;
     const fetchData = async () => {
@@ -73,7 +71,6 @@ const VendorMenuPage = () => {
     fetchData();
   }, [slug]);
 
-  // Sort by vendor "position" first, then push drinks to bottom
   const sortedProducts = [...products].sort((a, b) => {
     if (a.position !== b.position) return a.position - b.position;
 
@@ -94,8 +91,31 @@ const VendorMenuPage = () => {
         </title>
       </Head>
 
-      <section className="px-6 py-8 bg-gray-50 min-h-screen">
-        <div className="max-w-6xl mx-auto">
+      <section className="px-6 py-8 bg-gray-50 min-h-screen relative">
+        {/* 🎄 Christmas Rope Lights */}
+        <svg
+          className="absolute top-0 left-0 w-full h-12 z-20"
+          viewBox="0 0 300 50"
+          preserveAspectRatio="none"
+        >
+          <path
+            d="M0 25 Q 50 0, 100 25 T 300 25"
+            fill="none"
+            stroke="#333"
+            strokeWidth="2"
+          />
+          {[...Array(7)].map((_, i) => (
+            <circle
+              key={i}
+              cx={i * 50 + 25}
+              cy={25 + Math.sin(i) * 5}
+              r="4"
+              className={`bulb bulb-${i % 4}`}
+            />
+          ))}
+        </svg>
+
+        <div className="max-w-6xl mx-auto relative z-10">
           {/* Back button */}
           <button
             onClick={() => router.back()}
@@ -368,6 +388,34 @@ const VendorMenuPage = () => {
             </>
           )}
         </div>
+
+        {/* Bulb animation styles */}
+        <style jsx>{`
+          .bulb {
+            animation: glow 2.5s infinite alternate;
+            filter: drop-shadow(0 0 6px currentColor);
+          }
+          .bulb-0 {
+            fill: #facc15;
+          }
+          .bulb-1 {
+            fill: #22c55e;
+          }
+          .bulb-2 {
+            fill: #ef4444;
+          }
+          .bulb-3 {
+            fill: #3b82f6;
+          }
+          @keyframes glow {
+            0% {
+              opacity: 0.4;
+            }
+            100% {
+              opacity: 1;
+            }
+          }
+        `}</style>
       </section>
     </>
   );
