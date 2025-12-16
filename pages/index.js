@@ -12,6 +12,7 @@ import Faq from "@/components/Faq";
 import ContactSupport from "@/components/ContactSupport";
 import Categories from "@/components/Categories";
 import VendorSkeletonCard from "@/components/VendorSkeletonCard";
+import IOSInstallNotice from "@/components/IOSInstallNotice";
 import Image from "next/image";
 import Link from "next/link";
 import axios from "axios";
@@ -21,13 +22,13 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useCategory } from "@/context/CategoryContext";
 
-const CHRISTMAS = true;
-
 const poppins = Poppins({
   variable: "--font-poppins",
   subsets: ["latin"],
   weight: ["400", "600", "700"],
 });
+
+const CHRISTMAS = true;
 
 export default function Home() {
   const [vendors, setVendors] = useState([]);
@@ -36,15 +37,14 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
-  const [loginmodal, setLoginmodal] = useState(false);
-  const [isFavorite, setIsFavourite] = useState(null);
+  const [loginModal, setLoginModal] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(null);
 
   const { data: session } = useSession();
   const { selectedCategory } = useCategory();
   const router = useRouter();
   const vendorsPerPage = 8;
-  const BACKENDURL =
-    "https://chowspace-backend.vercel.app" || "http://localhost:2005";
+  const BACKENDURL = "https://chowspace-backend.vercel.app";
 
   useEffect(() => {
     const fetchData = async () => {
@@ -56,7 +56,7 @@ export default function Home() {
         setVendors(vendorsRes.data.vendors);
         setLocations(locationsRes.data.locations);
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching vendors:", err);
       } finally {
         setLoading(false);
       }
@@ -64,21 +64,32 @@ export default function Home() {
     fetchData();
   }, []);
 
-  const filtered = vendors.filter((vendor) => {
-    const matchSearch =
-      vendor.businessName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vendor.category?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchLocation =
-      selectedLocation === "All" || vendor.location === selectedLocation;
-    const matchCategory =
-      !selectedCategory || selectedCategory === "All"
-        ? true
-        : vendor.category?.toLowerCase() === selectedCategory.toLowerCase();
-    return matchSearch && matchLocation && matchCategory;
-  });
+  const filteredVendors = vendors
+    .filter((vendor) => {
+      const matchSearch =
+        vendor.businessName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        vendor.category?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchLocation =
+        selectedLocation === "All" || vendor.location === selectedLocation;
+      const matchCategory =
+        !selectedCategory || selectedCategory === "All"
+          ? true
+          : vendor.category?.toLowerCase() === selectedCategory.toLowerCase();
+      return matchSearch && matchLocation && matchCategory;
+    })
+    .sort((a, b) => {
+      const aPromo =
+        a.promotionExpiresAt && new Date(a.promotionExpiresAt) > new Date();
+      const bPromo =
+        b.promotionExpiresAt && new Date(b.promotionExpiresAt) > new Date();
+      if (aPromo !== bPromo) return bPromo - aPromo;
+      if (a.status === "opened" && b.status === "closed") return -1;
+      if (a.status === "closed" && b.status === "opened") return 1;
+      return 0;
+    });
 
-  const totalPages = Math.ceil(filtered.length / vendorsPerPage);
-  const paginated = filtered.slice(
+  const totalPages = Math.ceil(filteredVendors.length / vendorsPerPage);
+  const paginated = filteredVendors.slice(
     (currentPage - 1) * vendorsPerPage,
     currentPage * vendorsPerPage
   );
@@ -86,20 +97,18 @@ export default function Home() {
   const goToNext = () =>
     currentPage < totalPages && setCurrentPage((p) => p + 1);
   const goToPrev = () => currentPage > 1 && setCurrentPage((p) => p - 1);
-  const handleLoginModal = () => {
-    if (!session?.user) setLoginmodal(!loginmodal);
-  };
-  const toggleFav = () => setIsFavourite(!isFavorite);
+
+  const toggleFav = () => setIsFavorite(!isFavorite);
 
   return (
     <div
       className={`${poppins.variable} font-sans relative overflow-hidden bg-gradient-to-br from-red-50 via-white to-green-50`}
     >
       <Head>
-        <title>ChowSpace | Christmas Specials</title>
+        <title>ChowSpace | Order Meals from Trusted Vendors</title>
       </Head>
 
-      {/* ❄️ FALLING SNOW */}
+      {/* ❄️ Falling Snow */}
       {CHRISTMAS && (
         <div className="fixed inset-0 pointer-events-none z-10">
           {[...Array(100)].map((_, i) => (
@@ -128,87 +137,131 @@ export default function Home() {
         <PromoBanner />
         <Carousel />
 
-        {/* Vendor Cards */}
-        <section className="relative px-5 sm:px-10 md:px-20 py-16">
-          <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
-            {loading
-              ? [...Array(4)].map((_, i) => <VendorSkeletonCard key={i} />)
-              : paginated.map((vendor) => {
-                  const isPromoted =
-                    vendor.promotionExpiresAt &&
-                    new Date(vendor.promotionExpiresAt) > new Date();
-                  return (
-                    <div
-                      key={vendor._id}
-                      className="relative bg-white rounded-2xl shadow-xl overflow-hidden transition hover:scale-[1.02]"
-                    >
-                      {/* 🎄 Christmas Rope Lights */}
-                      {CHRISTMAS && (
-                        <svg
-                          className="absolute top-0 left-0 w-full h-12 z-20"
-                          viewBox="0 0 300 50"
-                          preserveAspectRatio="none"
-                        >
-                          <path
-                            d="M0 25 Q 50 0, 100 25 T 300 25"
-                            fill="none"
-                            stroke="#333"
-                            strokeWidth="2"
-                          />
-                          {[...Array(7)].map((_, i) => (
-                            <circle
-                              key={i}
-                              cx={i * 50 + 25}
-                              cy={25 + Math.sin(i) * 5}
-                              r="4"
-                              className={`bulb bulb-${i % 4}`}
-                            />
-                          ))}
-                        </svg>
-                      )}
+        {/* Vendor Section */}
+        <section className="px-5 sm:px-10 md:px-20 py-16">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#AE2108] mb-2">
+              Discover Top Vendors
+            </h2>
+            <p className="text-gray-500 max-w-md mx-auto text-sm sm:text-base">
+              Find the best meals from vendors around you and enjoy swift
+              delivery.
+            </p>
+          </div>
 
-                      <div className="relative h-56">
-                        <Image
-                          src={vendor.logo || "/logo.jpg"}
-                          alt={vendor.businessName}
-                          fill
-                          className="object-cover"
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-center justify-between mb-10">
+            <input
+              type="text"
+              placeholder="Search vendors or categories..."
+              className="w-full sm:w-1/2 px-4 py-2 rounded-lg border border-gray-300 shadow-sm focus:ring-2 focus:ring-[#AE2108] outline-none text-sm sm:text-base"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              className="w-full sm:w-1/4 px-4 py-2 rounded-lg border border-gray-300 shadow-sm text-black text-sm sm:text-base focus:ring-2 focus:ring-[#AE2108] outline-none"
+            >
+              <option value="All">All Locations</option>
+              {locations.map((loc, i) => (
+                <option key={i} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Vendor Grid */}
+          {loading ? (
+            <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {[...Array(5)].map((_, i) => (
+                <VendorSkeletonCard key={i} />
+              ))}
+            </div>
+          ) : paginated.length > 0 ? (
+            <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
+              {paginated.map((vendor) => {
+                const isPromoted =
+                  vendor.promotionExpiresAt &&
+                  new Date(vendor.promotionExpiresAt) > new Date();
+                return (
+                  <div
+                    key={vendor._id}
+                    className={`group relative bg-white border rounded-2xl overflow-hidden transition-transform duration-300 shadow-md hover:shadow-xl ${
+                      isPromoted
+                        ? "border-transparent bg-gradient-to-br from-yellow-100 to-white hover:scale-[1.015]"
+                        : "border-gray-200 hover:scale-[1.01]"
+                    }`}
+                  >
+                    {/* 🎄 Christmas Rope Lights */}
+                    {CHRISTMAS && (
+                      <svg
+                        className="absolute top-0 left-0 w-full h-12 z-20"
+                        viewBox="0 0 300 50"
+                        preserveAspectRatio="none"
+                      >
+                        <path
+                          d="M0 25 Q 50 0, 100 25 T 300 25"
+                          fill="none"
+                          stroke="#333"
+                          strokeWidth="2"
                         />
-                        {vendor.status === "closed" && (
-                          <div className="absolute inset-0 backdrop-blur-sm bg-black/40 flex items-center justify-center">
-                            <span className="text-white text-sm font-semibold">
-                              Closed
-                            </span>
-                          </div>
-                        )}
-                        <div
-                          onClick={handleLoginModal}
-                          className="absolute top-3 left-3 bg-white p-1.5 rounded-full shadow cursor-pointer z-20"
-                        >
-                          <Heart
-                            size={18}
-                            onClick={toggleFav}
-                            color="#AE2108"
-                            fill={isFavorite ? "#AE2108" : "none"}
+                        {[...Array(7)].map((_, i) => (
+                          <circle
+                            key={i}
+                            cx={i * 50 + 25}
+                            cy={25 + Math.sin(i) * 5}
+                            r="4"
+                            className={`bulb bulb-${i % 4}`}
                           />
-                        </div>
-                        {isPromoted && (
-                          <div className="absolute top-3 right-3 z-20 bg-yellow-400 text-[#AE2108] px-2 py-1 text-xs font-bold rounded-full shadow-md animate-pulse ring-2 ring-yellow-300/50">
-                            ⭐ Promoted
-                          </div>
-                        )}
-                      </div>
+                        ))}
+                      </svg>
+                    )}
 
-                      <div className="p-4 space-y-2 relative z-20">
-                        <h3 className="font-bold text-gray-900 truncate">
-                          {vendor.businessName}
-                        </h3>
-                        <p className="text-xs text-gray-500">
-                          {vendor.category} • {vendor.location}
-                        </p>
-                        <div className="flex items-center gap-1 text-xs text-gray-600">
-                          <Clock size={14} /> {vendor.deliveryDuration} mins
+                    {isPromoted && (
+                      <div className="absolute top-3 right-3 z-10 bg-yellow-400 text-[#AE2108] px-2 py-1 text-xs font-bold rounded-full shadow-md animate-pulse ring-2 ring-yellow-300/50">
+                        ⭐ Promoted
+                      </div>
+                    )}
+                    <div className="relative w-full h-56">
+                      <Image
+                        src={vendor.logo || "/logo.jpg"}
+                        alt={vendor.businessName}
+                        fill
+                        className="object-cover"
+                        priority
+                      />
+                      {vendor.status === "closed" && (
+                        <div className="absolute inset-0 backdrop-blur-sm bg-black/40 flex items-center justify-center">
+                          <span className="text-white text-sm font-semibold">
+                            Closed
+                          </span>
                         </div>
+                      )}
+                      <div className="absolute top-3 left-3 bg-white p-1.5 rounded-full shadow cursor-pointer">
+                        <Heart
+                          size={18}
+                          onClick={toggleFav}
+                          color="#AE2108"
+                          fill={isFavorite ? "#AE2108" : "none"}
+                        />
+                      </div>
+                    </div>
+                    <div className="p-4 space-y-2 sm:space-y-3">
+                      <h3 className="text-sm sm:text-base font-bold text-gray-900 truncate">
+                        {vendor.businessName}
+                      </h3>
+                      <div className="text-xs sm:text-sm text-gray-500 flex flex-wrap gap-x-2 gap-y-1">
+                        <span className="truncate">{vendor.category}</span>
+                        <span>•</span>
+                        <span className="truncate">{vendor.location}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
+                        <Clock size={14} className="text-[#AE2108]" />
+                        <span>{vendor.deliveryDuration} mins delivery</span>
+                      </div>
+                      <div className="flex items-center justify-between flex-wrap gap-y-2">
                         <div className="flex items-center gap-1 text-yellow-500">
                           {Array.from({ length: 5 }).map((_, index) => {
                             const rating = vendor.averageRating || 0;
@@ -244,33 +297,87 @@ export default function Home() {
                             ({vendor.averageRating || 0})
                           </span>
                         </div>
-
-                        <Link
-                          href={
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full font-semibold ${
                             vendor.status === "opened"
-                              ? `/vendors/menu/${vendor.slug}`
-                              : ""
-                          }
-                          className={`block w-full text-center text-xs sm:text-sm font-semibold px-4 py-2 rounded-md transition-all duration-200 ${
-                            vendor.status === "opened"
-                              ? "bg-[#AE2108] text-white hover:bg-[#941B06]"
-                              : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-red-100 text-red-700"
                           }`}
                         >
-                          View Menu
-                        </Link>
+                          {vendor.status}
+                        </span>
                       </div>
+                      <Link
+                        href={
+                          vendor.status === "opened"
+                            ? `/vendors/menu/${vendor.slug}`
+                            : ""
+                        }
+                        className={`block w-full text-center text-xs sm:text-sm font-semibold px-4 py-2 rounded-md transition-all duration-200 ${
+                          vendor.status === "opened"
+                            ? "bg-[#AE2108] text-white hover:bg-[#941B06]"
+                            : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                        }`}
+                      >
+                        View Menu
+                      </Link>
                     </div>
-                  );
-                })}
-          </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-center text-gray-500 text-sm sm:text-base">
+              No vendors match your filters.
+            </p>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6 text-sm sm:text-base">
+              <button
+                onClick={goToPrev}
+                disabled={currentPage === 1}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <span>
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={goToNext}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          )}
+
+          {/* Login Modal */}
+          {loginModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-white/10">
+              <div className="bg-white/70 backdrop-blur-xl rounded-xl shadow-xl p-6 w-80 text-center border border-white/30">
+                <p className="mb-4 text-gray-800 font-medium">
+                  Please login or sign up to add to favourites.
+                </p>
+                <button
+                  onClick={() => router.push("/Login")}
+                  className="bg-[#AE2108] text-white px-4 py-2 rounded hover:bg-[#941B06] transition"
+                >
+                  Login
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
         <Faq />
         <Footer />
       </main>
 
-      {/* 🎄 CHRISTMAS EFFECT CSS */}
+      {/* Christmas CSS */}
       <style jsx>{`
         /* Falling snow */
         .snow-fall {
