@@ -39,9 +39,6 @@ export default function Home() {
   const [loginmodal, setLoginmodal] = useState(false);
   const [isFavorite, setIsFavourite] = useState(null);
 
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [showInstallBtn, setShowInstallBtn] = useState(false);
-
   const { data: session } = useSession();
   const { selectedCategory } = useCategory();
   const router = useRouter();
@@ -49,7 +46,6 @@ export default function Home() {
   const BACKENDURL =
     "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
-  // Fetch vendors and locations
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -66,17 +62,6 @@ export default function Home() {
       }
     };
     fetchData();
-  }, []);
-
-  // PWA install prompt
-  useEffect(() => {
-    const handler = (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      setShowInstallBtn(true);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   const filtered = vendors.filter((vendor) => {
@@ -284,27 +269,6 @@ export default function Home() {
         <Faq />
         <Footer />
       </main>
-
-      {/* 🎄 PWA Install Button */}
-      {showInstallBtn && (
-        <button
-          onClick={async () => {
-            if (!deferredPrompt) return;
-            deferredPrompt.prompt();
-            const choice = await deferredPrompt.userChoice;
-            if (choice.outcome === "accepted") {
-              console.log("PWA installed!");
-            } else {
-              console.log("PWA installation dismissed.");
-            }
-            setDeferredPrompt(null);
-            setShowInstallBtn(false);
-          }}
-          className="fixed bottom-5 right-5 bg-[#AE2108] text-white px-4 py-2 rounded shadow-lg hover:bg-[#941B06] z-50"
-        >
-          Install App
-        </button>
-      )}
 
       {/* 🎄 CHRISTMAS EFFECT CSS */}
       <style jsx>{`
