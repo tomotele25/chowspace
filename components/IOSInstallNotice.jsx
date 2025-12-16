@@ -18,7 +18,7 @@ export default function IOSInstallNotice() {
   if (!show || !isIOS) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-xs w-[90%] bg-white rounded-2xl shadow-xl p-5 text-center border border-gray-200 animate-slideUp">
+    <div className="fixed bottom-6 left-10/12 -translate-x-1/2 z-50 max-w-xs w-[90%] bg-white rounded-2xl shadow-xl p-5 text-center border border-gray-200 animate-slideUp">
       <p className="text-gray-900 font-semibold text-sm sm:text-base mb-2">
         Install <span className="text-[#AE2108]">ChowSpace</span> on your iPhone
       </p>
