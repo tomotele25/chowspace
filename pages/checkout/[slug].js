@@ -107,7 +107,7 @@ export default function Checkout() {
     isSubmitting.current = true;
     setLoading(true);
 
-    const { name, phone, address, location } = deliveryDetails;
+    const { name, phone, address, location, email } = deliveryDetails;
 
     if (!name || !phone || !address || !location) {
       toast.error("Please complete delivery details");
@@ -117,6 +117,26 @@ export default function Checkout() {
     }
 
     const orderId = generateOrderId();
+
+    // Construct payload for backend
+    const payload = {
+      orderId,
+      vendorId: vendor._id,
+      items: cartItems.map((item) => ({
+        productId: item._id,
+        name: item.productName,
+        price: item.price,
+        quantity: item.quantity,
+      })),
+      guestInfo: orderFor === "guest" ? { name, phone, email } : null,
+      customerInfo: orderFor === "myself" ? { name, phone, email } : null,
+      deliveryMethod: "whatsapp",
+      note: "", // you can add a note input if you want
+      totalAmount: finalTotal,
+      packFees: packFee,
+      deliveryFee: deliveryFee,
+      // you already have orderId above
+    };
 
     const message = encodeURIComponent(
       `🍽️ *CHOWSPACE ORDER*
@@ -136,16 +156,14 @@ ${address}`,
     );
 
     try {
-      await axios.post(`${BACKENDURL}/api/orders`, {
-        orderId,
-        vendorId: vendor._id,
-        totalAmount: finalTotal,
-      });
+      await axios.post(`${BACKENDURL}/api/orders`, payload);
 
+      // Redirect to WhatsApp
       window.location.href = `https://wa.me/${formatPhoneNumber(
         vendor.contact,
       )}?text=${message}`;
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Order failed");
     } finally {
       setLoading(false);
@@ -286,7 +304,7 @@ ${address}`,
             </div>
           </div>
 
-{/* <Link href="/chat">click this </Link> */}
+          {/* <Link href="/chat">click this </Link> */}
 
           <button
             disabled={loading}
