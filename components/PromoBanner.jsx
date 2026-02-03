@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Gift, ShoppingBag } from "lucide-react";
+import { Megaphone, ShoppingBag } from "lucide-react"; // changed Gift -> Megaphone
 
 export default function PromoBanner() {
   return (
@@ -25,16 +25,14 @@ export default function PromoBanner() {
       <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-10">
         <div className="flex items-start sm:items-center gap-4 max-w-xl">
           <div className="p-4 bg-white/20 rounded-full shrink-0">
-            <Gift className="w-8 h-8 text-white animate-pulse" />
+            <Megaphone className="w-8 h-8 text-white animate-pulse" />
           </div>
           <div>
             <h2 className="text-2xl sm:text-3xl font-extrabold leading-tight tracking-tight">
-              First 50 Orders Today Are{" "}
-              <span className="underline decoration-yellow-300">FREE!</span>
+              Promote Your Business with ChowSpace
             </h2>
             <p className="text-sm sm:text-base text-orange-100 mt-1">
-              Be among the fastest to claim this exclusive deal—only available
-              daily!
+              Reach more customers and boost your sales today—join ChowSpace now!
             </p>
           </div>
         </div>
@@ -44,7 +42,7 @@ export default function PromoBanner() {
           className="inline-flex items-center gap-2 bg-white text-[#AE2108] px-6 sm:px-8 py-3 sm:py-3.5 rounded-full text-sm sm:text-base font-semibold shadow-lg hover:bg-orange-50 hover:scale-105 transition-transform duration-200"
         >
           <ShoppingBag size={20} className="text-[#AE2108]" />
-          Order Now
+          Get Started
         </a>
       </div>
 

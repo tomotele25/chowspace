@@ -27,8 +27,7 @@ const VendorMenuPage = () => {
   const [error, setError] = useState("");
   const [cartOpen, setCartOpen] = useState(true);
 
-  const BACKENDURL =
-    "https://chowspace-backend.vercel.app" || "http://localhost:2005";
+  const BACKENDURL = "https://chowspace-backend.vercel.app";
 
   const {
     cart,
@@ -45,7 +44,7 @@ const VendorMenuPage = () => {
   const currentPack = cart[currentPackIndex] || [];
   const total = currentPack.reduce(
     (sum, item) => sum + item.price * item.quantity,
-    0
+    0,
   );
 
   useEffect(() => {
@@ -54,7 +53,7 @@ const VendorMenuPage = () => {
       setLoading(true);
       try {
         const res = await axios.get(
-          `${BACKENDURL}/api/product/vendor/slug/${slug}`
+          `${BACKENDURL}/api/product/vendor/slug/${slug}`,
         );
         if (!res.data.success) {
           setError("Vendor or products not found");
@@ -91,44 +90,20 @@ const VendorMenuPage = () => {
         </title>
       </Head>
 
-      <section className="px-6 py-8 bg-gray-50 min-h-screen relative">
-        {/* 🎄 Christmas Rope Lights */}
-        <svg
-          className="absolute top-0 left-0 w-full h-12 z-20"
-          viewBox="0 0 300 50"
-          preserveAspectRatio="none"
-        >
-          <path
-            d="M0 25 Q 50 0, 100 25 T 300 25"
-            fill="none"
-            stroke="#333"
-            strokeWidth="2"
-          />
-          {[...Array(7)].map((_, i) => (
-            <circle
-              key={i}
-              cx={i * 50 + 25}
-              cy={25 + Math.sin(i) * 5}
-              r="4"
-              className={`bulb bulb-${i % 4}`}
-            />
-          ))}
-        </svg>
-
-        <div className="max-w-6xl mx-auto relative z-10">
-          {/* Back button */}
+      <section className="px-6 py-8 bg-gray-50 min-h-screen">
+        <div className="max-w-6xl mx-auto">
+          {/* Back Button */}
           <button
             onClick={() => router.back()}
-            className="mb-6 inline-flex items-center gap-2 text-[#AE2108]"
+            className="mb-6 flex items-center gap-2 text-[#AE2108] hover:underline"
           >
-            <ArrowLeftCircle size={20} />
-            <span className="text-sm font-medium">Back</span>
+            <ArrowLeftCircle size={20} /> Back
           </button>
 
-          {/* Vendor info */}
+          {/* Vendor Info */}
           {vendor && (
             <div className="flex items-center gap-4 mb-10">
-              <div className="w-16 h-16 relative rounded-full overflow-hidden border">
+              <div className="w-20 h-20 relative rounded-full overflow-hidden border-2 border-[#AE2108]">
                 <Image
                   loading="lazy"
                   src={vendor.logo || "/logo.jpg"}
@@ -138,7 +113,7 @@ const VendorMenuPage = () => {
                 />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-800">
+                <h1 className="text-2xl font-bold text-gray-900">
                   {vendor.businessName}
                 </h1>
                 <p className="text-sm text-gray-500">{vendor.location}</p>
@@ -147,7 +122,7 @@ const VendorMenuPage = () => {
             </div>
           )}
 
-          {/* Pack buttons */}
+          {/* Pack Buttons */}
           <div className="flex flex-wrap gap-2 mb-6">
             {cart.map((_, index) => (
               <button
@@ -165,13 +140,13 @@ const VendorMenuPage = () => {
             ))}
             <button
               onClick={createPack}
-              className="px-3 py-1 bg-[#AE2108] text-white rounded-full text-sm flex items-center gap-1"
+              className="px-3 py-1 bg-[#AE2108] text-white rounded-full text-sm flex items-center gap-1 hover:bg-[#941B06] transition"
             >
               <PackagePlus size={16} /> New Pack
             </button>
             <button
               onClick={() => duplicatePack(currentPackIndex)}
-              className="px-3 py-1 bg-[#AE2108] text-white rounded-full text-sm flex items-center gap-1"
+              className="px-3 py-1 bg-[#AE2108] text-white rounded-full text-sm flex items-center gap-1 hover:bg-[#941B06] transition"
             >
               <CopyPlus size={16} /> Duplicate
             </button>
@@ -185,7 +160,7 @@ const VendorMenuPage = () => {
           ) : error ? (
             <p className="text-red-600">{error}</p>
           ) : sortedProducts.length > 0 ? (
-            <div className="grid pb-15 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            <div className="grid pb-20 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
               {sortedProducts.map((product) => {
                 const item = currentPack.find((p) => p._id === product._id);
                 const count = item ? item.quantity : 0;
@@ -193,57 +168,55 @@ const VendorMenuPage = () => {
                 return (
                   <div
                     key={product._id}
-                    className="bg-white rounded-xl shadow-md hover:shadow-lg transition duration-200 flex flex-col"
+                    className="bg-white rounded-2xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 flex flex-col"
                   >
-                    <div className="w-full h-28 relative">
+                    {/* Product Image */}
+                    <div className="w-full h-32 relative overflow-hidden rounded-t-2xl">
                       <Image
                         priority
-                        src={
-                          product.image || "https://placehold.co/150x150/png"
-                        }
+                        src={product.image || "/placeholder.png"}
                         alt={product.productName}
                         fill
-                        className="object-cover rounded-t-xl"
+                        className="object-cover transition-transform duration-300 hover:scale-105"
                       />
                     </div>
 
                     <div className="p-4 flex flex-col justify-between flex-grow">
-                      <div className="flex-grow" />
-
                       <div className="space-y-1">
-                        <h3 className="font-semibold text-gray-900 text-sm leading-snug break-words">
+                        <h3 className="font-semibold text-gray-900 text-sm truncate">
                           {product.productName}
                         </h3>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 truncate">
                           {product.category}
                         </p>
                         <p className="text-sm text-[#AE2108] font-semibold">
                           ₦{product.price}
                         </p>
-                        <p
+                        <span
                           className={`text-xs font-medium ${
                             product.available
-                              ? "text-[#AE2108]"
+                              ? "text-green-600"
                               : "text-red-500"
                           }`}
                         >
                           {product.available ? "Available" : "Unavailable"}
-                        </p>
+                        </span>
                       </div>
 
-                      <div className="mt-4">
+                      {/* Quantity Controls */}
+                      <div className="mt-3">
                         {count > 0 ? (
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => removeFromCart(product._id)}
-                              className="p-1 bg-gray-200 rounded"
+                              className="p-1 bg-gray-200 rounded hover:bg-gray-300 transition"
                             >
                               <Minus size={14} />
                             </button>
                             <span className="text-sm font-medium">{count}</span>
                             <button
                               onClick={() => incrementItem(product._id)}
-                              className="p-1 bg-gray-200 rounded"
+                              className="p-1 bg-gray-200 rounded hover:bg-gray-300 transition"
                             >
                               <Plus size={14} />
                             </button>
@@ -252,7 +225,7 @@ const VendorMenuPage = () => {
                           <button
                             onClick={() => addToCart(product)}
                             disabled={!product.available}
-                            className={`w-full py-1.5 mt-2 rounded text-xs font-medium flex items-center justify-center gap-1 ${
+                            className={`w-full py-2 mt-2 rounded text-xs font-medium flex items-center justify-center gap-1 transition ${
                               product.available
                                 ? "bg-[#AE2108] text-white hover:bg-[#941B06]"
                                 : "bg-gray-200 text-gray-500 cursor-not-allowed"
@@ -271,10 +244,10 @@ const VendorMenuPage = () => {
             <p className="text-gray-500">No items on the menu yet.</p>
           )}
 
-          {/* Cart (mobile + desktop) */}
+          {/* Cart (Mobile + Desktop) */}
           {currentPack.length > 0 && (
             <>
-              {/* Mobile drawer */}
+              {/* Mobile Drawer */}
               <div className="fixed bottom-0 left-0 w-full z-50 md:hidden">
                 <div
                   className="bg-white border-t border-gray-200 shadow-lg p-4 flex justify-between items-center cursor-pointer"
@@ -333,7 +306,7 @@ const VendorMenuPage = () => {
                 )}
               </div>
 
-              {/* Desktop cart */}
+              {/* Desktop Cart */}
               <div className="hidden md:flex fixed right-8 bottom-8 w-80 bg-white border border-gray-200 rounded-2xl shadow-lg flex-col z-50 transition-all duration-300">
                 <div className="flex justify-between items-center p-3 border-b cursor-pointer">
                   <div className="flex items-center gap-2">
@@ -388,34 +361,6 @@ const VendorMenuPage = () => {
             </>
           )}
         </div>
-
-        {/* Bulb animation styles */}
-        <style jsx>{`
-          .bulb {
-            animation: glow 2.5s infinite alternate;
-            filter: drop-shadow(0 0 6px currentColor);
-          }
-          .bulb-0 {
-            fill: #facc15;
-          }
-          .bulb-1 {
-            fill: #22c55e;
-          }
-          .bulb-2 {
-            fill: #ef4444;
-          }
-          .bulb-3 {
-            fill: #3b82f6;
-          }
-          @keyframes glow {
-            0% {
-              opacity: 0.4;
-            }
-            100% {
-              opacity: 1;
-            }
-          }
-        `}</style>
       </section>
     </>
   );

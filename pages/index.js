@@ -28,8 +28,6 @@ const poppins = Poppins({
   weight: ["400", "600", "700"],
 });
 
-const CHRISTMAS = true;
-
 export default function Home() {
   const [vendors, setVendors] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -91,7 +89,7 @@ export default function Home() {
   const totalPages = Math.ceil(filteredVendors.length / vendorsPerPage);
   const paginated = filteredVendors.slice(
     (currentPage - 1) * vendorsPerPage,
-    currentPage * vendorsPerPage
+    currentPage * vendorsPerPage,
   );
 
   const goToNext = () =>
@@ -108,26 +106,6 @@ export default function Home() {
         <title>ChowSpace | Order Meals from Trusted Vendors</title>
       </Head>
 
-      {/* ❄️ Falling Snow */}
-      {CHRISTMAS && (
-        <div className="fixed inset-0 pointer-events-none z-10">
-          {[...Array(100)].map((_, i) => (
-            <span
-              key={i}
-              className="snow-fall"
-              style={{
-                left: `${Math.random() * 100}%`,
-                fontSize: `${Math.random() * 6 + 4}px`,
-                animationDelay: `${Math.random() * 10}s`,
-                animationDuration: `${Math.random() * 10 + 10}s`,
-              }}
-            >
-              ❄
-            </span>
-          ))}
-        </div>
-      )}
-
       <ScrollToTopBtn />
       <ContactSupport />
       <main>
@@ -138,7 +116,7 @@ export default function Home() {
         <Carousel />
 
         {/* Vendor Section */}
-        <section className="px-5 sm:px-10 md:px-20 py-16">
+        <section id="vendors" className="px-4 sm:px-10 md:px-20 py-16">
           <div className="text-center mb-12">
             <h2 className="text-3xl sm:text-4xl font-extrabold text-[#AE2108] mb-2">
               Discover Top Vendors
@@ -154,14 +132,14 @@ export default function Home() {
             <input
               type="text"
               placeholder="Search vendors or categories..."
-              className="w-full sm:w-1/2 px-4 py-2 rounded-lg border border-gray-300 shadow-sm focus:ring-2 focus:ring-[#AE2108] outline-none text-sm sm:text-base"
+              className="w-full sm:w-1/2 px-4 py-3 rounded-xl border border-gray-300 shadow-md focus:ring-2 focus:ring-[#AE2108] outline-none text-sm sm:text-base transition-all duration-300"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
             <select
               value={selectedLocation}
               onChange={(e) => setSelectedLocation(e.target.value)}
-              className="w-full sm:w-1/4 px-4 py-2 rounded-lg border border-gray-300 shadow-sm text-black text-sm sm:text-base focus:ring-2 focus:ring-[#AE2108] outline-none"
+              className="w-full sm:w-1/4 px-4 py-3 rounded-xl border border-gray-300 shadow-md text-black text-sm sm:text-base focus:ring-2 focus:ring-[#AE2108] outline-none transition-all duration-300"
             >
               <option value="All">All Locations</option>
               {locations.map((loc, i) => (
@@ -174,13 +152,13 @@ export default function Home() {
 
           {/* Vendor Grid */}
           {loading ? (
-            <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {[...Array(5)].map((_, i) => (
+            <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 animate-pulse">
+              {[...Array(8)].map((_, i) => (
                 <VendorSkeletonCard key={i} />
               ))}
             </div>
           ) : paginated.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {paginated.map((vendor) => {
                 const isPromoted =
                   vendor.promotionExpiresAt &&
@@ -188,39 +166,10 @@ export default function Home() {
                 return (
                   <div
                     key={vendor._id}
-                    className={`group relative bg-white border rounded-2xl overflow-hidden transition-transform duration-300 shadow-md hover:shadow-xl ${
-                      isPromoted
-                        ? "border-transparent bg-gradient-to-br from-yellow-100 to-white hover:scale-[1.015]"
-                        : "border-gray-200 hover:scale-[1.01]"
-                    }`}
+                    className={`group relative bg-white border rounded-3xl overflow-hidden transition-transform duration-300 shadow-md hover:shadow-2xl hover:scale-105`}
                   >
-                    {/* 🎄 Christmas Rope Lights */}
-                    {CHRISTMAS && (
-                      <svg
-                        className="absolute top-0 left-0 w-full h-12 z-20"
-                        viewBox="0 0 300 50"
-                        preserveAspectRatio="none"
-                      >
-                        <path
-                          d="M0 25 Q 50 0, 100 25 T 300 25"
-                          fill="none"
-                          stroke="#333"
-                          strokeWidth="2"
-                        />
-                        {[...Array(7)].map((_, i) => (
-                          <circle
-                            key={i}
-                            cx={i * 50 + 25}
-                            cy={25 + Math.sin(i) * 5}
-                            r="4"
-                            className={`bulb bulb-${i % 4}`}
-                          />
-                        ))}
-                      </svg>
-                    )}
-
                     {isPromoted && (
-                      <div className="absolute top-3 right-3 z-10 bg-yellow-400 text-[#AE2108] px-2 py-1 text-xs font-bold rounded-full shadow-md animate-pulse ring-2 ring-yellow-300/50">
+                      <div className="absolute top-3 right-3 z-10 bg-yellow-400 text-[#AE2108] px-3 py-1 text-xs font-bold rounded-full shadow-md animate-pulse ring-2 ring-yellow-300/50">
                         ⭐ Promoted
                       </div>
                     )}
@@ -229,19 +178,19 @@ export default function Home() {
                         src={vendor.logo || "/logo.jpg"}
                         alt={vendor.businessName}
                         fill
-                        className="object-cover"
+                        className="object-cover rounded-t-3xl"
                         priority
                       />
                       {vendor.status === "closed" && (
-                        <div className="absolute inset-0 backdrop-blur-sm bg-black/40 flex items-center justify-center">
+                        <div className="absolute inset-0 backdrop-blur-sm bg-black/40 flex items-center justify-center rounded-t-3xl">
                           <span className="text-white text-sm font-semibold">
                             Closed
                           </span>
                         </div>
                       )}
-                      <div className="absolute top-3 left-3 bg-white p-1.5 rounded-full shadow cursor-pointer">
+                      <div className="absolute top-3 left-3 bg-white p-2 rounded-full shadow cursor-pointer">
                         <Heart
-                          size={18}
+                          size={20}
                           onClick={toggleFav}
                           color="#AE2108"
                           fill={isFavorite ? "#AE2108" : "none"}
@@ -257,8 +206,8 @@ export default function Home() {
                         <span>•</span>
                         <span className="truncate">{vendor.location}</span>
                       </div>
-                      <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
-                        <Clock size={14} className="text-[#AE2108]" />
+                      <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                        <Clock size={16} className="text-[#AE2108]" />
                         <span>{vendor.deliveryDuration} mins delivery</span>
                       </div>
                       <div className="flex items-center justify-between flex-wrap gap-y-2">
@@ -313,7 +262,7 @@ export default function Home() {
                             ? `/vendors/menu/${vendor.slug}`
                             : ""
                         }
-                        className={`block w-full text-center text-xs sm:text-sm font-semibold px-4 py-2 rounded-md transition-all duration-200 ${
+                        className={`block w-full text-center text-sm font-semibold px-4 py-2 rounded-xl transition-all duration-200 ${
                           vendor.status === "opened"
                             ? "bg-[#AE2108] text-white hover:bg-[#941B06]"
                             : "bg-gray-300 text-gray-600 cursor-not-allowed"
@@ -327,18 +276,18 @@ export default function Home() {
               })}
             </div>
           ) : (
-            <p className="text-center text-gray-500 text-sm sm:text-base">
+            <p className="text-center text-gray-500 text-base sm:text-lg">
               No vendors match your filters.
             </p>
           )}
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6 text-sm sm:text-base">
+            <div className="mt-10 flex  sm:flex-row justify-center items-center gap-4 sm:gap-6 text-sm sm:text-base">
               <button
                 onClick={goToPrev}
                 disabled={currentPage === 1}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-40"
+                className="px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-100 disabled:opacity-40 transition"
               >
                 Previous
               </button>
@@ -348,7 +297,7 @@ export default function Home() {
               <button
                 onClick={goToNext}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-40"
+                className="px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-100 disabled:opacity-40 transition"
               >
                 Next
               </button>
@@ -357,14 +306,14 @@ export default function Home() {
 
           {/* Login Modal */}
           {loginModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-white/10">
-              <div className="bg-white/70 backdrop-blur-xl rounded-xl shadow-xl p-6 w-80 text-center border border-white/30">
+            <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-black/20 p-4">
+              <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 w-full max-w-xs text-center border border-white/30">
                 <p className="mb-4 text-gray-800 font-medium">
                   Please login or sign up to add to favourites.
                 </p>
                 <button
                   onClick={() => router.push("/Login")}
-                  className="bg-[#AE2108] text-white px-4 py-2 rounded hover:bg-[#941B06] transition"
+                  className="bg-[#AE2108] text-white px-6 py-2 rounded-xl hover:bg-[#941B06] transition"
                 >
                   Login
                 </button>
@@ -376,58 +325,6 @@ export default function Home() {
         <Faq />
         <Footer />
       </main>
-
-      {/* Christmas CSS */}
-      <style jsx>{`
-        /* Falling snow */
-        .snow-fall {
-          position: absolute;
-          top: -10px;
-          color: white;
-          opacity: 0.9;
-          animation-name: fall;
-          animation-timing-function: linear;
-          animation-iteration-count: infinite;
-        }
-
-        @keyframes fall {
-          0% {
-            transform: translateY(0);
-            opacity: 0.9;
-          }
-          100% {
-            transform: translateY(110vh);
-            opacity: 0.9;
-          }
-        }
-
-        /* Christmas bulbs animation */
-        .bulb {
-          animation: glow 2.5s infinite alternate;
-          filter: drop-shadow(0 0 6px currentColor);
-        }
-        .bulb-0 {
-          fill: #facc15;
-        }
-        .bulb-1 {
-          fill: #22c55e;
-        }
-        .bulb-2 {
-          fill: #ef4444;
-        }
-        .bulb-3 {
-          fill: #3b82f6;
-        }
-
-        @keyframes glow {
-          0% {
-            opacity: 0.4;
-          }
-          100% {
-            opacity: 1;
-          }
-        }
-      `}</style>
     </div>
   );
 }
