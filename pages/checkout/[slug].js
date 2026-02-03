@@ -102,74 +102,97 @@ export default function Checkout() {
     }
   };
 
-  const handlePay = async () => {
-    if (loading || isSubmitting.current) return;
-    isSubmitting.current = true;
-    setLoading(true);
+const handlePay = async () => {
+  if (loading || isSubmitting.current) return;
+  isSubmitting.current = true;
+  setLoading(true);
 
-    const { name, phone, address, location, email } = deliveryDetails;
+  const { name, phone, address, location, email } = deliveryDetails;
 
-    if (!name || !phone || !address || !location) {
-      toast.error("Please complete delivery details");
-      setLoading(false);
-      isSubmitting.current = false;
-      return;
-    }
+  if (!name || !phone || !address || !location) {
+    toast.error("Please complete delivery details");
+    setLoading(false);
+    isSubmitting.current = false;
+    return;
+  }
 
-    const orderId = generateOrderId();
+  const orderId = generateOrderId(); // e.g., CS-976969-KGL
 
-    // Construct payload for backend
-    const payload = {
-      orderId,
-      vendorId: vendor._id,
-      items: cartItems.map((item) => ({
-        productId: item._id,
-        name: item.productName,
-        price: item.price,
-        quantity: item.quantity,
-      })),
-      guestInfo: orderFor === "guest" ? { name, phone, email } : null,
-      customerInfo: orderFor === "myself" ? { name, phone, email } : null,
-      deliveryMethod: "whatsapp",
-      note: "", // you can add a note input if you want
-      totalAmount: finalTotal,
-      packFees: packFee,
-      deliveryFee: deliveryFee,
-      // you already have orderId above
-    };
+  // Generate the packs section
+  const packsText = cart
+    .map((pack, index) => {
+      const itemsText = pack
+        .map((item) => `- ${item.productName} | qty: ${item.quantity}`)
+        .join("\n");
+      return `PACK ${index + 1}\n${itemsText}`;
+    })
+    .join("\n\n");
 
-    const message = encodeURIComponent(
-      `🍽️ *CHOWSPACE ORDER*
+  // Construct the WhatsApp message
+  const message = encodeURIComponent(
+    `🍽️ CHOWSPACE ORDER
+
+ORDER DETAILS
 Order ID: ${orderId}
 
-Subtotal: ₦${formatCurrency(cartTotal)}
-Packing Fee: ₦${formatCurrency(packFee)}
-Delivery: ₦${formatCurrency(deliveryFee)}
-Service Fee: ₦${formatCurrency(serviceCharge)}
+${packsText}
 
-TOTAL: ₦${formatCurrency(finalTotal)}
+SUB TOTAL: ₦${formatCurrency(cartTotal)}
+PACKING FEE: ₦${formatCurrency(packFee)}
+DELIVERY PRICE: ₦${formatCurrency(deliveryFee)}
+SERVICE FEE: ₦${formatCurrency(serviceCharge)}
+TOTAL PRICE: 💳 ₦${formatCurrency(finalTotal)}
 
-Customer:
-${name}
-${phone}
-${address}`,
-    );
+CUSTOMER DETAILS 👤
+Name: ${name}
+Location: ${location}
+Address: ${address}
+Phone: ${phone}
 
-    try {
-      await axios.post(`${BACKENDURL}/api/orders`, payload);
+🙏 Thank you for ordering with CHOWSPACE!
 
-      // Redirect to WhatsApp
-      window.location.href = `https://wa.me/${formatPhoneNumber(
-        vendor.contact,
-      )}?text=${message}`;
-    } catch (err) {
-      console.error(err);
-      toast.error("Order failed");
-    } finally {
-      setLoading(false);
-      isSubmitting.current = false;
-    }
+PRICE CONFIRMATION
+🔗 https://chowspace.ng/confirm/${orderId}
+
+Leave a Review ✍️
+🔗 https://chowspace.ng/ReviewPage/${vendor._id}`,
+  );
+
+  // Prepare payload for backend
+  const payload = {
+    orderId,
+    vendorId: vendor._id,
+    items: cartItems.map((item) => ({
+      productId: item._id,
+      name: item.productName,
+      price: item.price,
+      quantity: item.quantity,
+    })),
+    guestInfo: orderFor === "guest" ? { name, phone, email } : null,
+    customerInfo: orderFor === "myself" ? { name, phone, email } : null,
+    deliveryMethod: "whatsapp",
+    note: "", // optional
+    totalAmount: finalTotal,
+    packFees: packFee,
+    deliveryFee: deliveryFee,
   };
+
+  try {
+    await axios.post(`${BACKENDURL}/api/orders`, payload);
+
+    // Redirect to WhatsApp
+    window.location.href = `https://wa.me/${formatPhoneNumber(
+      vendor.contact,
+    )}?text=${message}`;
+  } catch (err) {
+    console.error(err);
+    toast.error("Order failed");
+  } finally {
+    setLoading(false);
+    isSubmitting.current = false;
+  }
+};
+
 
   if (!vendor)
     return (
