@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
 import Image from "next/image";
@@ -13,6 +13,8 @@ import {
   ShoppingCart,
   PackagePlus,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import Head from "next/head";
@@ -20,12 +22,16 @@ import Head from "next/head";
 const VendorMenuPage = () => {
   const router = useRouter();
   const { slug } = router.query;
+  const categoryRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
 
   const [vendor, setVendor] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [cartOpen, setCartOpen] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
   const BACKENDURL = "https://chowspace-backend.vercel.app";
 
@@ -61,6 +67,7 @@ const VendorMenuPage = () => {
         }
         setVendor(res.data.vendor);
         setProducts(res.data.products);
+        setSelectedCategory("All");
       } catch (err) {
         setError("Failed to load data");
       } finally {
@@ -70,15 +77,54 @@ const VendorMenuPage = () => {
     fetchData();
   }, [slug]);
 
-  const sortedProducts = [...products].sort((a, b) => {
-    if (a.position !== b.position) return a.position - b.position;
+  const categories = [
+    "All",
+    ...new Set(products.map((p) => p.category).filter(Boolean)),
+  ];
 
-    const aIsDrink = a.category?.toLowerCase().includes("drink");
-    const bIsDrink = b.category?.toLowerCase().includes("drink");
-    if (aIsDrink && !bIsDrink) return 1;
-    if (!aIsDrink && bIsDrink) return -1;
-    return 0;
-  });
+  const sortedAndFilteredProducts = [...products]
+    .filter(
+      (product) =>
+        selectedCategory === "All" || product.category === selectedCategory,
+    )
+    .sort((a, b) => {
+      if (a.position !== b.position) return a.position - b.position;
+
+      const aIsDrink = a.category?.toLowerCase().includes("drink");
+      const bIsDrink = b.category?.toLowerCase().includes("drink");
+      if (aIsDrink && !bIsDrink) return 1;
+      if (!aIsDrink && bIsDrink) return -1;
+      return 0;
+    });
+
+  const checkScroll = () => {
+    if (categoryRef.current) {
+      setCanScrollLeft(categoryRef.current.scrollLeft > 0);
+      setCanScrollRight(
+        categoryRef.current.scrollLeft <
+          categoryRef.current.scrollWidth -
+            categoryRef.current.clientWidth -
+            10,
+      );
+    }
+  };
+
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener("resize", checkScroll);
+    return () => window.removeEventListener("resize", checkScroll);
+  }, []);
+
+  const scroll = (direction) => {
+    if (categoryRef.current) {
+      const scrollAmount = 150;
+      categoryRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+      setTimeout(checkScroll, 300);
+    }
+  };
 
   return (
     <>
@@ -90,7 +136,7 @@ const VendorMenuPage = () => {
         </title>
       </Head>
 
-      <section className="px-6 py-8 bg-gray-50 min-h-screen">
+      <section className="px-6 py-8 bg-white min-h-screen">
         <div className="max-w-6xl mx-auto">
           {/* Back Button */}
           <button
@@ -123,14 +169,14 @@ const VendorMenuPage = () => {
           )}
 
           {/* Pack Buttons */}
-          <div className="flex flex-wrap gap-2 mb-6">
+          <div className="flex flex-wrap gap-2 mb-8">
             {cart.map((_, index) => (
               <button
                 key={index}
                 onClick={() => switchPack(index)}
                 className={`px-4 py-1 rounded-full text-sm font-medium transition-all duration-150 ${
                   index === currentPackIndex
-                    ? "bg-[#AE2108] text-white shadow-md"
+                    ? "bg-[#AE2108] text-white"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
@@ -152,16 +198,62 @@ const VendorMenuPage = () => {
             </button>
           </div>
 
+          {/* Horizontal Scrollable Categories */}
+          {!loading && categories.length > 1 && (
+            <div className="mb-8 flex items-center gap-3">
+              {canScrollLeft && (
+                <button
+                  onClick={() => scroll("left")}
+                  className="p-1 hover:bg-gray-100 rounded transition flex-shrink-0"
+                >
+                  <ChevronLeft size={18} className="text-gray-600" />
+                </button>
+              )}
+
+              <div
+                ref={categoryRef}
+                onScroll={checkScroll}
+                className="flex gap-2 overflow-x-auto flex-1"
+                style={{ scrollbarWidth: "none" }}
+              >
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+                      selectedCategory === category
+                        ? "bg-[#AE2108] text-white"
+                        : "bg-white border border-gray-300 text-gray-700 hover:border-[#AE2108] hover:text-[#AE2108]"
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+
+              {canScrollRight && (
+                <button
+                  onClick={() => scroll("right")}
+                  className="p-1 hover:bg-gray-100 rounded transition flex-shrink-0"
+                >
+                  <ChevronRight size={18} className="text-gray-600" />
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Menu */}
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Menu</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            {selectedCategory === "All" ? "Menu" : selectedCategory}
+          </h2>
 
           {loading ? (
             <p>Loading...</p>
           ) : error ? (
             <p className="text-red-600">{error}</p>
-          ) : sortedProducts.length > 0 ? (
+          ) : sortedAndFilteredProducts.length > 0 ? (
             <div className="grid pb-20 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
-              {sortedProducts.map((product) => {
+              {sortedAndFilteredProducts.map((product) => {
                 const item = currentPack.find((p) => p._id === product._id);
                 const count = item ? item.quantity : 0;
 
@@ -241,7 +333,11 @@ const VendorMenuPage = () => {
               })}
             </div>
           ) : (
-            <p className="text-gray-500">No items on the menu yet.</p>
+            <p className="text-gray-500">
+              {selectedCategory === "All"
+                ? "No items on the menu yet."
+                : `No items in ${selectedCategory} yet.`}
+            </p>
           )}
 
           {/* Cart (Mobile + Desktop) */}

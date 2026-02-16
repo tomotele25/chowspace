@@ -283,23 +283,37 @@ export default function Home() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="mt-10 flex  sm:flex-row justify-center items-center gap-4 sm:gap-6 text-sm sm:text-base">
+            <div className="mt-16 flex justify-center items-center gap-6">
               <button
                 onClick={goToPrev}
                 disabled={currentPage === 1}
-                className="px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-100 disabled:opacity-40 transition"
+                className="px-6 py-2.5 border-2 border-gray-300 rounded-xl font-semibold text-gray-700 hover:border-[#AE2108] hover:text-[#AE2108] hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
               >
-                Previous
+                ← Previous
               </button>
-              <span>
-                Page {currentPage} of {totalPages}
-              </span>
+
+              <div className="flex items-center gap-2">
+                {Array.from({ length: totalPages }).map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentPage(idx + 1)}
+                    className={`w-10 h-10 rounded-lg font-semibold transition-all duration-200 ${
+                      currentPage === idx + 1
+                        ? "bg-[#AE2108] text-white shadow-lg"
+                        : "border-2 border-gray-300 text-gray-700 hover:border-[#AE2108] hover:text-[#AE2108]"
+                    }`}
+                  >
+                    {idx + 1}
+                  </button>
+                ))}
+              </div>
+
               <button
                 onClick={goToNext}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-100 disabled:opacity-40 transition"
+                className="px-6 py-2.5 border-2 border-gray-300 rounded-xl font-semibold text-gray-700 hover:border-[#AE2108] hover:text-[#AE2108] hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
               >
-                Next
+                Next →
               </button>
             </div>
           )}
