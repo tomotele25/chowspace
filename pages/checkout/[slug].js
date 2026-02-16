@@ -353,7 +353,8 @@ Leave a Review ✍️
                 </button>
 
                 <p className="text-center text-xs text-gray-600 mt-4">
-                  You'll confirm the order directly with the vendor on WhatsApp
+                  You&apos;ll confirm the order directly with the vendor on
+                  WhatsApp
                 </p>
               </form>
             </div>

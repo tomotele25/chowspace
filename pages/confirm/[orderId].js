@@ -13,7 +13,7 @@ export default function OrderConfirmation() {
   const [error, setError] = useState(null);
 
   const BACKENDURL =
-    "https://chowspace-backend.vercel.app" || "http://localhost:2005";
+    "https://chowspace-backend.vercel.app" 
 
   useEffect(() => {
     if (orderId) {
