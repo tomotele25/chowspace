@@ -66,7 +66,7 @@ export default function ManagerDashboard() {
   const router = useRouter();
 
 const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
+  "https://chowspace-backend.vercel.app" 
   const CHAT_URL = "http://localhost:2005";
   const vendorId = session?.user?.id;
 

@@ -32,7 +32,8 @@ import toast, { Toaster } from "react-hot-toast";
 import axios from "axios";
 
 const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
+
+  "https://chowspace-backend.vercel.app" 
 
 function StatusDot({ status }) {
   return (

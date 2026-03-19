@@ -37,7 +37,7 @@ export default function ManageLocation() {
   const [formOpen, setFormOpen] = useState(false);
 
 const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
+  "https://chowspace-backend.vercel.app" 
   const { data: session } = useSession();
   const router = useRouter();
   const token = session?.user?.accessToken;

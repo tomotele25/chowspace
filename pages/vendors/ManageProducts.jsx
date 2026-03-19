@@ -191,7 +191,7 @@ export default function ManageProducts() {
   const router = useRouter();
   const { data: session } = useSession();
 const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
+  "https://chowspace-backend.vercel.app" 
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
