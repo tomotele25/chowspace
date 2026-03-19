@@ -5,13 +5,20 @@ import Link from "next/link";
 import {
   X,
   LayoutDashboard,
-  LocationEditIcon,
+  MapPin,
   UtensilsCrossed,
   PackageOpen,
   Settings,
   LogOut,
   Pencil,
   Save,
+  Trash2,
+  Plus,
+  ChevronLeft,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Menu,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -21,68 +28,102 @@ export default function ManageLocation() {
   const [location, setLocation] = useState("");
   const [price, setPrice] = useState("");
   const [message, setMessage] = useState(null);
-
   const [vendorId, setVendorId] = useState(null);
+  const [managerId, setManagerId] = useState(null);
   const [locations, setLocations] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({ location: "", price: "" });
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [formOpen, setFormOpen] = useState(false);
 
-  const BACKENDURL =
-    "https://chowspace-backend.vercel.app" || "http://localhost:2005";
-
+const BACKENDURL =
+  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
   const { data: session } = useSession();
   const router = useRouter();
   const token = session?.user?.accessToken;
-  const managerId = session?.user?.id;
+  const role = session?.user?.role;
+  const sessionVendorId = session?.user?.vendorId; // only on vendor role
+  const sessionUserId = session?.user?.id;
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  // Fetch vendor + locations
+  // Step 1: resolve managerId for both roles
+  // - manager: their session.user.id IS the managerId directly
+  // - vendor: call getManagerByVendorId with their vendorId to get managerId
   useEffect(() => {
-    if (!managerId) return;
+    if (!role || !token) return;
 
-    const fetchVendorAndLocations = async () => {
-      try {
-        const res = await axios.get(
-          `${BACKENDURL}/api/locations/manager/${managerId}`
-        );
-        if (res.data?.vendor?._id) {
-          setVendorId(res.data.vendor._id);
-        }
-        setLocations(res.data.locations || []);
-      } catch (err) {
-        console.error("Failed to fetch vendor locations:", err);
-      }
-    };
-
-    fetchVendorAndLocations();
-  }, [managerId]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!token) {
-      setMessage({ type: "error", text: "Missing vendor or token." });
+    if (role === "manager") {
+      setManagerId(sessionUserId);
       return;
     }
 
-    try {
-      const res = await axios.post(
-        `${BACKENDURL}/api/createVendorLocation`,
-        { vendorId, location, price },
-        { headers: { Authorization: `Bearer ${session?.user?.accessToken}` } }
-      );
+    // vendor role — look up their manager
+    if (!sessionVendorId) return;
+    const resolveManagerId = async () => {
+      try {
+        const res = await axios.get(`${BACKENDURL}/api/getManagerByVendorId`, {
+          params: { vendorId: sessionVendorId },
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.data?.managerId) setManagerId(res.data.managerId);
+      } catch (err) {
+        console.error("Failed to resolve manager ID:", err);
+        setMessage({
+          type: "error",
+          text: "Could not resolve manager account.",
+        });
+      }
+    };
+    resolveManagerId();
+  }, [role, sessionUserId, sessionVendorId, token]);
 
-      setMessage({ type: "success", text: "Location added successfully!" });
-      setLocation("");
-      setPrice("");
-      setLocations((prev) => [...prev, res.data.location]);
-    } catch (err) {
-      setMessage({
-        type: "error",
-        text: err.response?.data?.message || "Failed to create location.",
-      });
-    }
-  };
+  // Step 2: fetch locations using managerId (same endpoint for both roles now)
+  useEffect(() => {
+    if (!managerId) return;
+    const fetchLocations = async () => {
+      try {
+        const res = await axios.get(
+          `${BACKENDURL}/api/locations/manager/${managerId}`,
+        );
+        if (res.data?.vendor?._id) setVendorId(res.data.vendor._id);
+        setLocations(res.data.locations || []);
+      } catch (err) {
+        console.error("Failed to fetch locations:", err);
+      }
+    };
+    fetchLocations();
+  }, [managerId]);
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!message) return;
+    const t = setTimeout(() => setMessage(null), 4000);
+    return () => clearTimeout(t);
+  }, [message]);
+
+  // Create — vendor sends vendorId, manager sends managerId
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!token) return setMessage({ type: "error", text: "Missing token." });
+  try {
+    const res = await axios.post(
+      `${BACKENDURL}/api/createVendorLocation`,
+      { managerId, location, price },
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    setMessage({ type: "success", text: "Location added successfully!" });
+    setLocation("");
+    setPrice("");
+    setFormOpen(false);
+    setLocations((prev) => [...prev, res.data.location]);
+  } catch (err) {
+    setMessage({
+      type: "error",
+      text: err.response?.data?.message || "Failed to create location.",
+    });
+  }
+};
 
   const startEditing = (loc) => {
     setEditingId(loc._id);
@@ -91,246 +132,463 @@ export default function ManageLocation() {
 
   const saveEdit = async (id) => {
     if (!token || !managerId) return;
-
     try {
       const res = await axios.put(
         `${BACKENDURL}/api/locations/${managerId}`,
         { locations: [{ ...editValues, _id: id }] },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
-
       const updatedLoc = res.data.locations.find((l) => l._id === id);
       setLocations((prev) =>
-        prev.map((loc) => (loc._id === id ? updatedLoc : loc))
+        prev.map((loc) => (loc._id === id ? updatedLoc : loc)),
       );
       setEditingId(null);
-      setMessage({ type: "success", text: "Location updated successfully!" });
+      setMessage({ type: "success", text: "Location updated!" });
     } catch (err) {
       setMessage({
         type: "error",
-        text: err.response?.data?.message || "Failed to update location.",
+        text: err.response?.data?.message || "Failed to update.",
       });
     }
   };
 
-  const handleLogout = () => {
-    signOut({ callbackUrl: "/Login" });
+  const handleDelete = async (id) => {
+    if (!token) return;
+    try {
+      await axios.delete(`${BACKENDURL}/api/locations/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setLocations((prev) => prev.filter((loc) => loc._id !== id));
+      setDeleteConfirm(null);
+      setMessage({ type: "success", text: "Location deleted." });
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: err.response?.data?.message || "Failed to delete.",
+      });
+    }
   };
 
+  const handleLogout = () => signOut({ callbackUrl: "/Login" });
+
+  const navLinks = [
+    {
+      href: "/vendors/ManagerDashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      href: "/vendors/ManageLocation",
+      label: "Locations",
+      icon: MapPin,
+      active: true,
+    },
+    { href: "/manager/ManagerOrder", label: "Orders", icon: UtensilsCrossed },
+    { href: "/vendors/ManageProducts", label: "Products", icon: PackageOpen },
+    { href: "/manager/Profile", label: "Profile", icon: Settings },
+  ];
+
   return (
-    <div className="flex h-screen">
+    <div className="flex min-h-screen bg-[#F7F5F2] font-sans">
+      {/* Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm md:hidden"
+          onClick={toggleSidebar}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-40 h-full w-64 bg-white shadow-lg flex flex-col justify-between transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 z-40 h-full w-64 bg-white flex flex-col justify-between transition-transform duration-300 ease-in-out border-r border-gray-100 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } md:translate-x-0`}
       >
         <div>
-          <div className="flex items-center justify-between p-4 border-b">
-            <h2 className="text-xl font-bold text-[#AE2108]">Manager Panel</h2>
-            <button onClick={toggleSidebar} className="md:hidden">
-              <X />
+          <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <span className="w-8 h-8 rounded-lg bg-[#AE2108] flex items-center justify-center">
+                <MapPin size={16} className="text-white" />
+              </span>
+              <span className="text-lg font-black text-gray-900 tracking-tight">
+                ChowSpace
+              </span>
+            </div>
+            <button
+              onClick={toggleSidebar}
+              className="md:hidden text-gray-400 hover:text-gray-600"
+            >
+              <X size={18} />
             </button>
           </div>
 
-          <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
-            <Link
-              href="/vendors/ManagerDashboard"
-              className="flex items-center gap-2 text-gray-700 font-semibold"
-            >
-              <LayoutDashboard size={18} />
-              Dashboard
-            </Link>
-            <Link
-              href="/vendors/ManageLocation"
-              className="flex items-center gap-2 text-[#AE2108] hover:text-[#AE2108] font-semibold"
-            >
-              <LocationEditIcon size={18} />
-              Locations
-            </Link>
-            <Link
-              href="/manager/ManagerOrder"
-              className="flex items-center gap-2 text-gray-700 hover:text-[#AE2108] font-semibold"
-            >
-              <UtensilsCrossed size={18} />
-              Orders
-            </Link>
-            <Link
-              href="/vendors/ManageProducts"
-              className="flex items-center gap-2 text-gray-700 hover:text-[#AE2108] font-semibold"
-            >
-              <PackageOpen size={18} />
-              Products
-            </Link>
-            <Link
-              href="/manager/Profile"
-              className="flex items-center gap-2 text-gray-700 hover:text-[#AE2108] font-semibold"
-            >
-              <Settings size={18} />
-              Profile
-            </Link>
-          </nav>
+          <div className="px-3 py-4">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-2">
+              Menu
+            </p>
+            <nav className="space-y-0.5">
+              {navLinks.map(({ href, label, icon: Icon, active }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 ${
+                    active
+                      ? "bg-[#AE2108]/10 text-[#AE2108]"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  }`}
+                >
+                  <Icon size={17} />
+                  {label}
+                  {active && (
+                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#AE2108]" />
+                  )}
+                </Link>
+              ))}
+            </nav>
+          </div>
         </div>
 
-        <div className="p-4 border-t">
+        <div className="px-3 py-4 border-t border-gray-100">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 text-red-600 hover:bg-red-100 px-3 py-2 rounded-md w-full"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 w-full transition-all duration-150"
           >
-            <LogOut size={18} />
+            <LogOut size={17} />
             Logout
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 p-6  overflow-y-auto bg-gray-50">
-        {/* Back button */}
-        <div className="mb-4">
-          <button
-            onClick={() => router.back()}
-            className="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300"
-          >
-            ← Back
-          </button>
-        </div>
-
-        <div className="max-w-3xl mx-auto mt-4">
-          <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-            <h1 className="text-2xl font-bold text-gray-800 mb-6">
-              Add Delivery Location
-            </h1>
-
-            {message && (
-              <div
-                className={`mb-4 p-3 rounded ${
-                  message.type === "success"
-                    ? "bg-green-100 text-green-800"
-                    : "bg-red-100 text-red-800"
-                }`}
+      {/* Main content */}
+      <div className="flex-1 md:ml-64 flex flex-col">
+        {/* Top bar */}
+        <header className="sticky top-0 z-20 bg-[#F7F5F2]/90 backdrop-blur-md border-b border-gray-200/60 px-4 sm:px-6 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={toggleSidebar}
+                className="md:hidden w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-600 hover:text-[#AE2108]"
               >
-                {message.text}
+                <Menu size={18} />
+              </button>
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">
+                  Delivery Locations
+                </h1>
+                <p className="text-xs text-gray-400 hidden sm:block">
+                  Manage where you deliver and set prices
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => router.back()}
+                className="hidden sm:flex items-center gap-1.5 text-sm font-semibold text-gray-600 hover:text-gray-900 transition"
+              >
+                <ChevronLeft size={16} /> Back
+              </button>
+              <button
+                onClick={() => setFormOpen(true)}
+                className="flex items-center gap-1.5 bg-[#AE2108] text-white text-sm font-bold px-3 sm:px-4 py-2 rounded-xl hover:bg-[#941B06] transition-all shadow-md shadow-red-200 whitespace-nowrap"
+              >
+                <Plus size={16} />
+                <span>Add Location</span>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Toast */}
+        {message && (
+          <div
+            className={`mx-4 sm:mx-6 mt-4 flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium shadow-sm border ${
+              message.type === "success"
+                ? "bg-green-50 text-green-800 border-green-200"
+                : "bg-red-50 text-red-800 border-red-200"
+            }`}
+          >
+            {message.type === "success" ? (
+              <CheckCircle2
+                size={16}
+                className="text-green-500 flex-shrink-0"
+              />
+            ) : (
+              <XCircle size={16} className="text-red-500 flex-shrink-0" />
+            )}
+            {message.text}
+          </div>
+        )}
+
+        <div className="px-4 sm:px-6 py-6 w-full max-w-3xl mx-auto space-y-5">
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                Total Zones
+              </p>
+              <p className="text-3xl font-black text-gray-900">
+                {locations.length}
+              </p>
+            </div>
+            <div className="bg-[#AE2108] rounded-2xl p-4 shadow-sm shadow-red-200">
+              <p className="text-[10px] font-bold text-red-200 uppercase tracking-widest mb-1">
+                Min. Delivery
+              </p>
+              <p className="text-2xl sm:text-3xl font-black text-white truncate">
+                {locations.length
+                  ? `₦${Math.min(...locations.map((l) => Number(l.price))).toLocaleString()}`
+                  : "—"}
+              </p>
+            </div>
+          </div>
+
+          {/* Locations list */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-base font-black text-gray-900">
+                Active Locations
+              </h2>
+              <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
+                {locations.length} zone{locations.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+
+            {!managerId ? (
+              <div className="flex items-center justify-center py-16 text-gray-400 text-sm">
+                <div className="w-5 h-5 border-2 border-gray-300 border-t-[#AE2108] rounded-full animate-spin mr-3" />
+                Loading…
+              </div>
+            ) : locations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                <MapPin size={36} className="mb-3 opacity-30" />
+                <p className="text-sm font-semibold">No delivery zones yet</p>
+                <p className="text-xs mt-1">
+                  Click "Add Location" to get started
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {locations.map((loc) => (
+                  <div
+                    key={loc._id}
+                    className={`px-4 sm:px-6 py-4 transition-colors duration-150 ${
+                      editingId === loc._id
+                        ? "bg-amber-50/60"
+                        : "hover:bg-gray-50/40"
+                    }`}
+                  >
+                    {editingId === loc._id ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
+                              Location
+                            </label>
+                            <input
+                              type="text"
+                              value={editValues.location}
+                              onChange={(e) =>
+                                setEditValues((p) => ({
+                                  ...p,
+                                  location: e.target.value,
+                                }))
+                              }
+                              className="w-full border-2 border-amber-400 bg-white rounded-xl px-3 py-2 text-sm font-semibold focus:outline-none focus:border-[#AE2108]"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
+                              Price (₦)
+                            </label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">
+                                ₦
+                              </span>
+                              <input
+                                type="number"
+                                value={editValues.price}
+                                onChange={(e) =>
+                                  setEditValues((p) => ({
+                                    ...p,
+                                    price: e.target.value,
+                                  }))
+                                }
+                                className="w-full border-2 border-amber-400 bg-white rounded-xl pl-7 pr-3 py-2 text-sm font-semibold focus:outline-none focus:border-[#AE2108]"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => saveEdit(loc._id)}
+                            className="flex items-center gap-1.5 bg-green-500 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-green-600 transition"
+                          >
+                            <Save size={13} /> Save
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="flex items-center gap-1.5 bg-gray-200 text-gray-700 text-xs font-bold px-4 py-2 rounded-lg hover:bg-gray-300 transition"
+                          >
+                            <X size={13} /> Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-9 h-9 rounded-xl bg-[#AE2108]/10 flex items-center justify-center flex-shrink-0">
+                            <MapPin size={15} className="text-[#AE2108]" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-gray-900 text-sm truncate">
+                              {loc.location}
+                            </p>
+                            <p className="text-xs text-gray-500 font-semibold mt-0.5">
+                              ₦{Number(loc.price).toLocaleString()} delivery fee
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <button
+                            onClick={() => startEditing(loc)}
+                            className="flex items-center gap-1.5 bg-gray-100 text-gray-700 text-xs font-bold px-3 py-2 rounded-lg hover:bg-gray-200 transition"
+                          >
+                            <Pencil size={13} />
+                            <span className="hidden sm:inline">Edit</span>
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm(loc._id)}
+                            className="flex items-center gap-1.5 bg-red-50 text-[#AE2108] text-xs font-bold px-3 py-2 rounded-lg hover:bg-red-100 transition"
+                          >
+                            <Trash2 size={13} />
+                            <span className="hidden sm:inline">Delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
+          </div>
+        </div>
+      </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Add Location Modal */}
+      {formOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setFormOpen(false)}
+          />
+          <div className="relative bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md p-6 z-10">
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 sm:hidden" />
+            <div className="flex items-center justify-between mb-6">
               <div>
-                <label className="block mb-1 font-medium text-gray-700">
-                  Location
+                <h2 className="text-xl font-black text-gray-900">
+                  Add New Zone
+                </h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Set a delivery location and fee
+                </p>
+              </div>
+              <button
+                onClick={() => setFormOpen(false)}
+                className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+                  Location Name
                 </label>
                 <input
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-[#AE2108] focus:outline-none focus:border-[#AE2108]"
-                  placeholder="e.g. Lagos"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#AE2108] focus:outline-none transition"
+                  placeholder="e.g. Lekki Phase 1"
                   required
                 />
               </div>
-
               <div>
-                <label className="block mb-1 font-medium text-gray-700">
-                  Price (₦)
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+                  Delivery Fee (₦)
                 </label>
-                <input
-                  type="number"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-[#AE2108] focus:outline-none focus:border-[#AE2108]"
-                  placeholder="e.g. 2000"
-                  required
-                />
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">
+                    ₦
+                  </span>
+                  <input
+                    type="number"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    className="w-full border-2 border-gray-200 rounded-xl pl-8 pr-4 py-3 text-sm font-semibold focus:border-[#AE2108] focus:outline-none transition"
+                    placeholder="e.g. 2000"
+                    required
+                  />
+                </div>
               </div>
-
-              <button
-                type="submit"
-                className="w-full bg-[#AE2108] text-white py-2 px-4 rounded-lg hover:bg-red-700 transition"
-              >
-                Save Location
-              </button>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setFormOpen(false)}
+                  className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 rounded-xl bg-[#AE2108] text-white text-sm font-bold hover:bg-[#941B06] transition shadow-md shadow-red-200"
+                >
+                  Save Location
+                </button>
+              </div>
             </form>
           </div>
+        </div>
+      )}
 
-          {/* Existing Locations */}
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">
-              Existing Locations
-            </h2>
-            {!vendorId ? (
-              <p className="text-gray-500">Loading vendor...</p>
-            ) : locations.length === 0 ? (
-              <p className="text-gray-500">No locations yet.</p>
-            ) : (
-              <table className="min-w-full text-sm border">
-                <thead className="bg-gray-100 text-left">
-                  <tr>
-                    <th className="px-4 py-2 border">Location</th>
-                    <th className="px-4 py-2 border">Price (₦)</th>
-                    <th className="px-4 py-2 border">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {locations.map((loc) => (
-                    <tr key={loc._id} className="border-t">
-                      <td className="px-4 py-2 border">
-                        {editingId === loc._id ? (
-                          <input
-                            type="text"
-                            value={editValues.location}
-                            onChange={(e) =>
-                              setEditValues((prev) => ({
-                                ...prev,
-                                location: e.target.value,
-                              }))
-                            }
-                            className="border px-2 py-1 rounded w-full"
-                          />
-                        ) : (
-                          loc.location
-                        )}
-                      </td>
-                      <td className="px-4 py-2 border">
-                        {editingId === loc._id ? (
-                          <input
-                            type="number"
-                            value={editValues.price}
-                            onChange={(e) =>
-                              setEditValues((prev) => ({
-                                ...prev,
-                                price: e.target.value,
-                              }))
-                            }
-                            className="border px-2 py-1 rounded w-full"
-                          />
-                        ) : (
-                          `₦${Number(loc.price).toLocaleString()}`
-                        )}
-                      </td>
-                      <td className="px-4 py-2 border">
-                        {editingId === loc._id ? (
-                          <button
-                            onClick={() => saveEdit(loc._id)}
-                            className="flex items-center gap-1 bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
-                          >
-                            <Save size={14} /> Save
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => startEditing(loc)}
-                            className="flex items-center gap-1 bg-[#AE2108] text-white px-3 py-1 rounded hover:bg-blue-600"
-                          >
-                            <Pencil size={14} /> Edit
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+      {/* Delete Confirm Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setDeleteConfirm(null)}
+          />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 z-10 text-center">
+            <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle size={24} className="text-[#AE2108]" />
+            </div>
+            <h3 className="text-lg font-black text-gray-900 mb-2">
+              Delete Location?
+            </h3>
+            <p className="text-sm text-gray-500 mb-6">
+              This will permanently remove{" "}
+              <span className="font-bold text-gray-800">
+                {locations.find((l) => l._id === deleteConfirm)?.location}
+              </span>{" "}
+              from your delivery zones.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirm)}
+                className="flex-1 py-3 rounded-xl bg-[#AE2108] text-white text-sm font-bold hover:bg-[#941B06] transition shadow-md shadow-red-200"
+              >
+                Yes, Delete
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Toaster, toast } from "react-hot-toast";
 import {
-  ArrowLeftCircle,
   Plus,
   X,
   LayoutDashboard,
@@ -12,13 +11,23 @@ import {
   Pencil,
   Save,
   GripVertical,
+  Search,
+  ChevronLeft,
+  Trash2,
+  AlertTriangle,
+  ImagePlus,
+  ToggleLeft,
+  ToggleRight,
+  Menu,
+  MapPin,
+  UtensilsCrossed,
+  Settings,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
-
-// dnd-kit imports
 import {
   DndContext,
   closestCenter,
@@ -31,105 +40,162 @@ import {
   arrayMove,
   SortableContext,
   useSortable,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-// ✅ Sortable Item (Product Card)
+// ─── Sortable Card ────────────────────────────────────────────────────────────
 function SortableProduct({
   product,
-  index,
   handleEdit,
   handleToggle,
   handleDelete,
   BACKENDURL,
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: product._id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: product._id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : "auto",
   };
+
+  const imgSrc = product.image
+    ? product.image.startsWith("http")
+      ? product.image
+      : `${BACKENDURL}/uploads/${product.image}`
+    : null;
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 text-sm relative"
+      className={`group relative bg-white rounded-2xl overflow-hidden border transition-all duration-200 ${
+        isDragging
+          ? "shadow-2xl scale-105 border-[#AE2108]/30"
+          : "shadow-sm hover:shadow-lg border-gray-100"
+      }`}
     >
-      {/* 🔥 Drag Handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="absolute top-2 left-2 p-1.5 rounded-full bg-gray-200 hover:bg-[#AE2108] hover:text-white text-gray-600 cursor-grab active:cursor-grabbing transition-colors"
-      >
-        <GripVertical size={18} />
-      </button>
+      {/* Image */}
+      <div className="relative w-full h-36 sm:h-40 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+        {imgSrc ? (
+          <img
+            src={imgSrc}
+            alt={product.productName}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <PackageOpen size={28} className="text-gray-300" />
+          </div>
+        )}
 
-      {product.image && (
-        <img
-          src={
-            product.image.startsWith("http")
-              ? product.image
-              : `${BACKENDURL}/uploads/${product.image}`
-          }
-          alt={product.productName}
-          className="w-full h-28 object-cover rounded-md mb-2"
-        />
-      )}
-      <h3 className="font-semibold text-[#AE2108] truncate">
-        {product.productName}
-      </h3>
-      <p className="text-gray-600 text-xs">₦{product.price}</p>
-      <p className="text-gray-400 text-xs mb-2">{product.category}</p>
-
-      <div className="flex items-center justify-between">
-        <span
-          className={`text-xs font-medium ${
-            product.available ? "text-green-600" : "text-red-600"
+        {/* Live/Off pill */}
+        <div
+          className={`absolute top-2 left-2 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
+            product.available
+              ? "bg-green-500 text-white"
+              : "bg-red-500 text-white"
           }`}
         >
-          {product.available ? "Available" : "Unavailable"}
-        </span>
-        <label className="inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            checked={product.available}
-            onChange={() => handleToggle(product._id)}
-            className="sr-only peer"
-          />
-          <div className="w-10 h-5 bg-red-400 peer-checked:bg-green-500 rounded-full relative transition-colors">
-            <div className="w-4 h-4 bg-white rounded-full shadow absolute top-0.5 left-0.5 peer-checked:translate-x-5 transform transition-transform" />
-          </div>
-        </label>
+          {product.available ? "Live" : "Off"}
+        </div>
+
+        {/* Drag handle — always visible on mobile, hover on desktop */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-black/30 backdrop-blur-sm flex items-center justify-center text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
+        >
+          <GripVertical size={14} />
+        </button>
+
+        {/* Desktop hover overlay */}
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hidden sm:flex items-center justify-center gap-3">
+          <button
+            onClick={() => handleEdit(product)}
+            className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white hover:bg-white hover:text-[#AE2108] transition-all"
+          >
+            <Pencil size={15} />
+          </button>
+          <button
+            onClick={() => handleDelete(product._id)}
+            className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white hover:bg-red-500 hover:border-red-500 transition-all"
+          >
+            <Trash2 size={15} />
+          </button>
+        </div>
       </div>
 
-      <button
-        onClick={() => handleEdit(product)}
-        className="absolute top-2 right-8 text-gray-500 hover:text-[#AE2108]"
-      >
-        <Pencil size={20} />
-      </button>
+      {/* Info */}
+      <div className="p-2.5 sm:p-3">
+        <h3 className="font-bold text-gray-900 text-xs sm:text-sm truncate mb-1">
+          {product.productName}
+        </h3>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[#AE2108] font-black text-xs sm:text-sm">
+            ₦{Number(product.price).toLocaleString()}
+          </span>
+          <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full truncate max-w-[72px]">
+            {product.category}
+          </span>
+        </div>
 
-      <button
-        onClick={() => handleDelete(product._id)}
-        className="absolute top-2 right-2 text-red-500 hover:text-red-700"
-      >
-        <X size={20} />
-      </button>
+        {/* Mobile edit/delete row */}
+        <div className="flex gap-1.5 sm:hidden mb-2">
+          <button
+            onClick={() => handleEdit(product)}
+            className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-gray-100 text-gray-700 text-[11px] font-bold rounded-lg active:bg-gray-200 transition"
+          >
+            <Pencil size={11} /> Edit
+          </button>
+          <button
+            onClick={() => handleDelete(product._id)}
+            className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-red-50 text-red-600 text-[11px] font-bold rounded-lg active:bg-red-100 transition"
+          >
+            <Trash2 size={11} /> Delete
+          </button>
+        </div>
+
+        {/* Availability toggle */}
+        <button
+          onClick={() => handleToggle(product._id)}
+          className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all ${
+            product.available
+              ? "bg-green-50 text-green-700 active:bg-green-100"
+              : "bg-red-50 text-red-700 active:bg-red-100"
+          }`}
+        >
+          {product.available ? (
+            <ToggleRight size={13} />
+          ) : (
+            <ToggleLeft size={13} />
+          )}
+          {product.available ? "Mark Unavailable" : "Mark Available"}
+        </button>
+      </div>
     </div>
   );
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ManageProducts() {
   const router = useRouter();
   const { data: session } = useSession();
-  const BACKENDURL =
-    "https://chowspace-backend.vercel.app" || "http://localhost:2005";
+const BACKENDURL =
+  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -142,10 +208,11 @@ export default function ManageProducts() {
     imagePreview: null,
   });
   const [search, setSearch] = useState("");
-
-  // ✅ Delete modal states
+  const [filterCat, setFilterCat] = useState("All");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const categories = [
     "African",
@@ -169,41 +236,50 @@ export default function ManageProducts() {
   ];
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetch = async () => {
       try {
         const res = await axios.get(`${BACKENDURL}/api/product/my-products`, {
-          headers: {
-            Authorization: `Bearer ${session?.user?.accessToken}`,
-          },
+          headers: { Authorization: `Bearer ${session?.user?.accessToken}` },
         });
         setProducts(res.data.products || []);
-      } catch (err) {
+      } catch {
         toast.error("Failed to load products");
+      } finally {
+        setPageLoading(false);
       }
     };
-
-    if (session?.user?.accessToken) fetchProducts();
+    if (session?.user?.accessToken) fetch();
   }, [session]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
+    setFormData((p) => ({
+      ...p,
       [name]: type === "checkbox" ? checked : value,
     }));
   };
-
   const handleImageChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setFormData((prev) => ({
-        ...prev,
+    if (file)
+      setFormData((p) => ({
+        ...p,
         image: file,
         imagePreview: URL.createObjectURL(file),
       }));
-    }
   };
-
+  const openAdd = () => {
+    setEditMode(false);
+    setEditId(null);
+    setFormData({
+      name: "",
+      price: "",
+      category: "",
+      available: true,
+      image: null,
+      imagePreview: null,
+    });
+    setShowModal(true);
+  };
   const handleEdit = (product) => {
     setFormData({
       name: product.productName,
@@ -211,7 +287,7 @@ export default function ManageProducts() {
       category: product.category,
       available: product.available,
       image: null,
-      imagePreview: product.image.startsWith("http")
+      imagePreview: product.image?.startsWith("http")
         ? product.image
         : `${BACKENDURL}/uploads/${product.image}`,
     });
@@ -219,31 +295,27 @@ export default function ManageProducts() {
     setEditMode(true);
     setShowModal(true);
   };
-
-  const handleDelete = (productId) => {
-    setDeleteId(productId);
+  const handleDelete = (id) => {
+    setDeleteId(id);
     setShowDeleteModal(true);
   };
-
   const confirmDelete = async () => {
     try {
       await axios.delete(`${BACKENDURL}/api/product-delete/${deleteId}`, {
         headers: { Authorization: `Bearer ${session?.user?.accessToken}` },
       });
-      setProducts((prev) => prev.filter((p) => p._id !== deleteId));
-      toast.success("Product deleted successfully");
-    } catch (err) {
-      toast.error("Failed to delete product");
+      setProducts((p) => p.filter((x) => x._id !== deleteId));
+      toast.success("Product deleted");
+    } catch {
+      toast.error("Failed to delete");
     } finally {
       setShowDeleteModal(false);
       setDeleteId(null);
     }
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const form = new FormData();
       form.append("productName", formData.name);
@@ -251,331 +323,532 @@ export default function ManageProducts() {
       form.append("category", formData.category);
       form.append("available", formData.available);
       if (formData.image) form.append("image", formData.image);
-
-      const url = editMode
-        ? `${BACKENDURL}/api/product/update/${editId}`
-        : `${BACKENDURL}/api/product/createProduct`;
-
-      const method = editMode ? "patch" : "post";
-
       const res = await axios({
-        method,
-        url,
+        method: editMode ? "patch" : "post",
+        url: editMode
+          ? `${BACKENDURL}/api/product/update/${editId}`
+          : `${BACKENDURL}/api/product/createProduct`,
         data: form,
         headers: {
           Authorization: `Bearer ${session?.user?.accessToken}`,
           "Content-Type": "multipart/form-data",
         },
       });
-
-      toast.success(editMode ? "Product updated" : "Product added");
-      setProducts((prev) => {
-        if (editMode) {
-          return prev.map((p) => (p._id === editId ? res.data.product : p));
-        } else {
-          return [res.data.product, ...prev];
-        }
-      });
-
-      setFormData({
-        name: "",
-        price: "",
-        category: "",
-        available: true,
-        image: null,
-        imagePreview: null,
-      });
-      setEditMode(false);
-      setEditId(null);
+      toast.success(editMode ? "Product updated!" : "Product added!");
+      setProducts((p) =>
+        editMode
+          ? p.map((x) => (x._id === editId ? res.data.product : x))
+          : [res.data.product, ...p],
+      );
       setShowModal(false);
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to submit product");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to save");
     } finally {
       setLoading(false);
     }
   };
-
-  const handleToggle = async (productId) => {
-    setProducts((prev) =>
-      prev.map((p) =>
-        p._id === productId ? { ...p, available: !p.available } : p
-      )
+  const handleToggle = async (id) => {
+    setProducts((p) =>
+      p.map((x) => (x._id === id ? { ...x, available: !x.available } : x)),
     );
-
     try {
       await axios.patch(
-        `${BACKENDURL}/api/product/${productId}/toggle-availability`,
+        `${BACKENDURL}/api/product/${id}/toggle-availability`,
         {},
-        { headers: { Authorization: `Bearer ${session?.user?.accessToken}` } }
+        {
+          headers: { Authorization: `Bearer ${session?.user?.accessToken}` },
+        },
       );
-      toast.success("Updated availability");
-    } catch (err) {
-      toast.error("Failed to update availability");
-      setProducts((prev) =>
-        prev.map((p) =>
-          p._id === productId ? { ...p, available: !p.available } : p
-        )
+    } catch {
+      toast.error("Failed to update");
+      setProducts((p) =>
+        p.map((x) => (x._id === id ? { ...x, available: !x.available } : x)),
       );
     }
   };
-
   const saveReorder = async () => {
     try {
-      const payload = {
-        products: products.map((p, index) => ({
-          id: p._id,
-          position: index,
-        })),
-      };
-
-      await axios.patch(`${BACKENDURL}/api/product/rearrange`, payload, {
-        headers: {
-          Authorization: `Bearer ${session?.user?.accessToken}`,
-        },
-      });
-
-      toast.success("Product order saved!");
-    } catch (err) {
-      toast.error("Failed to save new order");
+      await axios.patch(
+        `${BACKENDURL}/api/product/rearrange`,
+        { products: products.map((p, i) => ({ id: p._id, position: i })) },
+        { headers: { Authorization: `Bearer ${session?.user?.accessToken}` } },
+      );
+      toast.success("Order saved!");
+    } catch {
+      toast.error("Failed to save order");
     }
   };
-
-  const filteredProducts = products.filter((prod) =>
-    prod.productName.toLowerCase().includes(search.toLowerCase())
-  );
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(TouchSensor));
-
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-    if (active.id !== over.id) {
-      const oldIndex = products.findIndex((p) => p._id === active.id);
-      const newIndex = products.findIndex((p) => p._id === over.id);
-      setProducts((items) => arrayMove(items, oldIndex, newIndex));
+  const handleDragEnd = ({ active, over }) => {
+    if (active.id !== over?.id) {
+      const o = products.findIndex((p) => p._id === active.id);
+      const n = products.findIndex((p) => p._id === over.id);
+      setProducts((items) => arrayMove(items, o, n));
     }
   };
 
-  return (
-    <div className="flex min-h-screen bg-gray-100">
-      <Toaster position="top-right" />
+  const filteredProducts = products.filter(
+    (p) =>
+      p.productName.toLowerCase().includes(search.toLowerCase()) &&
+      (filterCat === "All" || p.category === filterCat),
+  );
+  const availableCount = products.filter((p) => p.available).length;
 
-      {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-md p-4 hidden md:flex flex-col justify-between sticky top-0 h-screen">
+  const navLinks = [
+    {
+      href: "/vendors/ManagerDashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
+    { href: "/vendors/ManageLocation", label: "Locations", icon: MapPin },
+    { href: "/manager/ManagerOrder", label: "Orders", icon: UtensilsCrossed },
+    {
+      href: "/vendors/ManageProducts",
+      label: "Products",
+      icon: PackageOpen,
+      active: true,
+    },
+    { href: "/manager/Profile", label: "Profile", icon: Settings },
+  ];
+
+  return (
+    <div className="flex h-screen bg-[#F7F5F2] overflow-hidden">
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: { borderRadius: "12px", fontWeight: 600, fontSize: "13px" },
+        }}
+      />
+
+      {/* Sidebar backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* ── Sidebar ── */}
+      <aside
+        className={`fixed top-0 left-0 z-40 h-full w-64 bg-white flex flex-col justify-between border-r border-gray-100 transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
+      >
         <div>
-          <h2 className="text-xl font-bold text-[#AE2108] mb-6">
-            Vendor Panel
-          </h2>
-          <nav className="space-y-3">
-            <Link
-              href="/vendors/Dashboard"
-              className="flex items-center gap-2 text-gray-700 hover:text-[#AE2108]"
+          <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <span className="w-8 h-8 rounded-lg bg-[#AE2108] flex items-center justify-center">
+                <PackageOpen size={15} className="text-white" />
+              </span>
+              <span className="text-lg font-black text-gray-900 tracking-tight">
+                ChowSpace
+              </span>
+            </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="md:hidden text-gray-400"
             >
-              <LayoutDashboard size={18} /> Dashboard
-            </Link>
-            <Link
-              href="/vendor/products"
-              className="flex items-center gap-2 text-gray-700 hover:text-[#AE2108]"
-            >
-              <PackageOpen size={18} /> Products
-            </Link>
-          </nav>
+              <X size={18} />
+            </button>
+          </div>
+          <div className="px-3 py-4">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-2">
+              Menu
+            </p>
+            <nav className="space-y-0.5">
+              {navLinks.map(({ href, label, icon: Icon, active }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                    active
+                      ? "bg-[#AE2108]/10 text-[#AE2108]"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  }`}
+                >
+                  <Icon size={17} />
+                  {label}
+                  {active && (
+                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#AE2108]" />
+                  )}
+                </Link>
+              ))}
+            </nav>
+          </div>
         </div>
-        <button
-          onClick={() => signOut({ callbackUrl: "/Login" })}
-          className="flex items-center gap-2 text-red-600 hover:bg-red-100 px-3 py-2 rounded-md"
-        >
-          <LogOut size={18} /> Logout
-        </button>
+        <div className="px-3 py-4 border-t border-gray-100">
+          <button
+            onClick={() => signOut({ callbackUrl: "/Login" })}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 w-full transition-all"
+          >
+            <LogOut size={17} /> Logout
+          </button>
+        </div>
       </aside>
 
-      {/* Product Grid */}
-      <main className="flex-1 p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <button
-            onClick={() => router.back()}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md shadow-sm hover:bg-gray-100"
-          >
-            <ArrowLeftCircle size={18} />
-            <span>Back</span>
-          </button>
-
-          <input
-            type="text"
-            placeholder="Search by name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="px-4 py-2 border rounded-lg w-64 focus:ring-[#AE2108] focus:outline-none"
-          />
-        </div>
-
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={filteredProducts.map((p) => p._id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {filteredProducts.length === 0 ? (
-                <p className="text-gray-500">No products found.</p>
-              ) : (
-                filteredProducts.map((prod, index) => (
-                  <SortableProduct
-                    key={prod._id}
-                    product={prod}
-                    index={index}
-                    handleEdit={handleEdit}
-                    handleToggle={handleToggle}
-                    handleDelete={handleDelete} // ✅ added delete
-                    BACKENDURL={BACKENDURL}
-                  />
-                ))
-              )}
-            </div>
-          </SortableContext>
-        </DndContext>
-
-        {/* Save Reorder */}
-        <button
-          onClick={saveReorder}
-          className="fixed bottom-6 right-20 bg-green-600 hover:bg-green-700 text-white p-4 rounded-full shadow-lg z-50 flex items-center justify-center transition-all duration-200 hover:scale-110"
-        >
-          <Save size={22} />
-        </button>
-
-        {/* Add Product */}
-        <button
-          onClick={() => setShowModal(true)}
-          className="fixed bottom-6 right-6 bg-[#AE2108] hover:bg-[#941B06] text-white p-4 rounded-full shadow-lg z-50"
-        >
-          <Plus size={24} />
-        </button>
-      </main>
-
-      {/* Add/Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md relative">
+      {/* ── Main ── */}
+      <div className="flex-1 md:ml-64 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header className="sticky top-0 z-20 bg-[#F7F5F2]/90 backdrop-blur-md border-b border-gray-200/60 px-4 sm:px-6 py-3 flex items-center justify-between flex-shrink-0 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-5 right-3 text-gray-500 hover:text-[#AE2108]"
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-600"
             >
-              <X size={22} />
+              <Menu size={18} />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-xl font-black text-gray-900 tracking-tight leading-tight">
+                Products
+              </h1>
+              <p className="text-[11px] sm:text-xs text-gray-400">
+                {availableCount} of {products.length} live
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* Back — desktop only */}
+            <button
+              onClick={() => router.back()}
+              className="hidden sm:flex items-center gap-1.5 text-sm font-semibold text-gray-600 hover:text-gray-900 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition"
+            >
+              <ChevronLeft size={16} /> Back
             </button>
 
-            <h2 className="text-xl font-semibold mb-4 text-[#AE2108]">
-              {editMode ? "Edit Product" : "Add Product"}
-            </h2>
+            {/* Filter toggle — mobile only */}
+            <button
+              onClick={() => setShowFilters((v) => !v)}
+              className={`sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border-2 transition-all ${showFilters ? "border-[#AE2108] text-[#AE2108] bg-red-50" : "border-gray-200 text-gray-600 bg-white"}`}
+            >
+              <SlidersHorizontal size={16} />
+            </button>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium">Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="mt-1 w-full border rounded-lg px-3 py-2"
-                  required
-                />
-              </div>
+            {/* Save order */}
+            <button
+              onClick={saveReorder}
+              className="flex items-center gap-1.5 bg-white border-2 border-gray-200 text-gray-700 text-xs sm:text-sm font-bold px-2.5 sm:px-3 py-2 rounded-xl hover:border-green-400 hover:text-green-600 transition-all"
+            >
+              <Save size={15} />
+              <span className="hidden sm:inline">Save Order</span>
+            </button>
 
-              <div>
-                <label className="block text-sm font-medium">Price</label>
-                <input
-                  type="number"
-                  name="price"
-                  value={formData.price}
-                  onChange={handleChange}
-                  className="mt-1 w-full border rounded-lg px-3 py-2"
-                  required
-                />
-              </div>
+            {/* Add product */}
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-1.5 bg-[#AE2108] text-white text-xs sm:text-sm font-bold px-3 sm:px-4 py-2 rounded-xl hover:bg-[#941B06] transition-all shadow-md shadow-red-200"
+            >
+              <Plus size={15} />
+              <span className="hidden xs:inline">Add</span>
+              <span className="hidden sm:inline"> Product</span>
+            </button>
+          </div>
+        </header>
 
-              <div>
-                <label className="block text-sm font-medium">Category</label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  className="mt-1 w-full border rounded-lg px-3 py-2"
-                  required
+        {/* Filters — collapsible on mobile, always on desktop */}
+        <div
+          className={`bg-white border-b border-gray-100 flex-shrink-0 overflow-hidden transition-all duration-300 ease-in-out ${showFilters ? "max-h-52" : "max-h-0"} sm:max-h-none sm:overflow-visible`}
+        >
+          <div className="px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+            {/* Search */}
+            <div className="relative w-full sm:w-52 flex-shrink-0">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="text"
+                placeholder="Search products…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8 pr-4 py-2 text-sm border-2 border-gray-200 rounded-xl focus:border-[#AE2108] focus:outline-none w-full font-medium"
+              />
+            </div>
+            {/* Category pills */}
+            <div
+              className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto"
+              style={{ scrollbarWidth: "none" }}
+            >
+              {["All", ...categories].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setFilterCat(cat)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex-shrink-0 transition-all ${
+                    filterCat === cat
+                      ? "bg-[#AE2108] text-white shadow-sm"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
                 >
-                  <option value="">Select Category</option>
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Grid */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6">
+          {pageLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+              {[...Array(10)].map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-2xl overflow-hidden animate-pulse"
+                >
+                  <div className="h-36 sm:h-40 bg-gray-200" />
+                  <div className="p-3 space-y-2">
+                    <div className="h-3 bg-gray-200 rounded w-3/4" />
+                    <div className="h-3 bg-gray-200 rounded w-1/2" />
+                    <div className="h-7 bg-gray-100 rounded-lg" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+              <PackageOpen size={48} className="mb-3 opacity-30" />
+              <p className="font-semibold text-sm">No products found</p>
+              <p className="text-xs mt-1">
+                Try a different search or add a new product
+              </p>
+            </div>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={filteredProducts.map((p) => p._id)}
+                strategy={rectSortingStrategy}
+              >
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+                  {filteredProducts.map((prod) => (
+                    <SortableProduct
+                      key={prod._id}
+                      product={prod}
+                      handleEdit={handleEdit}
+                      handleToggle={handleToggle}
+                      handleDelete={handleDelete}
+                      BACKENDURL={BACKENDURL}
+                    />
                   ))}
-                </select>
-              </div>
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+          <div className="h-4" />
+        </div>
+      </div>
 
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name="available"
-                  checked={formData.available}
-                  onChange={handleChange}
-                />
-                <span className="text-sm">Available</span>
-              </div>
+      {/* ── Add / Edit Modal ── */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowModal(false)}
+          />
+          <div
+            className="relative bg-white w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl shadow-2xl z-10 overflow-hidden flex flex-col"
+            style={{ maxHeight: "95dvh" }}
+          >
+            {/* Drag pill */}
+            <div className="flex justify-center pt-3 pb-1 sm:hidden">
+              <div className="w-10 h-1 rounded-full bg-gray-200" />
+            </div>
 
+            <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100">
               <div>
-                <label className="block text-sm font-medium">Image</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="mt-1 w-full"
-                />
-                {formData.imagePreview && (
-                  <img
-                    src={formData.imagePreview}
-                    alt="Preview"
-                    className="mt-2 h-32 w-full object-cover rounded-lg"
-                  />
-                )}
+                <h2 className="text-lg sm:text-xl font-black text-gray-900">
+                  {editMode ? "Edit Product" : "New Product"}
+                </h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {editMode ? "Update product details" : "Add to your menu"}
+                </p>
               </div>
+              <button
+                onClick={() => setShowModal(false)}
+                className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200"
+              >
+                <X size={16} />
+              </button>
+            </div>
 
+            <div className="overflow-y-auto flex-1 px-5 sm:px-6 py-4">
+              <form
+                onSubmit={handleSubmit}
+                className="space-y-4"
+                id="product-form"
+              >
+                {/* Image */}
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">
+                    Product Image
+                  </label>
+                  <label className="relative block w-full h-36 sm:h-40 rounded-2xl border-2 border-dashed border-gray-200 hover:border-[#AE2108] transition cursor-pointer overflow-hidden group">
+                    {formData.imagePreview ? (
+                      <img
+                        src={formData.imagePreview}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full gap-2 text-gray-400 group-hover:text-[#AE2108] transition">
+                        <ImagePlus size={26} />
+                        <span className="text-xs font-semibold">
+                          Tap to upload image
+                        </span>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {/* Name */}
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+                    Product Name
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold focus:border-[#AE2108] focus:outline-none transition"
+                    placeholder="e.g. Jollof Rice + Chicken"
+                    required
+                  />
+                </div>
+
+                {/* Price */}
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+                    Price (₦)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">
+                      ₦
+                    </span>
+                    <input
+                      type="number"
+                      name="price"
+                      value={formData.price}
+                      onChange={handleChange}
+                      className="w-full border-2 border-gray-200 rounded-xl pl-8 pr-4 py-2.5 text-sm font-semibold focus:border-[#AE2108] focus:outline-none transition"
+                      placeholder="0"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+                    Category
+                  </label>
+                  <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold focus:border-[#AE2108] focus:outline-none transition bg-white"
+                    required
+                  >
+                    <option value="">Select a category</option>
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Availability */}
+                <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">
+                      Available now
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      Customers can see and order this
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData((p) => ({ ...p, available: !p.available }))
+                    }
+                    className={`relative w-12 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${formData.available ? "bg-green-500" : "bg-gray-300"}`}
+                  >
+                    <span
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${formData.available ? "translate-x-7" : "translate-x-1"}`}
+                    />
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="px-5 sm:px-6 py-4 border-t border-gray-100 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
               <button
                 type="submit"
+                form="product-form"
                 disabled={loading}
-                className="w-full bg-[#AE2108] hover:bg-[#941B06] text-white px-4 py-2 rounded-lg shadow-md"
+                className="flex-1 py-3 rounded-xl bg-[#AE2108] text-white text-sm font-bold hover:bg-[#941B06] transition shadow-md shadow-red-200 disabled:opacity-60"
               >
-                {loading
-                  ? "Saving..."
-                  : editMode
-                  ? "Update Product"
-                  : "Add Product"}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    Saving…
+                  </span>
+                ) : editMode ? (
+                  "Update Product"
+                ) : (
+                  "Add Product"
+                )}
               </button>
-            </form>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* ── Delete Confirm ── */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm relative">
-            <h2 className="text-xl font-semibold mb-4 text-red-600">
-              Confirm Delete
-            </h2>
-            <p className="text-gray-700 mb-6">
-              Are you sure you want to delete this product? This action cannot
-              be undone.
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowDeleteModal(false)}
+          />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 z-10 text-center">
+            <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle size={24} className="text-[#AE2108]" />
+            </div>
+            <h3 className="text-lg font-black text-gray-900 mb-2">
+              Delete Product?
+            </h3>
+            <p className="text-sm text-gray-500 mb-6">
+              This product will be permanently removed from your menu.
             </p>
-            <div className="flex justify-end gap-3">
+            <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+                className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDelete}
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                className="flex-1 py-3 rounded-xl bg-[#AE2108] text-white text-sm font-bold hover:bg-[#941B06] transition shadow-md shadow-red-200"
               >
                 Delete
               </button>

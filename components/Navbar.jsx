@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
@@ -8,7 +8,14 @@ import { useSession } from "next-auth/react";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const { data: session } = useSession();
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const navLinks = [
     { href: "#vendors", label: "Vendors" },
@@ -17,42 +24,59 @@ const Navbar = () => {
   ];
 
   return (
-    <header className="fixed top-0 left-0 w-full z-50 bg-white/20 backdrop-blur-md shadow-sm">
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-4 flex items-center justify-between">
+    <header
+      className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${
+        scrolled
+          ? "bg-white/95 backdrop-blur-xl shadow-[0_2px_24px_rgba(0,0,0,0.08)]"
+          : "bg-transparent"
+      }`}
+    >
+      {/* thin red accent line at very top */}
+      <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-[#AE2108] to-transparent opacity-60" />
+
+      <nav className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 py-3.5 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <Image
-            loading="lazy"
-            src="/logo.jpg"
-            alt="ChowSpace Logo"
-            width={45}
-            height={40}
-            className="object-contain rounded-md"
-          />
-          <span className="text-lg sm:text-xl font-semibold text-[#AE2108]">
-            ChowSpace
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="relative w-9 h-9 rounded-xl overflow-hidden shadow-sm ring-1 ring-[#AE2108]/20 transition group-hover:ring-[#AE2108]/50">
+            <Image
+              loading="lazy"
+              src="/logo.jpg"
+              alt="ChowSpace Logo"
+              fill
+              className="object-cover"
+            />
+          </div>
+          <span
+            className={`text-lg font-bold tracking-tight transition-colors duration-300 ${scrolled ? "text-gray-900" : "text-white"}`}
+          >
+            <span className="text-[#AE2108]">Chowspace</span>
           </span>
         </Link>
 
-        {/* Desktop Menu */}
-        <div className="hidden md:flex items-center gap-6 text-sm text-gray-800">
+        {/* Desktop links */}
+        <div className="hidden md:flex items-center gap-1">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="hover:text-[#AE2108] transition-colors"
+              className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 group ${
+                scrolled
+                  ? "text-gray-600 hover:text-[#AE2108] hover:bg-[#AE2108]/5"
+                  : "text-white/80 hover:text-white hover:bg-white/10"
+              }`}
             >
               {link.label}
+              <span className="absolute bottom-1 left-4 right-4 h-px bg-[#AE2108] scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
             </Link>
           ))}
         </div>
 
-        {/* Auth Section */}
-        <div className="hidden md:flex justify-center items-center gap-4">
+        {/* Auth */}
+        <div className="hidden md:flex items-center gap-3">
           {session?.user?.role === "customer" ? (
             <Link
               href="/customers/CustomersProfile"
-              className="flex items-center justify-center text-white font-semibold bg-[#AE2108] hover:bg-[#941B06] transition w-10 h-10 rounded-full text-sm shadow"
+              className="w-9 h-9 rounded-full bg-[#AE2108] text-white text-sm font-bold flex items-center justify-center shadow-md hover:bg-[#941B06] hover:scale-105 transition-all ring-2 ring-[#AE2108]/20"
             >
               {session?.user?.fullname?.[0]}
             </Link>
@@ -60,13 +84,17 @@ const Navbar = () => {
             <>
               <Link
                 href="/Login"
-                className="text-sm text-[#AE2108] font-medium hover:underline"
+                className={`text-sm font-semibold px-4 py-2 rounded-lg transition-all duration-200 ${
+                  scrolled
+                    ? "text-[#AE2108] hover:bg-[#AE2108]/8"
+                    : "text-white/90 hover:text-white hover:bg-white/10"
+                }`}
               >
                 Sign In
               </Link>
               <Link
                 href="/Signup"
-                className="bg-[#AE2108] text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-[#941B06] transition"
+                className="bg-[#AE2108] text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-[#941B06] transition-all shadow-md shadow-[#AE2108]/25 hover:shadow-[#AE2108]/40 hover:-translate-y-px active:translate-y-0"
               >
                 Sign Up
               </Link>
@@ -74,59 +102,66 @@ const Navbar = () => {
           )}
         </div>
 
-        {/* Mobile Toggle */}
+        {/* Mobile toggle */}
         <button
-          className="md:hidden text-[#AE2108]"
+          className={`md:hidden w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+            scrolled ? "bg-gray-100 text-gray-700" : "bg-white/15 text-white"
+          } hover:scale-105 active:scale-95`}
           onClick={() => setIsOpen(!isOpen)}
+          aria-label="Toggle menu"
         >
-          {isOpen ? <X size={26} /> : <Menu size={26} />}
+          {isOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </nav>
 
-      {/* Mobile Menu */}
+      {/* Mobile menu */}
       <div
-        className={`md:hidden overflow-hidden bg-white/90 backdrop-blur-md shadow-md transition-all duration-300 ${
-          isOpen ? "max-h-96 py-4 px-6" : "max-h-0 px-6"
+        className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
+          isOpen ? "max-h-80" : "max-h-0"
         }`}
       >
-        <div className="flex flex-col gap-4 text-sm text-gray-800">
+        <div className="bg-white/97 backdrop-blur-xl border-t border-gray-100 px-5 py-4 space-y-1 shadow-lg">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               onClick={() => setIsOpen(false)}
-              className="hover:text-[#AE2108] transition-colors"
+              className="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:text-[#AE2108] hover:bg-[#AE2108]/5 transition-colors"
             >
               {link.label}
             </Link>
           ))}
-          <hr className="border-gray-200" />
-          {session?.user?.role === "customer" ? (
-            <Link
-              href="/customers/CustomersProfile"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center justify-center text-white font-semibold bg-[#AE2108] hover:bg-[#941B06] transition w-10 h-10 rounded-full text-sm shadow"
-            >
-              {session?.user?.fullname?.[0]}
-            </Link>
-          ) : (
-            <>
+          <div className="pt-2 border-t border-gray-100 mt-2 flex flex-col gap-2">
+            {session?.user?.role === "customer" ? (
               <Link
-                href="/Login"
+                href="/customers/CustomersProfile"
                 onClick={() => setIsOpen(false)}
-                className="text-[#AE2108] hover:underline"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-[#AE2108] hover:bg-[#AE2108]/5 transition-colors"
               >
-                Sign In
+                <span className="w-7 h-7 rounded-full bg-[#AE2108] text-white text-xs font-bold flex items-center justify-center">
+                  {session?.user?.fullname?.[0]}
+                </span>
+                My Profile
               </Link>
-              <Link
-                href="/Signup"
-                onClick={() => setIsOpen(false)}
-                className="bg-[#AE2108] text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-[#941B06] transition"
-              >
-                Sign Up
-              </Link>
-            </>
-          )}
+            ) : (
+              <div className="flex gap-2">
+                <Link
+                  href="/Login"
+                  onClick={() => setIsOpen(false)}
+                  className="flex-1 text-center text-sm font-semibold text-[#AE2108] border border-[#AE2108]/30 px-4 py-2.5 rounded-xl hover:bg-[#AE2108]/5 transition-colors"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/Signup"
+                  onClick={() => setIsOpen(false)}
+                  className="flex-1 text-center bg-[#AE2108] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#941B06] transition-colors shadow-sm"
+                >
+                  Sign Up
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

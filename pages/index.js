@@ -16,9 +16,17 @@ import IOSInstallNotice from "@/components/IOSInstallNotice";
 import Image from "next/image";
 import Link from "next/link";
 import axios from "axios";
-import { Heart, Clock, Star, StarHalf } from "lucide-react";
+import {
+  Heart,
+  Clock,
+  Star,
+  StarHalf,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+} from "lucide-react";
 import { useRouter } from "next/router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useCategory } from "@/context/CategoryContext";
 
@@ -38,11 +46,19 @@ export default function Home() {
   const [loginModal, setLoginModal] = useState(false);
   const [isFavorite, setIsFavorite] = useState(null);
 
+  // New Vendor Carousel state
+  const [newActiveIndex, setNewActiveIndex] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState(0);
+  const autoPlayRef = useRef(null);
+  const trackRef = useRef(null);
+
   const { data: session } = useSession();
   const { selectedCategory } = useCategory();
   const router = useRouter();
   const vendorsPerPage = 8;
-  const BACKENDURL = "https://chowspace-backend.vercel.app";
+const BACKENDURL =
+  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
   useEffect(() => {
     const fetchData = async () => {
@@ -62,6 +78,77 @@ export default function Home() {
     fetchData();
   }, []);
 
+  // New vendors sorted by createdAt (latest 10)
+  const newVendors = [...vendors]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 10);
+
+  // Auto-advance carousel
+  useEffect(() => {
+    if (!newVendors.length) return;
+    autoPlayRef.current = setInterval(() => {
+      setNewActiveIndex((prev) => (prev + 1) % newVendors.length);
+    }, 3500);
+    return () => clearInterval(autoPlayRef.current);
+  }, [newVendors.length]);
+
+  const pauseCarousel = () => clearInterval(autoPlayRef.current);
+  const resumeCarousel = () => {
+    autoPlayRef.current = setInterval(() => {
+      setNewActiveIndex((prev) => (prev + 1) % newVendors.length);
+    }, 3500);
+  };
+
+  const carouselPrev = () => {
+    setNewActiveIndex((p) => (p - 1 + newVendors.length) % newVendors.length);
+  };
+  const carouselNext = () => {
+    setNewActiveIndex((p) => (p + 1) % newVendors.length);
+  };
+
+  const onPointerDown = (e) => {
+    setIsDragging(true);
+    setDragStart(e.clientX ?? e.touches?.[0]?.clientX);
+    pauseCarousel();
+  };
+  const onPointerUp = (e) => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    const end = e.clientX ?? e.changedTouches?.[0]?.clientX;
+    const delta = dragStart - end;
+    if (Math.abs(delta) > 40) delta > 0 ? carouselNext() : carouselPrev();
+    resumeCarousel();
+  };
+
+  const getCarouselPosition = (idx) => {
+    const total = newVendors.length;
+    const diff = (idx - newActiveIndex + total) % total;
+    if (diff === 0) return "center";
+    if (diff === 1) return "right";
+    if (diff === total - 1) return "left";
+    return "hidden";
+  };
+
+  const getRelativeAge = (dateStr) => {
+    const diff = Date.now() - new Date(dateStr);
+    const days = Math.floor(diff / 86400000);
+    if (days === 0) return "Today";
+    if (days === 1) return "Yesterday";
+    if (days < 7) return `${days}d ago`;
+    if (days < 30) return `${Math.floor(days / 7)}w ago`;
+    return `${Math.floor(days / 30)}mo ago`;
+  };
+
+  const renderStars = (rating = 0) =>
+    Array.from({ length: 5 }).map((_, i) => {
+      if (rating >= i + 1)
+        return <Star key={i} size={13} fill="currentColor" stroke="none" />;
+      if (rating > i)
+        return <StarHalf key={i} size={13} fill="currentColor" stroke="none" />;
+      return <Star key={i} size={13} className="text-gray-300" fill="none" />;
+    });
+
+  // Main vendor grid logic
   const filteredVendors = vendors
     .filter((vendor) => {
       const matchSearch =
@@ -115,7 +202,170 @@ export default function Home() {
         <PromoBanner />
         <Carousel />
 
-        {/* Vendor Section */}
+        {/* ── New Vendors Carousel ── */}
+        {!loading && newVendors.length > 0 && (
+          <section className="px-4 sm:px-10 md:px-20 py-12 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-10">
+              <div className="flex items-center gap-3">
+                <span className="flex items-center justify-center w-10 h-10 rounded-full bg-[#AE2108]/10">
+                  <Sparkles size={20} className="text-[#AE2108]" />
+                </span>
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 leading-tight">
+                    New <span className="text-[#AE2108]">Vendors</span>
+                  </h2>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Fresh additions to ChowSpace
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={carouselPrev}
+                  className="w-10 h-10 rounded-full border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-[#AE2108] hover:text-[#AE2108] hover:bg-red-50 transition-all duration-200"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button
+                  onClick={carouselNext}
+                  className="w-10 h-10 rounded-full border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-[#AE2108] hover:text-[#AE2108] hover:bg-red-50 transition-all duration-200"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Track */}
+            <div
+              ref={trackRef}
+              className="relative flex items-center justify-center h-[370px] select-none"
+              onMouseDown={onPointerDown}
+              onMouseUp={onPointerUp}
+              onTouchStart={onPointerDown}
+              onTouchEnd={onPointerUp}
+              onMouseEnter={pauseCarousel}
+              onMouseLeave={() => {
+                setIsDragging(false);
+                resumeCarousel();
+              }}
+              style={{ cursor: isDragging ? "grabbing" : "grab" }}
+            >
+              {newVendors.map((vendor, idx) => {
+                const pos = getCarouselPosition(idx);
+                const isPromoted =
+                  vendor.promotionExpiresAt &&
+                  new Date(vendor.promotionExpiresAt) > new Date();
+
+                const posStyles = {
+                  center: "z-20 scale-100 opacity-100 translate-x-0 shadow-2xl",
+                  left: "z-10 scale-90 opacity-60 -translate-x-[72%] shadow-md",
+                  right: "z-10 scale-90 opacity-60 translate-x-[72%] shadow-md",
+                  hidden:
+                    "z-0 scale-75 opacity-0 translate-x-0 pointer-events-none",
+                };
+
+                return (
+                  <div
+                    key={vendor._id}
+                    onClick={() => pos !== "center" && setNewActiveIndex(idx)}
+                    className={`absolute w-72 bg-white rounded-3xl overflow-hidden transition-all duration-500 ease-[cubic-bezier(.34,1.56,.64,1)] ${posStyles[pos]}`}
+                    style={{ willChange: "transform, opacity" }}
+                  >
+                    {/* Image */}
+                    <div className="relative w-full h-48">
+                      <Image
+                        src={vendor.logo || "/logo.jpg"}
+                        alt={vendor.businessName}
+                        fill
+                        className="object-cover"
+                        priority={pos === "center"}
+                      />
+                      {/* NEW badge */}
+                      <div className="absolute top-3 left-3 bg-[#AE2108] text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg tracking-wide uppercase">
+                        ✦ New
+                      </div>
+                      {/* Promo badge */}
+                      {isPromoted && (
+                        <div className="absolute top-3 right-3 bg-yellow-400 text-[#AE2108] text-[10px] font-bold px-2.5 py-1 rounded-full shadow animate-pulse">
+                          ⭐ Promoted
+                        </div>
+                      )}
+                      {/* Closed overlay */}
+                      {vendor.status === "closed" && (
+                        <div className="absolute inset-0 backdrop-blur-sm bg-black/40 flex items-center justify-center">
+                          <span className="text-white text-sm font-semibold tracking-wide">
+                            Closed
+                          </span>
+                        </div>
+                      )}
+                      {/* Joined chip */}
+                      <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm text-gray-700 text-[10px] font-semibold px-2.5 py-1 rounded-full shadow flex items-center gap-1">
+                        <Clock size={10} className="text-[#AE2108]" />
+                        {getRelativeAge(vendor.createdAt)}
+                      </div>
+                    </div>
+
+                    {/* Info */}
+                    <div className="p-4 space-y-2">
+                      <h3 className="font-bold text-gray-900 text-sm truncate">
+                        {vendor.businessName}
+                      </h3>
+                      <div className="text-xs text-gray-500 flex gap-1.5 truncate">
+                        <span>{vendor.category}</span>
+                        <span>•</span>
+                        <span>{vendor.location}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-0.5 text-yellow-500">
+                          {renderStars(vendor.averageRating)}
+                          <span className="ml-1 text-xs text-gray-500">
+                            ({vendor.averageRating || 0})
+                          </span>
+                        </div>
+                        <span className="flex items-center gap-1 text-xs text-gray-500">
+                          <Clock size={12} className="text-[#AE2108]" />
+                          {vendor.deliveryDuration}m
+                        </span>
+                      </div>
+                      <Link
+                        href={
+                          vendor.status === "opened"
+                            ? `/vendors/menu/${vendor.slug}`
+                            : ""
+                        }
+                        className={`block w-full text-center text-xs font-bold py-2 rounded-xl transition-all duration-200 mt-1 ${
+                          vendor.status === "opened"
+                            ? "bg-[#AE2108] text-white hover:bg-[#941B06]"
+                            : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                        }`}
+                      >
+                        View Menu
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Dot indicators */}
+            <div className="flex justify-center gap-1.5 mt-6">
+              {newVendors.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setNewActiveIndex(idx)}
+                  className={`rounded-full transition-all duration-300 ${
+                    idx === newActiveIndex
+                      ? "w-6 h-2 bg-[#AE2108]"
+                      : "w-2 h-2 bg-gray-300 hover:bg-gray-400"
+                  }`}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── Main Vendor Section ── */}
         <section id="vendors" className="px-4 sm:px-10 md:px-20 py-16">
           <div className="text-center mb-12">
             <h2 className="text-3xl sm:text-4xl font-extrabold text-[#AE2108] mb-2">

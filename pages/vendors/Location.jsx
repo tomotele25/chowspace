@@ -26,8 +26,8 @@ export default function ManageLocation() {
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({ location: "", price: "" });
 
-  const BACKENDURL =
-    "https://chowspace-backend.vercel.app" || "http://localhost:2005";
+const BACKENDURL =
+  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
   const { data: session } = useSession();
   const router = useRouter();
@@ -44,7 +44,7 @@ export default function ManageLocation() {
     const fetchLocations = async () => {
       try {
         const res = await axios.get(
-          `${BACKENDURL}/api/vendor/locations/${session.user.vendorId}`, // use vendorId here
+          `${BACKENDURL}/api/vendor/locations/${session.user.vendorId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -67,9 +67,9 @@ export default function ManageLocation() {
 
     try {
       const res = await axios.post(
-        `${BACKENDURL}/api/vendor/locations`,
+        `${BACKENDURL}/api/createVendorLocation`,
         { location, price },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       setMessage({ type: "success", text: "Location added successfully!" });

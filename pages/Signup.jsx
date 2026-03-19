@@ -79,7 +79,7 @@ const Signup = () => {
             alt="Signup Visual"
             fill
             className="sm:object-cover"
-            priority
+        
           />
         </div>
 

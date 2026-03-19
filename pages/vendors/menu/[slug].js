@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
@@ -19,7 +17,7 @@ import {
 import { useCart } from "@/context/CartContext";
 import Head from "next/head";
 
-const VendorMenuPage = () => {
+const VendorMenuPage = ({ vendorMeta }) => {
   const router = useRouter();
   const { slug } = router.query;
   const categoryRef = useRef(null);
@@ -130,10 +128,44 @@ const VendorMenuPage = () => {
     <>
       <Head>
         <title>
-          {vendor
-            ? `${vendor.businessName} | Menu | ChowSpace`
+          {vendorMeta
+            ? `${vendorMeta.businessName} | Menu | ChowSpace`
             : "Menu | ChowSpace"}
         </title>
+
+        {/* Open Graph - for WhatsApp, Facebook, LinkedIn */}
+        <meta
+          property="og:title"
+          content={vendorMeta?.businessName || "ChowSpace"}
+        />
+        <meta
+          property="og:description"
+          content={`Order from ${vendorMeta?.businessName || "this vendor"} on ChowSpace`}
+        />
+        <meta
+          property="og:image"
+          content={vendorMeta?.logo || "https://chowspace.ng/logo.jpg"}
+        />
+        <meta
+          property="og:url"
+          content={`https://chowspace.ng/vendors/menu/${vendorMeta?.slug}`}
+        />
+        <meta property="og:type" content="website" />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta
+          name="twitter:title"
+          content={vendorMeta?.businessName || "ChowSpace"}
+        />
+        <meta
+          name="twitter:description"
+          content={`Order from ${vendorMeta?.businessName || "this vendor"} on ChowSpace`}
+        />
+        <meta
+          name="twitter:image"
+          content={vendorMeta?.logo || "https://chowspace.ng/logo.jpg"}
+        />
       </Head>
 
       <section className="px-6 py-8 bg-white min-h-screen">
@@ -461,5 +493,25 @@ const VendorMenuPage = () => {
     </>
   );
 };
+
+export async function getServerSideProps({ params }) {
+  try {
+    const res = await fetch(
+      `https://chowspace-backend.vercel.app/api/product/vendor/slug/${params.slug}`,
+    );
+    const data = await res.json();
+    return {
+      props: {
+        vendorMeta: data.vendor || null,
+      },
+    };
+  } catch {
+    return {
+      props: {
+        vendorMeta: null,
+      },
+    };
+  }
+}
 
 export default VendorMenuPage;
