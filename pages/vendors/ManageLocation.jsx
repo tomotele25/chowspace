@@ -47,9 +47,6 @@ const BACKENDURL =
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  // Step 1: resolve managerId for both roles
-  // - manager: their session.user.id IS the managerId directly
-  // - vendor: call getManagerByVendorId with their vendorId to get managerId
   useEffect(() => {
     if (!role || !token) return;
 
