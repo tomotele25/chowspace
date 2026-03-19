@@ -135,7 +135,7 @@ function IllustrationVendorTips() {
         <path key={i} d={`M ${105+i*23} 140 L ${116+i*23} 152 L ${127+i*23} 140`} fill="#AE2108" />
       ))}
       <rect x="170" y="115" width="140" height="20" rx="4" fill="white" opacity="0.25" />
-      <text x="240" y="129" textAnchor="middle" fontSize="11" fill="white" fontWeight="800" letterSpacing="1">MAMA'S KITCHEN</text>
+      <text x="240" y="129" textAnchor="middle" fontSize="11" fill="white" fontWeight="800" letterSpacing="1">MAMA&apos;S KITCHEN</text>
       <rect x="120" y="190" width="240" height="15" rx="3" fill="#f0e0d8" />
       {[{x:140,e:"🍲",c:"#ff8c42"},{x:200,e:"🍛",c:"#ffb347"},{x:260,e:"🥘",c:"#ff6b6b"},{x:320,e:"🥗",c:"#51cf66"}].map((f,i) => (
         <g key={i} transform={`translate(${f.x},155)`}><circle cx="20" cy="20" r="18" fill={f.c} /><text x="20" y="25" textAnchor="middle" fontSize="16">{f.e}</text></g>
