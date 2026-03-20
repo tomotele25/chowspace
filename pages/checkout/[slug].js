@@ -51,7 +51,7 @@ export default function CheckoutPage() {
   const { cart, addToCart, removeFromCart, clearCart } = useCart();
 
   const isSubmitting = useRef(false);
-  // const socketRef = useRef(null); // 🔇 chat disabled for now
+ 
 
   const [vendor, setVendor] = useState(null);
   const [locations, setLocations] = useState([]);
@@ -210,100 +210,79 @@ export default function CheckoutPage() {
   ───────────────────────────────────────────────────────── */
 
   /* ── Place order ── */
-  const handlePay = async () => {
-    if (loading || isSubmitting.current) return;
-    isSubmitting.current = true;
-    setLoading(true);
+ const handlePay = async () => {
+   if (loading || isSubmitting.current) return;
+   isSubmitting.current = true;
+   setLoading(true);
 
-    const { name, phone, address, location, email } = deliveryDetails;
+   const { name, phone, address, location, email } = deliveryDetails;
 
-    if (!name || !phone || !address || !location) {
-      toast.error("Please complete all delivery details");
-      setLoading(false);
-      isSubmitting.current = false;
-      return;
-    }
+   if (!name || !phone || !address || !location) {
+     toast.error("Please complete all delivery details");
+     setLoading(false);
+     isSubmitting.current = false;
+     return;
+   }
 
-    const orderId = generateOrderId();
+   const orderId = generateOrderId();
 
-    /* ── ✅ WhatsApp message ── */
-    const packsText = cart
-      .map((pack, i) => {
-        const items = pack
-          .map((item) => `- ${item.productName} | qty: ${item.quantity}`)
-          .join("\n");
-        return `PACK ${i + 1}\n${items}`;
-      })
-      .join("\n\n");
+   const packsText = cart
+     .map((pack, i) => {
+       const items = pack
+         .map((item) => `- ${item.productName} | qty: ${item.quantity}`)
+         .join("\n");
+       return `PACK ${i + 1}\n${items}`;
+     })
+     .join("\n\n");
 
-    const waMessage = encodeURIComponent(
-      `🍽️ CHOWSPACE ORDER\n\nORDER DETAILS\nOrder ID: ${orderId}\n\n${packsText}\n\n` +
-        `SUB TOTAL: ₦${formatCurrency(cartTotal)}\nPACKING FEE: ₦${formatCurrency(packFee)}\n` +
-        `DELIVERY PRICE: ₦${formatCurrency(deliveryFee)}\nSERVICE FEE: ₦${formatCurrency(serviceCharge)}\n` +
-        `TOTAL PRICE: 💳 ₦${formatCurrency(finalTotal)}\n\n` +
-        `CUSTOMER DETAILS 👤\nName: ${name}\nLocation: ${location}\nAddress: ${address}\nPhone: ${phone}\n\n` +
-        `🙏 Thank you for ordering with CHOWSPACE!\n\n` +
-        `PRICE CONFIRMATION\n🔗 https://chowspace.ng/confirm/${orderId}\n\n` +
-        `Leave a Review ✍️\n🔗 https://chowspace.ng/ReviewPage/${vendor._id}`,
-    );
+   const waMessage = encodeURIComponent(
+     `🍽️ CHOWSPACE ORDER\n\nORDER DETAILS\nOrder ID: ${orderId}\n\n${packsText}\n\n` +
+       `SUB TOTAL: ₦${formatCurrency(cartTotal)}\nPACKING FEE: ₦${formatCurrency(packFee)}\n` +
+       `DELIVERY PRICE: ₦${formatCurrency(deliveryFee)}\nSERVICE FEE: ₦${formatCurrency(serviceCharge)}\n` +
+       `TOTAL PRICE: 💳 ₦${formatCurrency(finalTotal)}\n\n` +
+       `CUSTOMER DETAILS 👤\nName: ${name}\nLocation: ${location}\nAddress: ${address}\nPhone: ${phone}\n\n` +
+       `🙏 Thank you for ordering with CHOWSPACE!\n\n` +
+       `PRICE CONFIRMATION\n🔗 https://chowspace.ng/confirm/${orderId}\n\n` +
+       `Leave a Review ✍️\n🔗 https://chowspace.ng/ReviewPage/${vendor._id}`,
+   );
 
-    const payload = {
-      orderId,
-      vendorId: vendor._id,
-      items: cartItems.map((item) => ({
-        productId: item._id,
-        name: item.productName,
-        price: item.price,
-        quantity: item.quantity,
-      })),
-      guestInfo: orderFor === "guest" ? { name, phone, email } : null,
-      customerInfo: orderFor === "myself" ? { name, phone, email } : null,
-      deliveryMethod: "whatsapp",
-      note: "",
-      totalAmount: finalTotal,
-      packFees: packFee,
-      deliveryFee,
-    };
+   // ✅ Open WhatsApp FIRST — still within the user gesture
+   window.open(
+     `https://wa.me/${formatPhoneNumber(vendor.contact)}?text=${waMessage}`,
+     "_blank",
+   );
 
-    try {
-      await axios.post(`${BACKENDURL}/api/orders`, payload);
+   // ✅ Then save the order in the background
+   const payload = {
+     orderId,
+     vendorId: vendor._id,
+     items: cartItems.map((item) => ({
+       productId: item._id,
+       name: item.productName,
+       price: item.price,
+       quantity: item.quantity,
+     })),
+     guestInfo: orderFor === "guest" ? { name, phone, email } : null,
+     customerInfo: orderFor === "myself" ? { name, phone, email } : null,
+     deliveryMethod: "whatsapp",
+     note: "",
+     totalAmount: finalTotal,
+     packFees: packFee,
+     deliveryFee,
+   };
 
-      setPlacedOrderId(orderId);
-
-      if (clearCart) clearCart();
-
-      /* ✅ Redirect to WhatsApp */
-      window.open(
-        `https://wa.me/${formatPhoneNumber(vendor.contact)}?text=${waMessage}`,
-        "_blank",
-      );
-
-      /* 🔇 In-app chat redirect — re-enable when chat is ready
-      const cartSnapshot = [...cart];
-      const ddSnapshot = { ...deliveryDetails };
-      const fees = { cartTotal, packFee, deliveryFee, serviceCharge, finalTotal };
-
-      await sendOrderSummaryToChat({
-        orderId,
-        customerName: name,
-        vendorId: vendor._id,
-        currentCart: cartSnapshot,
-        dd: ddSnapshot,
-        fees,
-      });
-
-      router.push(
-        `/chat?orderId=${orderId}&vendorId=${vendor._id}&vendorName=${encodeURIComponent(vendor.businessName)}&customerName=${encodeURIComponent(name)}${vendor.logo ? `&vendorLogo=${encodeURIComponent(vendor.logo)}` : ""}`,
-      );
-      ─────────────────────────────────────────────────────── */
-    } catch (err) {
-      console.error(err);
-      toast.error("Order failed. Please try again.");
-    } finally {
-      setLoading(false);
-      isSubmitting.current = false;
-    }
-  };
+   try {
+     await axios.post(`${BACKENDURL}/api/orders`, payload);
+     setPlacedOrderId(orderId);
+     if (clearCart) clearCart();
+   } catch (err) {
+     console.error(err);
+     toast.error("Order saved failed, but WhatsApp was opened.");
+   } finally {
+     setLoading(false);
+     isSubmitting.current = false;
+   }
+ };
 
   /* ─── LOADING ────────────────────────────────────────────── */
   if (!vendor) {
