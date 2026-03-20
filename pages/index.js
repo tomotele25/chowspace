@@ -58,7 +58,7 @@ export default function Home() {
   const router = useRouter();
   const vendorsPerPage = 8;
 const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
+  "https://chowspace-backend.vercel.app" 
 
   useEffect(() => {
     const fetchData = async () => {

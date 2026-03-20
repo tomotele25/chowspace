@@ -42,7 +42,7 @@ const generateOrderId = () =>
   `CS-${Math.floor(100000 + Math.random() * 900000)}`;
 
 const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
+  "https://chowspace-backend.vercel.app"
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -97,10 +97,10 @@ export default function CheckoutPage() {
     if (!slug) return;
     (async () => {
       try {
-        const vr = await axios.get(`${BACKEND_URL}/api/vendor/${slug}`);
+        const vr = await axios.get(`${BACKENDURL}/api/vendor/${slug}`);
         setVendor(vr.data.vendor);
         const lr = await axios.get(
-          `${BACKEND_URL}/api/locations/${vr.data.vendor._id}`,
+          `${BACKENDURL}/api/locations/${vr.data.vendor._id}`,
         );
         setLocations(
           (lr.data.locations || []).map((l) => ({
@@ -178,15 +178,15 @@ export default function CheckoutPage() {
 
     try {
       await Promise.all([
-        axios.post(`${BACKEND_URL}/api/chat/${orderRoomId}/message`, messagePayload),
-        axios.post(`${BACKEND_URL}/api/chat/${vendorRoomId}/message`, messagePayload),
+        axios.post(`${BACKENDURL}/api/chat/${orderRoomId}/message`, messagePayload),
+        axios.post(`${BACKENDURL}/api/chat/${vendorRoomId}/message`, messagePayload),
       ]);
     } catch (err) {
       console.error("Failed to persist order card to chat history:", err.message);
     }
 
     if (socketRef.current) socketRef.current.disconnect();
-    const socket = io(BACKEND_URL, {
+    const socket = io(BACKENDURL, {
       transports: ["websocket", "polling"],
       withCredentials: true,
     });
@@ -266,7 +266,7 @@ export default function CheckoutPage() {
     };
 
     try {
-      await axios.post(`${BACKEND_URL}/api/orders`, payload);
+      await axios.post(`${BACKENDURL}/api/orders`, payload);
 
       setPlacedOrderId(orderId);
 
