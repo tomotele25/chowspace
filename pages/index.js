@@ -191,6 +191,46 @@ const BACKENDURL =
     >
       <Head>
         <title>ChowSpace | Order Meals from Trusted Vendors</title>
+        <meta
+          name="description"
+          content="Order delicious meals from trusted vendors near you on ChowSpace. Fast delivery, great food."
+        />
+
+        <meta
+          property="og:title"
+          content="ChowSpace | Order Meals from Trusted Vendors"
+        />
+        <meta
+          property="og:description"
+          content="Order delicious meals from trusted vendors near you. Fast delivery, great food."
+        />
+        <meta
+          property="og:image"
+          content="https://chowspace.ng/og-preview.jpg"
+        />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:url" content="https://chowspace.ng" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Chowspace" />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta
+          name="twitter:title"
+          content="ChowSpace | Order Meals from Trusted Vendors"
+        />
+        <meta
+          name="twitter:description"
+          content="Order delicious meals from trusted vendors near you."
+        />
+        <meta
+          name="twitter:image"
+          content="https://chowspace.ng/og-preview.jpg"
+        />
+
+        {/* Favicon */}
+        <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <ScrollToTopBtn />
