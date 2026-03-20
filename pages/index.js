@@ -196,6 +196,7 @@ const BACKENDURL =
           content="Order delicious meals from trusted vendors near you on ChowSpace. Fast delivery, great food."
         />
 
+        {/* Open Graph */}
         <meta
           property="og:title"
           content="ChowSpace | Order Meals from Trusted Vendors"
@@ -206,15 +207,24 @@ const BACKENDURL =
         />
         <meta
           property="og:image"
-          content="https://chowspace.ng/og-preview.jpg"
+          content="https://chowspace.ng/images/og-preview.jpg"
         />
+        <meta
+          property="og:image:secure_url"
+          content="https://chowspace.ng/images/og-preview.jpg"
+        />
+        <meta property="og:image:type" content="image/jpeg" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
+        <meta
+          property="og:image:alt"
+          content="ChowSpace - Order Meals from Trusted Vendors"
+        />
         <meta property="og:url" content="https://chowspace.ng" />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Chowspace" />
+        <meta property="og:site_name" content="ChowSpace" />
 
-        {/* Twitter Card */}
+        {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta
           name="twitter:title"
@@ -226,13 +236,17 @@ const BACKENDURL =
         />
         <meta
           name="twitter:image"
-          content="https://chowspace.ng/og-preview.jpg"
+          content="https://chowspace.ng/images/og-preview.jpg"
+        />
+        <meta
+          name="twitter:image:alt"
+          content="ChowSpace - Order Meals from Trusted Vendors"
         />
 
         {/* Favicon */}
         <link rel="icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/images/og-preview.jpg" />
       </Head>
-
       <ScrollToTopBtn />
       <ContactSupport />
       <main>
