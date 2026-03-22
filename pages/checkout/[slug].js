@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import axios from "axios";
-// import { io } from "socket.io-client"; // 🔇 chat disabled for now
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import { useCart } from "@/context/CartContext";
@@ -16,9 +15,6 @@ import {
   MapPin,
   Package,
   ShoppingCart,
-  MessageCircle,
-  CheckCircle,
-  ChevronRight,
   Users,
 } from "lucide-react";
 import {
@@ -28,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 /* ─── Helpers ─────────────────────────────────────────────── */
 const formatCurrency = (n) =>
   typeof n === "number" ? n.toLocaleString() : "0";
@@ -51,7 +48,6 @@ export default function CheckoutPage() {
   const { cart, addToCart, removeFromCart, clearCart } = useCart();
 
   const isSubmitting = useRef(false);
- 
 
   const [vendor, setVendor] = useState(null);
   const [locations, setLocations] = useState([]);
@@ -59,6 +55,7 @@ export default function CheckoutPage() {
   const [orderFor, setOrderFor] = useState("myself");
   const [placedOrderId, setPlacedOrderId] = useState(null);
   const [deliveryFee, setDeliveryFee] = useState(0);
+  const [packingFeePerPack, setPackingFeePerPack] = useState(300); // fallback default
 
   const [deliveryDetails, setDeliveryDetails] = useState({
     name: "",
@@ -71,12 +68,9 @@ export default function CheckoutPage() {
   /* ── Derived totals ── */
   const cartItems = cart.flat();
   const cartTotal = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
-  const packFee = cart.length * 300;
+  const packFee = cart.length * packingFeePerPack; // ✅ dynamic from vendor
   const serviceCharge = 60;
   const finalTotal = cartTotal + deliveryFee + packFee + serviceCharge;
-
-  /* ── Cleanup socket on unmount ── */
-  // useEffect(() => () => socketRef.current?.disconnect(), []); // 🔇 chat disabled
 
   /* ── Autofill from session ── */
   useEffect(() => {
@@ -97,8 +91,16 @@ export default function CheckoutPage() {
     if (!slug) return;
     (async () => {
       try {
+        // 1. Fetch vendor
         const vr = await axios.get(`${BACKENDURL}/api/vendor/${slug}`);
         setVendor(vr.data.vendor);
+
+        // 2. ✅ Read packingFee directly from vendor — no extra API call needed
+        if (typeof vr.data.vendor.packingFee === "number") {
+          setPackingFeePerPack(vr.data.vendor.packingFee);
+        }
+
+        // 3. Fetch delivery locations
         const lr = await axios.get(
           `${BACKENDURL}/api/locations/${vr.data.vendor._id}`,
         );
@@ -124,165 +126,80 @@ export default function CheckoutPage() {
     }
   };
 
-  /* ─────────────────────────────────────────────────────────
-     🔇 IN-APP CHAT — commented out until chat is ready
-     ─────────────────────────────────────────────────────────
-  const buildOrderCard = ({ orderId, customerName, currentCart, dd, fees }) => {
-    const { cartTotal, packFee, deliveryFee, serviceCharge, finalTotal } = fees;
-    const itemLines = currentCart
+  /* ── Place order ── */
+  const handlePay = async () => {
+    if (loading || isSubmitting.current) return;
+    isSubmitting.current = true;
+    setLoading(true);
+
+    const { name, phone, address, location, email } = deliveryDetails;
+
+    if (!name || !phone || !address || !location) {
+      toast.error("Please complete all delivery details");
+      setLoading(false);
+      isSubmitting.current = false;
+      return;
+    }
+
+    const orderId = generateOrderId();
+
+    const packsText = cart
       .map((pack, i) => {
-        const lines = pack
-          .map(
-            (item) =>
-              `  • ${item.productName} × ${item.quantity}  —  ₦${formatCurrency(item.price * item.quantity)}`,
-          )
+        const items = pack
+          .map((item) => `- ${item.productName} | qty: ${item.quantity}`)
           .join("\n");
-        return `📦 Pack ${i + 1}:\n${lines}`;
+        return `PACK ${i + 1}\n${items}`;
       })
       .join("\n\n");
 
-    return [
-      `🛒 NEW ORDER — ${orderId}`,
-      ``,
-      `👤 Customer : ${customerName}`,
-      `📞 Phone    : ${dd.phone}`,
-      `📍 Location : ${dd.location}`,
-      `🏠 Address  : ${dd.address}`,
-      ``,
-      itemLines,
-      ``,
-      `Subtotal    ₦${formatCurrency(cartTotal)}`,
-      `Packing fee  ₦${formatCurrency(packFee)}`,
-      `Delivery    ₦${formatCurrency(deliveryFee)}`,
-      `Service fee  ₦${formatCurrency(serviceCharge)}`,
-      `─────────────────────────────`,
-      `TOTAL       ₦${formatCurrency(finalTotal)}`,
-    ].join("\n");
-  };
+    const waMessage = encodeURIComponent(
+      `🍽️ CHOWSPACE ORDER\n\nORDER DETAILS\nOrder ID: ${orderId}\n\n${packsText}\n\n` +
+        `SUB TOTAL: ₦${formatCurrency(cartTotal)}\nPACKING FEE: ₦${formatCurrency(packFee)}\n` +
+        `DELIVERY PRICE: ₦${formatCurrency(deliveryFee)}\nSERVICE FEE: ₦${formatCurrency(serviceCharge)}\n` +
+        `TOTAL PRICE: 💳 ₦${formatCurrency(finalTotal)}\n\n` +
+        `CUSTOMER DETAILS 👤\nName: ${name}\nLocation: ${location}\nAddress: ${address}\nPhone: ${phone}\n\n` +
+        `🙏 Thank you for ordering with CHOWSPACE!\n\n` +
+        `PRICE CONFIRMATION\n🔗 https://chowspace.ng/confirm/${orderId}\n\n` +
+        `Leave a Review ✍️\n🔗 https://chowspace.ng/ReviewPage/${vendor._id}`,
+    );
 
-  const sendOrderSummaryToChat = async ({
-    orderId, customerName, vendorId, currentCart, dd, fees,
-  }) => {
-    const orderCard = buildOrderCard({ orderId, customerName, currentCart, dd, fees });
-    const messagePayload = {
-      text: orderCard,
-      sender: customerName,
-      senderType: "customer",
-      vendorId,
+    // ✅ Open WhatsApp FIRST — still within the user gesture
+    window.open(
+      `https://wa.me/${formatPhoneNumber(vendor.contact)}?text=${waMessage}`,
+      "_blank",
+    );
+
+    // ✅ Then save the order in the background
+    const payload = {
       orderId,
-      fileUrl: null,
-      fileName: null,
+      vendorId: vendor._id,
+      items: cartItems.map((item) => ({
+        productId: item._id,
+        name: item.productName,
+        price: item.price,
+        quantity: item.quantity,
+      })),
+      guestInfo: orderFor === "guest" ? { name, phone, email } : null,
+      customerInfo: orderFor === "myself" ? { name, phone, email } : null,
+      deliveryMethod: "whatsapp",
+      note: "",
+      totalAmount: finalTotal,
+      packFees: packFee,
+      deliveryFee,
     };
-    const orderRoomId = `order_${orderId}`;
-    const vendorRoomId = `vendor_${vendorId}`;
 
     try {
-      await Promise.all([
-        axios.post(`${BACKENDURL}/api/chat/${orderRoomId}/message`, messagePayload),
-        axios.post(`${BACKENDURL}/api/chat/${vendorRoomId}/message`, messagePayload),
-      ]);
+      await axios.post(`${BACKENDURL}/api/orders`, payload);
+      setPlacedOrderId(orderId);
+      if (clearCart) clearCart();
     } catch (err) {
-      console.error("Failed to persist order card to chat history:", err.message);
+      console.error(err);
+      toast.error("Order saved failed, but WhatsApp was opened.");
+    } finally {
+      setLoading(false);
+      isSubmitting.current = false;
     }
-
-    if (socketRef.current) socketRef.current.disconnect();
-    const socket = io(BACKENDURL, {
-      transports: ["websocket", "polling"],
-      withCredentials: true,
-    });
-    socketRef.current = socket;
-    socket.on("connect", () => {
-      const emit = (joinEvent, joinArg, roomId, delay) => {
-        socket.emit(joinEvent, joinArg);
-        setTimeout(() => {
-          socket.emit("sendMessage", { roomId, ...messagePayload });
-        }, delay);
-      };
-      emit("joinVendorRoom", vendorId, vendorRoomId, 150);
-      emit("joinOrderRoom", orderId, orderRoomId, 350);
-      setTimeout(() => socket.disconnect(), 1000);
-    });
-    socket.on("connect_error", (err) => {
-      console.error("Real-time order ping failed:", err.message);
-      socket.disconnect();
-    });
   };
-  ───────────────────────────────────────────────────────── */
-
-  /* ── Place order ── */
- const handlePay = async () => {
-   if (loading || isSubmitting.current) return;
-   isSubmitting.current = true;
-   setLoading(true);
-
-   const { name, phone, address, location, email } = deliveryDetails;
-
-   if (!name || !phone || !address || !location) {
-     toast.error("Please complete all delivery details");
-     setLoading(false);
-     isSubmitting.current = false;
-     return;
-   }
-
-   const orderId = generateOrderId();
-
-   const packsText = cart
-     .map((pack, i) => {
-       const items = pack
-         .map((item) => `- ${item.productName} | qty: ${item.quantity}`)
-         .join("\n");
-       return `PACK ${i + 1}\n${items}`;
-     })
-     .join("\n\n");
-
-   const waMessage = encodeURIComponent(
-     `🍽️ CHOWSPACE ORDER\n\nORDER DETAILS\nOrder ID: ${orderId}\n\n${packsText}\n\n` +
-       `SUB TOTAL: ₦${formatCurrency(cartTotal)}\nPACKING FEE: ₦${formatCurrency(packFee)}\n` +
-       `DELIVERY PRICE: ₦${formatCurrency(deliveryFee)}\nSERVICE FEE: ₦${formatCurrency(serviceCharge)}\n` +
-       `TOTAL PRICE: 💳 ₦${formatCurrency(finalTotal)}\n\n` +
-       `CUSTOMER DETAILS 👤\nName: ${name}\nLocation: ${location}\nAddress: ${address}\nPhone: ${phone}\n\n` +
-       `🙏 Thank you for ordering with CHOWSPACE!\n\n` +
-       `PRICE CONFIRMATION\n🔗 https://chowspace.ng/confirm/${orderId}\n\n` +
-       `Leave a Review ✍️\n🔗 https://chowspace.ng/ReviewPage/${vendor._id}`,
-   );
-
-   // ✅ Open WhatsApp FIRST — still within the user gesture
-   window.open(
-     `https://wa.me/${formatPhoneNumber(vendor.contact)}?text=${waMessage}`,
-     "_blank",
-   );
-
-   // ✅ Then save the order in the background
-   const payload = {
-     orderId,
-     vendorId: vendor._id,
-     items: cartItems.map((item) => ({
-       productId: item._id,
-       name: item.productName,
-       price: item.price,
-       quantity: item.quantity,
-     })),
-     guestInfo: orderFor === "guest" ? { name, phone, email } : null,
-     customerInfo: orderFor === "myself" ? { name, phone, email } : null,
-     deliveryMethod: "whatsapp",
-     note: "",
-     totalAmount: finalTotal,
-     packFees: packFee,
-     deliveryFee,
-   };
-
-   try {
-     await axios.post(`${BACKENDURL}/api/orders`, payload);
-     setPlacedOrderId(orderId);
-     if (clearCart) clearCart();
-   } catch (err) {
-     console.error(err);
-     toast.error("Order saved failed, but WhatsApp was opened.");
-   } finally {
-     setLoading(false);
-     isSubmitting.current = false;
-   }
- };
 
   /* ─── LOADING ────────────────────────────────────────────── */
   if (!vendor) {
@@ -484,7 +401,7 @@ export default function CheckoutPage() {
                     />
                   </div>
                 ))}
-              
+
                 <div className="relative">
                   <MapPin
                     size={16}
@@ -515,6 +432,7 @@ export default function CheckoutPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
                 <button
                   type="submit"
                   disabled={loading}
