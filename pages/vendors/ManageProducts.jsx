@@ -31,7 +31,7 @@ import Link from "next/link";
 import {
   DndContext,
   closestCenter,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   useSensor,
   useSensors,
@@ -109,26 +109,30 @@ function SortableProduct({
           {product.available ? "Live" : "Off"}
         </div>
 
-        {/* Drag handle — always visible on mobile, hover on desktop */}
+        {/* ✅ Drag handle (raised above everything) */}
         <button
           {...attributes}
           {...listeners}
-          className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-black/30 backdrop-blur-sm flex items-center justify-center text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
+          className="absolute top-2 right-2 z-50 w-7 h-7 rounded-lg bg-black/30 backdrop-blur-sm flex items-center justify-center text-white transition cursor-grab active:cursor-grabbing touch-none select-none opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+          style={{ touchAction: "none" }}
+          title="Drag to reorder"
         >
           <GripVertical size={14} />
         </button>
 
-        {/* Desktop hover overlay */}
-        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hidden sm:flex items-center justify-center gap-3">
+        {/* ✅ FIXED overlay (does NOT block drag anymore) */}
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hidden sm:flex items-center justify-center gap-3 pointer-events-none">
+          {/* ✅ Buttons still clickable */}
           <button
             onClick={() => handleEdit(product)}
-            className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white hover:bg-white hover:text-[#AE2108] transition-all"
+            className="pointer-events-auto w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white hover:bg-white hover:text-[#AE2108] transition-all"
           >
             <Pencil size={15} />
           </button>
+
           <button
             onClick={() => handleDelete(product._id)}
-            className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white hover:bg-red-500 hover:border-red-500 transition-all"
+            className="pointer-events-auto w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white hover:bg-red-500 hover:border-red-500 transition-all"
           >
             <Trash2 size={15} />
           </button>
@@ -140,6 +144,7 @@ function SortableProduct({
         <h3 className="font-bold text-gray-900 text-xs sm:text-sm truncate mb-1">
           {product.productName}
         </h3>
+
         <div className="flex items-center justify-between mb-2">
           <span className="text-[#AE2108] font-black text-xs sm:text-sm">
             ₦{Number(product.price).toLocaleString()}
@@ -149,7 +154,7 @@ function SortableProduct({
           </span>
         </div>
 
-        {/* Mobile edit/delete row */}
+        {/* Mobile edit/delete */}
         <div className="flex gap-1.5 sm:hidden mb-2">
           <button
             onClick={() => handleEdit(product)}
@@ -157,6 +162,7 @@ function SortableProduct({
           >
             <Pencil size={11} /> Edit
           </button>
+
           <button
             onClick={() => handleDelete(product._id)}
             className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-red-50 text-red-600 text-[11px] font-bold rounded-lg active:bg-red-100 transition"
@@ -190,8 +196,7 @@ function SortableProduct({
 export default function ManageProducts() {
   const router = useRouter();
   const { data: session } = useSession();
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" 
+  const BACKENDURL = "https://chowspace-backend.vercel.app";
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -258,6 +263,7 @@ const BACKENDURL =
       [name]: type === "checkbox" ? checked : value,
     }));
   };
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file)
@@ -267,6 +273,7 @@ const BACKENDURL =
         imagePreview: URL.createObjectURL(file),
       }));
   };
+
   const openAdd = () => {
     setEditMode(false);
     setEditId(null);
@@ -280,6 +287,7 @@ const BACKENDURL =
     });
     setShowModal(true);
   };
+
   const handleEdit = (product) => {
     setFormData({
       name: product.productName,
@@ -295,10 +303,12 @@ const BACKENDURL =
     setEditMode(true);
     setShowModal(true);
   };
+
   const handleDelete = (id) => {
     setDeleteId(id);
     setShowDeleteModal(true);
   };
+
   const confirmDelete = async () => {
     try {
       await axios.delete(`${BACKENDURL}/api/product-delete/${deleteId}`, {
@@ -313,6 +323,7 @@ const BACKENDURL =
       setDeleteId(null);
     }
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -347,6 +358,7 @@ const BACKENDURL =
       setLoading(false);
     }
   };
+
   const handleToggle = async (id) => {
     setProducts((p) =>
       p.map((x) => (x._id === id ? { ...x, available: !x.available } : x)),
@@ -366,6 +378,7 @@ const BACKENDURL =
       );
     }
   };
+
   const saveReorder = async () => {
     try {
       await axios.patch(
@@ -379,7 +392,21 @@ const BACKENDURL =
     }
   };
 
-  const sensors = useSensors(useSensor(PointerSensor), useSensor(TouchSensor));
+  // ── FIX 1: Lower distance threshold for snappier desktop dragging ──
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 3, // was 8 — lower = snappier on laptop/desktop mice
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
+      },
+    }),
+  );
+
   const handleDragEnd = ({ active, over }) => {
     if (active.id !== over?.id) {
       const o = products.findIndex((p) => p._id === active.id);
@@ -397,7 +424,7 @@ const BACKENDURL =
 
   const navLinks = [
     {
-      href: "/vendors/ManagerDashboard",
+      href: "/vendors/Dashboard",
       label: "Dashboard",
       icon: LayoutDashboard,
     },
@@ -584,6 +611,16 @@ const BACKENDURL =
               ))}
             </div>
           </div>
+        </div>
+
+        {/* FIX 2: Drag hint banner — now visible on ALL screen sizes */}
+        <div className="px-4 py-2 bg-amber-50 border-b border-amber-100 flex items-center gap-2 flex-shrink-0">
+          <GripVertical size={13} className="text-amber-500 flex-shrink-0" />
+          <p className="text-[11px] text-amber-700 font-semibold">
+            Hover a card and drag the <span className="font-black">⠿</span>{" "}
+            handle to reorder, then hit{" "}
+            <span className="font-black">Save Order</span>
+          </p>
         </div>
 
         {/* Grid */}

@@ -8,7 +8,11 @@ import Head from "next/head";
 
 function IllustrationAfrica() {
   return (
-    <svg viewBox="0 0 480 280" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+    <svg
+      viewBox="0 0 480 280"
+      xmlns="http://www.w3.org/2000/svg"
+      className="w-full h-full"
+    >
       <defs>
         <linearGradient id="sky1" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#1a0a06" />
@@ -20,26 +24,97 @@ function IllustrationAfrica() {
         </radialGradient>
       </defs>
       <rect width="480" height="280" fill="url(#sky1)" />
-      {[[40,30],[120,18],[200,45],[310,22],[400,35],[450,55],[90,60],[260,15],[370,50]].map(([x,y],i) => (
-        <circle key={i} cx={x} cy={y} r="1.5" fill="white" opacity={0.6 + (i%3)*0.2} />
+      {[
+        [40, 30],
+        [120, 18],
+        [200, 45],
+        [310, 22],
+        [400, 35],
+        [450, 55],
+        [90, 60],
+        [260, 15],
+        [370, 50],
+      ].map(([x, y], i) => (
+        <circle
+          key={i}
+          cx={x}
+          cy={y}
+          r="1.5"
+          fill="white"
+          opacity={0.6 + (i % 3) * 0.2}
+        />
       ))}
       <circle cx="380" cy="50" r="40" fill="url(#sun1)" opacity="0.4" />
       <circle cx="380" cy="50" r="22" fill="#ffda8a" />
       <circle cx="392" cy="44" r="16" fill="#1a0a06" />
       <rect x="0" y="180" width="480" height="100" fill="#0d0503" />
-      {[[20,120,35,60],[70,140,28,40],[110,100,40,80],[165,130,25,50],[200,110,50,70],[265,125,30,55],[310,95,45,85],[370,135,30,45],[415,115,40,65],[455,145,25,35]].map(([x,y,w,h],i) => (
-        <rect key={i} x={x} y={y} width={w} height={h} fill={i%3===0?"#2a0d07":"#1a0806"} />
+      {[
+        [20, 120, 35, 60],
+        [70, 140, 28, 40],
+        [110, 100, 40, 80],
+        [165, 130, 25, 50],
+        [200, 110, 50, 70],
+        [265, 125, 30, 55],
+        [310, 95, 45, 85],
+        [370, 135, 30, 45],
+        [415, 115, 40, 65],
+        [455, 145, 25, 35],
+      ].map(([x, y, w, h], i) => (
+        <rect
+          key={i}
+          x={x}
+          y={y}
+          width={w}
+          height={h}
+          fill={i % 3 === 0 ? "#2a0d07" : "#1a0806"}
+        />
       ))}
-      {[[30,130],[45,130],[30,150],[45,150],[75,150],[85,150],[120,110],[150,110],[120,130],[150,130],[210,120],[235,120],[210,140],[235,140],[320,105],[355,105],[320,125]].map(([x,y],i) => (
-        <rect key={i} x={x} y={y} width="8" height="6" fill={i%4===0?"#ffb347":i%3===0?"#ff8c42":"#3a1208"} opacity="0.9" />
+      {[
+        [30, 130],
+        [45, 130],
+        [30, 150],
+        [45, 150],
+        [75, 150],
+        [85, 150],
+        [120, 110],
+        [150, 110],
+        [120, 130],
+        [150, 130],
+        [210, 120],
+        [235, 120],
+        [210, 140],
+        [235, 140],
+        [320, 105],
+        [355, 105],
+        [320, 125],
+      ].map(([x, y], i) => (
+        <rect
+          key={i}
+          x={x}
+          y={y}
+          width="8"
+          height="6"
+          fill={i % 4 === 0 ? "#ffb347" : i % 3 === 0 ? "#ff8c42" : "#3a1208"}
+          opacity="0.9"
+        />
       ))}
       <rect x="0" y="230" width="480" height="20" fill="#1a0806" />
-      {[0,60,120,180,240,300,360,420].map((x,i) => (
-        <rect key={i} x={x+10} y="238" width="35" height="2" fill="#ffb347" opacity="0.3" />
+      {[0, 60, 120, 180, 240, 300, 360, 420].map((x, i) => (
+        <rect
+          key={i}
+          x={x + 10}
+          y="238"
+          width="35"
+          height="2"
+          fill="#ffb347"
+          opacity="0.3"
+        />
       ))}
       <g transform="translate(180,215)">
-        <ellipse cx="10" cy="18" rx="8" ry="8" fill="#333" /><ellipse cx="10" cy="18" rx="5" ry="5" fill="#555" />
-        <ellipse cx="50" cy="18" rx="8" ry="8" fill="#333" /><ellipse cx="50" cy="18" rx="5" ry="5" fill="#555" />
+        <ellipse cx="10" cy="18" rx="8" ry="8" fill="#333" />
+        <ellipse cx="10" cy="18" rx="5" ry="5" fill="#555" />
+        <ellipse cx="50" cy="18" rx="8" ry="8" fill="#333" />
+        <ellipse cx="50" cy="18" rx="5" ry="5" fill="#555" />
         <rect x="8" y="8" width="36" height="10" rx="4" fill="#AE2108" />
         <rect x="18" y="2" width="20" height="8" rx="3" fill="#c73a1e" />
         <circle cx="54" cy="12" r="3" fill="#ffda8a" />
@@ -48,97 +123,352 @@ function IllustrationAfrica() {
       <g transform="translate(210,185)">
         <rect x="0" y="0" width="22" height="32" rx="4" fill="#222" />
         <rect x="2" y="3" width="18" height="24" rx="2" fill="#AE2108" />
-        <text x="11" y="18" textAnchor="middle" fontSize="10" fill="white" fontWeight="bold">✓</text>
+        <text
+          x="11"
+          y="18"
+          textAnchor="middle"
+          fontSize="10"
+          fill="white"
+          fontWeight="bold"
+        >
+          ✓
+        </text>
       </g>
-      {[14,22,30].map((r,i) => (
-        <path key={i} d={`M ${221+r} 178 A ${r} ${r} 0 0 1 ${221-r} 178`} fill="none" stroke="#ffb347" strokeWidth="1.5" opacity={0.7-i*0.2} />
+      {[14, 22, 30].map((r, i) => (
+        <path
+          key={i}
+          d={`M ${221 + r} 178 A ${r} ${r} 0 0 1 ${221 - r} 178`}
+          fill="none"
+          stroke="#ffb347"
+          strokeWidth="1.5"
+          opacity={0.7 - i * 0.2}
+        />
       ))}
-      <g transform="translate(60,120)" opacity="0.85"><circle cx="16" cy="16" r="16" fill="#c73a1e" /><text x="16" y="21" textAnchor="middle" fontSize="14">🍔</text></g>
-      <g transform="translate(380,100)" opacity="0.85"><circle cx="16" cy="16" r="16" fill="#c73a1e" /><text x="16" y="21" textAnchor="middle" fontSize="14">🍜</text></g>
-      <text x="240" y="270" textAnchor="middle" fontSize="10" fill="#ff6b35" opacity="0.6" letterSpacing="3">NIGERIA · AFRICA · 2025</text>
+      <g transform="translate(60,120)" opacity="0.85">
+        <circle cx="16" cy="16" r="16" fill="#c73a1e" />
+        <text x="16" y="21" textAnchor="middle" fontSize="14">
+          🍔
+        </text>
+      </g>
+      <g transform="translate(380,100)" opacity="0.85">
+        <circle cx="16" cy="16" r="16" fill="#c73a1e" />
+        <text x="16" y="21" textAnchor="middle" fontSize="14">
+          🍜
+        </text>
+      </g>
+      <text
+        x="240"
+        y="270"
+        textAnchor="middle"
+        fontSize="10"
+        fill="#ff6b35"
+        opacity="0.6"
+        letterSpacing="3"
+      >
+        NIGERIA · AFRICA · 2025
+      </text>
     </svg>
   );
 }
 
 function IllustrationBehindScenes() {
   return (
-    <svg viewBox="0 0 480 280" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+    <svg
+      viewBox="0 0 480 280"
+      xmlns="http://www.w3.org/2000/svg"
+      className="w-full h-full"
+    >
       <defs>
         <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#fff8f5" /><stop offset="100%" stopColor="#ffe0d6" />
+          <stop offset="0%" stopColor="#fff8f5" />
+          <stop offset="100%" stopColor="#ffe0d6" />
         </linearGradient>
         <linearGradient id="screen2" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#1a0a06" /><stop offset="100%" stopColor="#2d1208" />
+          <stop offset="0%" stopColor="#1a0a06" />
+          <stop offset="100%" stopColor="#2d1208" />
         </linearGradient>
       </defs>
       <rect width="480" height="280" fill="url(#bg2)" />
       <rect x="0" y="200" width="480" height="80" fill="#f5e6df" />
       <rect x="0" y="200" width="480" height="4" fill="#e8cfc5" />
       <rect x="130" y="110" width="220" height="140" rx="8" fill="#2a2a2a" />
-      <rect x="136" y="116" width="208" height="128" rx="4" fill="url(#screen2)" />
+      <rect
+        x="136"
+        y="116"
+        width="208"
+        height="128"
+        rx="4"
+        fill="url(#screen2)"
+      />
       <rect x="110" y="198" width="260" height="10" rx="4" fill="#3a3a3a" />
       <rect x="190" y="207" width="100" height="4" rx="2" fill="#555" />
-      {[{x:145,w:60,color:"#ff6b6b"},{x:215,w:80,color:"#51cf66"},{x:305,w:50,color:"#74c0fc"}].map((l,i) => (
-        <rect key={i} x={l.x} y={130+i*14} width={l.w} height="6" rx="3" fill={l.color} opacity="0.8" />
+      {[
+        { x: 145, w: 60, color: "#ff6b6b" },
+        { x: 215, w: 80, color: "#51cf66" },
+        { x: 305, w: 50, color: "#74c0fc" },
+      ].map((l, i) => (
+        <rect
+          key={i}
+          x={l.x}
+          y={130 + i * 14}
+          width={l.w}
+          height="6"
+          rx="3"
+          fill={l.color}
+          opacity="0.8"
+        />
       ))}
-      {[{x:155,w:40,c:"#ffd43b"},{x:205,w:70,c:"#74c0fc"},{x:285,w:45,c:"#ff6b6b"},{x:145,w:100,c:"#51cf66"},{x:155,w:55,c:"#ffd43b"},{x:220,w:65,c:"#74c0fc"}].map((l,i) => (
-        <rect key={i} x={l.x} y={175+i*10} width={l.w} height="5" rx="2.5" fill={l.c} opacity="0.6" />
+      {[
+        { x: 155, w: 40, c: "#ffd43b" },
+        { x: 205, w: 70, c: "#74c0fc" },
+        { x: 285, w: 45, c: "#ff6b6b" },
+        { x: 145, w: 100, c: "#51cf66" },
+        { x: 155, w: 55, c: "#ffd43b" },
+        { x: 220, w: 65, c: "#74c0fc" },
+      ].map((l, i) => (
+        <rect
+          key={i}
+          x={l.x}
+          y={175 + i * 10}
+          width={l.w}
+          height="5"
+          rx="2.5"
+          fill={l.c}
+          opacity="0.6"
+        />
       ))}
       <rect x="290" y="225" width="2" height="8" fill="#fff" opacity="0.9" />
       <g transform="translate(370,160)">
-        <rect x="0" y="10" width="36" height="32" rx="4" fill="white" stroke="#e8cfc5" strokeWidth="2" />
-        <rect x="36" y="16" width="12" height="18" rx="6" fill="none" stroke="#e8cfc5" strokeWidth="2" />
-        <text x="18" y="36" textAnchor="middle" fontSize="10" fill="#AE2108" fontWeight="bold">CS</text>
-        <path d="M10 8 Q12 2 10 -4" fill="none" stroke="#ccc" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M18 6 Q20 0 18 -6" fill="none" stroke="#ccc" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M26 8 Q28 2 26 -4" fill="none" stroke="#ccc" strokeWidth="1.5" strokeLinecap="round" />
+        <rect
+          x="0"
+          y="10"
+          width="36"
+          height="32"
+          rx="4"
+          fill="white"
+          stroke="#e8cfc5"
+          strokeWidth="2"
+        />
+        <rect
+          x="36"
+          y="16"
+          width="12"
+          height="18"
+          rx="6"
+          fill="none"
+          stroke="#e8cfc5"
+          strokeWidth="2"
+        />
+        <text
+          x="18"
+          y="36"
+          textAnchor="middle"
+          fontSize="10"
+          fill="#AE2108"
+          fontWeight="bold"
+        >
+          CS
+        </text>
+        <path
+          d="M10 8 Q12 2 10 -4"
+          fill="none"
+          stroke="#ccc"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+        <path
+          d="M18 6 Q20 0 18 -6"
+          fill="none"
+          stroke="#ccc"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+        <path
+          d="M26 8 Q28 2 26 -4"
+          fill="none"
+          stroke="#ccc"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
       </g>
       <g transform="translate(60,130)">
         <rect width="70" height="70" rx="4" fill="#ffd43b" />
-        {[15,25,35,45].map((y,i) => <rect key={i} x="5" y={y} width={[60,45,52,38][i]} height="4" rx="2" fill="#e6b800" opacity="0.6" />)}
-        <text x="35" y="12" textAnchor="middle" fontSize="9" fill="#a68000" fontWeight="bold">TODO</text>
+        {[15, 25, 35, 45].map((y, i) => (
+          <rect
+            key={i}
+            x="5"
+            y={y}
+            width={[60, 45, 52, 38][i]}
+            height="4"
+            rx="2"
+            fill="#e6b800"
+            opacity="0.6"
+          />
+        ))}
+        <text
+          x="35"
+          y="12"
+          textAnchor="middle"
+          fontSize="9"
+          fill="#a68000"
+          fontWeight="bold"
+        >
+          TODO
+        </text>
       </g>
       <g transform="translate(20,50)">
-        <rect width="90" height="50" rx="10" fill="white" stroke="#f0d8d0" strokeWidth="1.5" />
-        <text x="20" y="24" textAnchor="middle" fontSize="10">📦</text>
+        <rect
+          width="90"
+          height="50"
+          rx="10"
+          fill="white"
+          stroke="#f0d8d0"
+          strokeWidth="1.5"
+        />
+        <text x="20" y="24" textAnchor="middle" fontSize="10">
+          📦
+        </text>
         <rect x="36" y="13" width="44" height="5" rx="2.5" fill="#ddd" />
         <rect x="36" y="23" width="30" height="4" rx="2" fill="#eee" />
-        <rect x="10" y="35" width="70" height="6" rx="3" fill="#AE2108" opacity="0.2" />
+        <rect
+          x="10"
+          y="35"
+          width="70"
+          height="6"
+          rx="3"
+          fill="#AE2108"
+          opacity="0.2"
+        />
       </g>
       <g transform="translate(370,50)">
-        <rect width="90" height="50" rx="10" fill="white" stroke="#f0d8d0" strokeWidth="1.5" />
-        <text x="20" y="24" textAnchor="middle" fontSize="10">🛵</text>
+        <rect
+          width="90"
+          height="50"
+          rx="10"
+          fill="white"
+          stroke="#f0d8d0"
+          strokeWidth="1.5"
+        />
+        <text x="20" y="24" textAnchor="middle" fontSize="10">
+          🛵
+        </text>
         <rect x="36" y="13" width="44" height="5" rx="2.5" fill="#ddd" />
         <rect x="36" y="23" width="30" height="4" rx="2" fill="#eee" />
-        <rect x="10" y="35" width="70" height="6" rx="3" fill="#51cf66" opacity="0.2" />
+        <rect
+          x="10"
+          y="35"
+          width="70"
+          height="6"
+          rx="3"
+          fill="#51cf66"
+          opacity="0.2"
+        />
       </g>
-      <path d="M110 75 L240 116" stroke="#AE2108" strokeWidth="1" strokeDasharray="4 3" opacity="0.3" />
-      <path d="M370 75 L340 116" stroke="#51cf66" strokeWidth="1" strokeDasharray="4 3" opacity="0.3" />
-      <text x="240" y="272" textAnchor="middle" fontSize="10" fill="#AE2108" opacity="0.4" letterSpacing="2">BUILT WITH ❤ IN NIGERIA</text>
+      <path
+        d="M110 75 L240 116"
+        stroke="#AE2108"
+        strokeWidth="1"
+        strokeDasharray="4 3"
+        opacity="0.3"
+      />
+      <path
+        d="M370 75 L340 116"
+        stroke="#51cf66"
+        strokeWidth="1"
+        strokeDasharray="4 3"
+        opacity="0.3"
+      />
+      <text
+        x="240"
+        y="272"
+        textAnchor="middle"
+        fontSize="10"
+        fill="#AE2108"
+        opacity="0.4"
+        letterSpacing="2"
+      >
+        BUILT WITH ❤ IN NIGERIA
+      </text>
     </svg>
   );
 }
 
 function IllustrationVendorTips() {
   return (
-    <svg viewBox="0 0 480 280" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+    <svg
+      viewBox="0 0 480 280"
+      xmlns="http://www.w3.org/2000/svg"
+      className="w-full h-full"
+    >
       <defs>
         <linearGradient id="bg3" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#f0fff4" /><stop offset="100%" stopColor="#e6f9ee" />
+          <stop offset="0%" stopColor="#f0fff4" />
+          <stop offset="100%" stopColor="#e6f9ee" />
         </linearGradient>
       </defs>
       <rect width="480" height="280" fill="url(#bg3)" />
-      <rect x="120" y="130" width="240" height="100" rx="6" fill="#fff" stroke="#e8e8e8" strokeWidth="2" />
+      <rect
+        x="120"
+        y="130"
+        width="240"
+        height="100"
+        rx="6"
+        fill="#fff"
+        stroke="#e8e8e8"
+        strokeWidth="2"
+      />
       <rect x="100" y="110" width="280" height="30" rx="4" fill="#AE2108" />
-      {[0,1,2,3,4,5,6].map(i => <rect key={i} x={100+i*40} y="110" width="20" height="30" fill="#c73a1e" opacity="0.5" />)}
-      {[0,1,2,3,4,5,6,7,8,9,10,11,12].map(i => (
-        <path key={i} d={`M ${105+i*23} 140 L ${116+i*23} 152 L ${127+i*23} 140`} fill="#AE2108" />
+      {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+        <rect
+          key={i}
+          x={100 + i * 40}
+          y="110"
+          width="20"
+          height="30"
+          fill="#c73a1e"
+          opacity="0.5"
+        />
       ))}
-      <rect x="170" y="115" width="140" height="20" rx="4" fill="white" opacity="0.25" />
-      <text x="240" y="129" textAnchor="middle" fontSize="11" fill="white" fontWeight="800" letterSpacing="1">MAMA&apos;S KITCHEN</text>
+      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
+        <path
+          key={i}
+          d={`M ${105 + i * 23} 140 L ${116 + i * 23} 152 L ${127 + i * 23} 140`}
+          fill="#AE2108"
+        />
+      ))}
+      <rect
+        x="170"
+        y="115"
+        width="140"
+        height="20"
+        rx="4"
+        fill="white"
+        opacity="0.25"
+      />
+      <text
+        x="240"
+        y="129"
+        textAnchor="middle"
+        fontSize="11"
+        fill="white"
+        fontWeight="800"
+        letterSpacing="1"
+      >
+        MAMA&apos;S KITCHEN
+      </text>
       <rect x="120" y="190" width="240" height="15" rx="3" fill="#f0e0d8" />
-      {[{x:140,e:"🍲",c:"#ff8c42"},{x:200,e:"🍛",c:"#ffb347"},{x:260,e:"🥘",c:"#ff6b6b"},{x:320,e:"🥗",c:"#51cf66"}].map((f,i) => (
-        <g key={i} transform={`translate(${f.x},155)`}><circle cx="20" cy="20" r="18" fill={f.c} /><text x="20" y="25" textAnchor="middle" fontSize="16">{f.e}</text></g>
+      {[
+        { x: 140, e: "🍲", c: "#ff8c42" },
+        { x: 200, e: "🍛", c: "#ffb347" },
+        { x: 260, e: "🥘", c: "#ff6b6b" },
+        { x: 320, e: "🥗", c: "#51cf66" },
+      ].map((f, i) => (
+        <g key={i} transform={`translate(${f.x},155)`}>
+          <circle cx="20" cy="20" r="18" fill={f.c} />
+          <text x="20" y="25" textAnchor="middle" fontSize="16">
+            {f.e}
+          </text>
+        </g>
       ))}
       <g transform="translate(218,100)">
         <circle cx="22" cy="14" r="14" fill="#8B6347" />
@@ -147,22 +477,79 @@ function IllustrationVendorTips() {
         <ellipse cx="22" cy="2" rx="10" ry="6" fill="white" />
       </g>
       <g transform="translate(18,50)">
-        <rect width="95" height="55" rx="12" fill="white" stroke="#e0f5e8" strokeWidth="1.5" />
-        <text x="12" y="22" fontSize="10" fill="#888" fontWeight="600">Orders</text>
-        <text x="12" y="40" fontSize="22" fill="#51cf66" fontWeight="800">+42%</text>
-        <text x="12" y="52" fontSize="8" fill="#aaa">this week</text>
-        {[18,28,22,35,30,42].map((h,i) => <rect key={i} x={55+i*7} y={55-h/2} width="5" height={h/2} rx="2" fill="#51cf66" opacity={0.4+i*0.1} />)}
+        <rect
+          width="95"
+          height="55"
+          rx="12"
+          fill="white"
+          stroke="#e0f5e8"
+          strokeWidth="1.5"
+        />
+        <text x="12" y="22" fontSize="10" fill="#888" fontWeight="600">
+          Orders
+        </text>
+        <text x="12" y="40" fontSize="22" fill="#51cf66" fontWeight="800">
+          +42%
+        </text>
+        <text x="12" y="52" fontSize="8" fill="#aaa">
+          this week
+        </text>
+        {[18, 28, 22, 35, 30, 42].map((h, i) => (
+          <rect
+            key={i}
+            x={55 + i * 7}
+            y={55 - h / 2}
+            width="5"
+            height={h / 2}
+            rx="2"
+            fill="#51cf66"
+            opacity={0.4 + i * 0.1}
+          />
+        ))}
       </g>
       <g transform="translate(368,50)">
-        <rect width="95" height="55" rx="12" fill="white" stroke="#fff0ec" strokeWidth="1.5" />
-        <text x="12" y="22" fontSize="10" fill="#888" fontWeight="600">Rating</text>
-        <text x="12" y="40" fontSize="22" fill="#AE2108" fontWeight="800">4.9 ★</text>
-        <text x="12" y="52" fontSize="8" fill="#aaa">248 reviews</text>
+        <rect
+          width="95"
+          height="55"
+          rx="12"
+          fill="white"
+          stroke="#fff0ec"
+          strokeWidth="1.5"
+        />
+        <text x="12" y="22" fontSize="10" fill="#888" fontWeight="600">
+          Rating
+        </text>
+        <text x="12" y="40" fontSize="22" fill="#AE2108" fontWeight="800">
+          4.9 ★
+        </text>
+        <text x="12" y="52" fontSize="8" fill="#aaa">
+          248 reviews
+        </text>
       </g>
-      {[[80,220],[400,215],[60,260],[420,255]].map(([x,y],i) => (
-        <g key={i} transform={`translate(${x},${y})`}><circle cx="12" cy="12" r="12" fill="#ffd43b" opacity="0.9" /><text x="12" y="16" textAnchor="middle" fontSize="11" fill="#a68000">₦</text></g>
+      {[
+        [80, 220],
+        [400, 215],
+        [60, 260],
+        [420, 255],
+      ].map(([x, y], i) => (
+        <g key={i} transform={`translate(${x},${y})`}>
+          <circle cx="12" cy="12" r="12" fill="#ffd43b" opacity="0.9" />
+          <text x="12" y="16" textAnchor="middle" fontSize="11" fill="#a68000">
+            ₦
+          </text>
+        </g>
       ))}
-      <text x="240" y="272" textAnchor="middle" fontSize="10" fill="#51cf66" opacity="0.5" letterSpacing="2">GROW YOUR BUSINESS ON CHOWSPACE</text>
+      <text
+        x="240"
+        y="272"
+        textAnchor="middle"
+        fontSize="10"
+        fill="#51cf66"
+        opacity="0.5"
+        letterSpacing="2"
+      >
+        GROW YOUR BUSINESS ON CHOWSPACE
+      </text>
     </svg>
   );
 }
@@ -173,7 +560,8 @@ const articles = [
   {
     id: 1,
     title: "The Future of Food Delivery in Africa",
-    description: "Explore how technology is revolutionizing local food vendors and delivery in Nigeria.",
+    description:
+      "Explore how technology is revolutionizing local food vendors and delivery in Nigeria.",
     Illustration: IllustrationAfrica,
     date: "July 19, 2025",
     author: "Tomotele Christopher Oluwatobiloba",
@@ -242,7 +630,8 @@ const articles = [
   {
     id: 2,
     title: "Behind the Scenes of ChowSpace",
-    description: "Take a look at how we built a platform that connects local kitchens with hungry customers.",
+    description:
+      "Take a look at how we built a platform that connects local kitchens with hungry customers.",
     Illustration: IllustrationBehindScenes,
     date: "July 12, 2025",
     author: "Tomotele Christopher Oluwatobiloba",
@@ -307,7 +696,8 @@ const articles = [
   {
     id: 3,
     title: "Tips for Vendors: Getting More Orders",
-    description: "Maximize your sales and visibility on the platform with these practical steps.",
+    description:
+      "Maximize your sales and visibility on the platform with these practical steps.",
     Illustration: IllustrationVendorTips,
     date: "July 5, 2025",
     author: "Tomotele Christopher Oluwatobiloba",
@@ -393,8 +783,8 @@ const articles = [
 
 const categoryColors = {
   Industry: "bg-blue-50 text-blue-600",
-  Company:  "bg-purple-50 text-purple-600",
-  Vendors:  "bg-emerald-50 text-emerald-600",
+  Company: "bg-purple-50 text-purple-600",
+  Vendors: "bg-emerald-50 text-emerald-600",
 };
 
 // ── Article content renderer ───────────────────────────────────────────────
@@ -403,31 +793,50 @@ function ArticleBody({ content }) {
   return (
     <div className="space-y-5">
       {content.map((block, i) => {
-        if (block.type === "lead") return (
-          <p key={i} className="text-lg text-gray-700 font-medium leading-relaxed border-l-4 border-[#AE2108] pl-4">
-            {block.text}
-          </p>
-        );
-        if (block.type === "h2") return (
-          <h2 key={i} className="text-xl font-bold text-gray-900 mt-8 mb-2 pt-2">
-            {block.text}
-          </h2>
-        );
-        if (block.type === "p") return (
-          <p key={i} className="text-base text-gray-600 leading-relaxed">
-            {block.text}
-          </p>
-        );
-        if (block.type === "quote") return (
-          <blockquote key={i} className="relative my-6 px-6 py-5 bg-[#AE2108]/5 border-l-4 border-[#AE2108] rounded-r-2xl">
-            <svg className="absolute top-3 right-4 opacity-10" width="32" height="32" viewBox="0 0 24 24" fill="#AE2108">
-              <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
-            </svg>
-            <p className="text-base text-[#AE2108] font-medium leading-relaxed italic">
-              &ldquo;{block.text}&rdquo;
+        if (block.type === "lead")
+          return (
+            <p
+              key={i}
+              className="text-lg text-gray-700 font-medium leading-relaxed border-l-4 border-[#AE2108] pl-4"
+            >
+              {block.text}
             </p>
-          </blockquote>
-        );
+          );
+        if (block.type === "h2")
+          return (
+            <h2
+              key={i}
+              className="text-xl font-bold text-gray-900 mt-8 mb-2 pt-2"
+            >
+              {block.text}
+            </h2>
+          );
+        if (block.type === "p")
+          return (
+            <p key={i} className="text-base text-gray-600 leading-relaxed">
+              {block.text}
+            </p>
+          );
+        if (block.type === "quote")
+          return (
+            <blockquote
+              key={i}
+              className="relative my-6 px-6 py-5 bg-[#AE2108]/5 border-l-4 border-[#AE2108] rounded-r-2xl"
+            >
+              <svg
+                className="absolute top-3 right-4 opacity-10"
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="#AE2108"
+              >
+                <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+              </svg>
+              <p className="text-base text-[#AE2108] font-medium leading-relaxed italic">
+                &ldquo;{block.text}&rdquo;
+              </p>
+            </blockquote>
+          );
         return null;
       })}
     </div>
@@ -439,12 +848,16 @@ function ArticleBody({ content }) {
 export default function Blog() {
   const [activeId, setActiveId] = useState(null);
 
-  useEffect(() => { window.scrollTo(0, 0); }, []);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   // lock body scroll when article is open
   useEffect(() => {
     document.body.style.overflow = activeId ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [activeId]);
 
   const activeArticle = articles.find((a) => a.id === activeId);
@@ -454,33 +867,48 @@ export default function Blog() {
     <>
       <Head>
         <title>ChowSpace | Blog</title>
-        <meta name="description" content="ChowSpace Blog &mdash; stories, insights and tips from the world of food and tech." />
+        <meta
+          name="description"
+          content="ChowSpace Blog &mdash; stories, insights and tips from the world of food and tech."
+        />
         <link rel="canonical" href="https://chowspace.ng/Blog" />
         <meta property="og:title" content="ChowSpace | Blog" />
-        <meta property="og:description" content="Food, tech and community — stories from the people building and using ChowSpace." />
+        <meta
+          property="og:description"
+          content="Food, tech and community — stories from the people building and using ChowSpace."
+        />
         <meta property="og:url" content="https://chowspace.ng/Blog" />
-        <meta property="og:image" content="https://chowspace.ng/og-preview.jpg" />
+        <meta
+          property="og:image"
+          content="https://chowspace.ng/og-preview.jpg"
+        />
         <meta name="twitter:card" content="summary_large_image" />
       </Head>
 
       <div className="min-h-screen bg-gray-50 font-sans">
-
         {/* ── Hero ── */}
         <div className="relative overflow-hidden bg-[#AE2108]">
           <div className="absolute -right-16 -top-16 w-72 h-72 rounded-full bg-white/5 pointer-events-none" />
           <div className="absolute right-32 -bottom-12 w-48 h-48 rounded-full bg-white/5 pointer-events-none" />
           <div className="absolute left-10 top-6 w-24 h-24 rounded-full bg-white/5 pointer-events-none" />
           <div className="relative max-w-5xl mx-auto px-5 sm:px-8 py-14 sm:py-20">
-            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: [0.22,1,0.36,1] }}>
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+            >
               <span className="inline-flex items-center gap-1.5 bg-white/15 text-white text-xs font-semibold px-3 py-1.5 rounded-full mb-5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 Stories & Insights
               </span>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight tracking-tight mb-4">
-                The ChowSpace<br /><span className="text-white/60">Blog</span>
+                The ChowSpace
+                <br />
+                <span className="text-white/60">Blog</span>
               </h1>
               <p className="text-white/70 text-base sm:text-lg max-w-lg leading-relaxed">
-                Food, tech, and community — stories from the people building and using ChowSpace every day.
+                Food, tech, and community — stories from the people building and
+                using ChowSpace every day.
               </p>
             </motion.div>
           </div>
@@ -488,10 +916,15 @@ export default function Blog() {
 
         {/* ── Blog grid ── */}
         <div className="max-w-5xl mx-auto px-5 sm:px-8 py-10 space-y-8">
-
           {/* Featured */}
-          <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.5, delay:0.15 }}>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Featured</p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+          >
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">
+              Featured
+            </p>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300 group">
               <div className="grid grid-cols-1 sm:grid-cols-2">
                 <div className="relative h-56 sm:h-full min-h-[220px] overflow-hidden bg-gray-50">
@@ -500,20 +933,45 @@ export default function Blog() {
                 <div className="p-6 sm:p-8 flex flex-col justify-between">
                   <div>
                     <div className="flex items-center gap-2 mb-4">
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${categoryColors[featured.category]}`}>{featured.category}</span>
-                      <span className="text-[10px] text-gray-400 font-medium">{featured.readTime}</span>
+                      <span
+                        className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${categoryColors[featured.category]}`}
+                      >
+                        {featured.category}
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-medium">
+                        {featured.readTime}
+                      </span>
                     </div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 leading-snug mb-3">{featured.title}</h2>
-                    <p className="text-sm text-gray-500 leading-relaxed">{featured.description}</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 leading-snug mb-3">
+                      {featured.title}
+                    </h2>
+                    <p className="text-sm text-gray-500 leading-relaxed">
+                      {featured.description}
+                    </p>
                   </div>
                   <div className="flex items-center justify-between mt-6">
-                    <p className="text-xs text-gray-400 font-medium">{featured.date}</p>
+                    <p className="text-xs text-gray-400 font-medium">
+                      {featured.date}
+                    </p>
                     <button
                       onClick={() => setActiveId(featured.id)}
                       className="flex items-center gap-1.5 bg-[#AE2108] text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-[#941B06] transition shadow-sm shadow-red-200"
                     >
                       Read Article
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <path
+                          d="M5 12h14M13 6l6 6-6 6"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
                     </button>
                   </div>
                 </div>
@@ -523,36 +981,61 @@ export default function Blog() {
 
           {/* Rest */}
           <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Latest Posts</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">
+              Latest Posts
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {rest.map((post, index) => (
                 <motion.div
                   key={post.id}
-                  initial={{ opacity:0, y:20 }}
-                  whileInView={{ opacity:1, y:0 }}
-                  viewport={{ once:true, amount:0.2 }}
-                  transition={{ duration:0.45, delay:index*0.1 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.2 }}
+                  transition={{ duration: 0.45, delay: index * 0.1 }}
                   className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group"
                 >
                   <div className="relative h-44 overflow-hidden bg-gray-50">
                     <post.Illustration />
-                    <span className={`absolute top-3 left-3 text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm ${categoryColors[post.category]}`}>
+                    <span
+                      className={`absolute top-3 left-3 text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm ${categoryColors[post.category]}`}
+                    >
                       {post.category}
                     </span>
                   </div>
                   <div className="p-5">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-[11px] text-gray-400 font-medium">{post.date}</p>
-                      <p className="text-[11px] text-gray-400 font-medium">{post.readTime}</p>
+                      <p className="text-[11px] text-gray-400 font-medium">
+                        {post.date}
+                      </p>
+                      <p className="text-[11px] text-gray-400 font-medium">
+                        {post.readTime}
+                      </p>
                     </div>
-                    <h3 className="text-base font-bold text-gray-900 leading-snug mb-2">{post.title}</h3>
-                    <p className="text-xs text-gray-500 leading-relaxed mb-4">{post.description}</p>
+                    <h3 className="text-base font-bold text-gray-900 leading-snug mb-2">
+                      {post.title}
+                    </h3>
+                    <p className="text-xs text-gray-500 leading-relaxed mb-4">
+                      {post.description}
+                    </p>
                     <button
                       onClick={() => setActiveId(post.id)}
                       className="flex items-center gap-1 text-xs text-[#AE2108] font-semibold hover:underline"
                     >
                       Read Article
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <svg
+                        width="11"
+                        height="11"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <path
+                          d="M5 12h14M13 6l6 6-6 6"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
                     </button>
                   </div>
                 </motion.div>
@@ -562,24 +1045,38 @@ export default function Blog() {
 
           {/* Newsletter */}
           <motion.div
-            initial={{ opacity:0, y:20 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true }} transition={{ duration:0.5 }}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
             className="relative overflow-hidden bg-[#AE2108] rounded-2xl px-6 sm:px-10 py-8 shadow-lg shadow-[#AE2108]/15"
           >
             <div className="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-white/5 pointer-events-none" />
             <div className="absolute right-10 -bottom-8 w-32 h-32 rounded-full bg-white/5 pointer-events-none" />
             <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <p className="text-white/60 text-xs font-medium mb-1">Stay in the loop</p>
-                <h3 className="text-white text-lg font-bold">Get new posts in your inbox</h3>
-                <p className="text-white/60 text-xs mt-1">No spam. Just good reads.</p>
+                <p className="text-white/60 text-xs font-medium mb-1">
+                  Stay in the loop
+                </p>
+                <h3 className="text-white text-lg font-bold">
+                  Get new posts in your inbox
+                </h3>
+                <p className="text-white/60 text-xs mt-1">
+                  No spam. Just good reads.
+                </p>
               </div>
               <div className="flex gap-2 w-full sm:w-auto">
-                <input type="email" placeholder="your@email.com" className="flex-1 sm:w-52 px-4 py-2.5 rounded-xl text-sm font-medium bg-white/15 text-white placeholder-white/40 border border-white/20 focus:outline-none focus:border-white/50 transition" />
-                <button className="px-4 py-2.5 rounded-xl bg-white text-[#AE2108] text-sm font-bold hover:bg-white/90 transition whitespace-nowrap">Subscribe</button>
+                <input
+                  type="email"
+                  placeholder="your@email.com"
+                  className="flex-1 sm:w-52 px-4 py-2.5 rounded-xl text-sm font-medium bg-white/15 text-white placeholder-white/40 border border-white/20 focus:outline-none focus:border-white/50 transition"
+                />
+                <button className="px-4 py-2.5 rounded-xl bg-white text-[#AE2108] text-sm font-bold hover:bg-white/90 transition whitespace-nowrap">
+                  Subscribe
+                </button>
               </div>
             </div>
           </motion.div>
-
         </div>
       </div>
 
@@ -590,10 +1087,10 @@ export default function Blog() {
             {/* backdrop */}
             <motion.div
               key="backdrop"
-              initial={{ opacity:0 }}
-              animate={{ opacity:1 }}
-              exit={{ opacity:0 }}
-              transition={{ duration:0.25 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
               onClick={() => setActiveId(null)}
               className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
             />
@@ -610,16 +1107,27 @@ export default function Blog() {
               {/* Panel header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
                 <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${categoryColors[activeArticle.category]}`}>
+                  <span
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${categoryColors[activeArticle.category]}`}
+                  >
                     {activeArticle.category}
                   </span>
-                  <span className="text-[10px] text-gray-400 font-medium">{activeArticle.readTime}</span>
+                  <span className="text-[10px] text-gray-400 font-medium">
+                    {activeArticle.readTime}
+                  </span>
                 </div>
                 <button
                   onClick={() => setActiveId(null)}
                   className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/></svg>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M18 6L6 18M6 6l12 12"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
                 </button>
               </div>
 
@@ -640,12 +1148,19 @@ export default function Blog() {
                   <div className="flex items-center gap-3 pb-6 mb-6 border-b border-gray-100">
                     <div className="w-10 h-10 rounded-full bg-[#AE2108]/10 flex items-center justify-center flex-shrink-0">
                       <span className="text-[#AE2108] font-bold text-sm">
-                        {activeArticle.author.split(" ").map(n => n[0]).join("")}
+                        {activeArticle.author
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")}
                       </span>
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-gray-900">{activeArticle.author}</p>
-                      <p className="text-xs text-gray-400">{activeArticle.authorRole} · {activeArticle.date}</p>
+                      <p className="text-sm font-bold text-gray-900">
+                        {activeArticle.author}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {activeArticle.authorRole} · {activeArticle.date}
+                      </p>
                     </div>
                   </div>
 
@@ -657,14 +1172,31 @@ export default function Blog() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-gray-400 mb-1">Written by</p>
-                        <p className="text-sm font-bold text-gray-900">{activeArticle.author}</p>
-                        <p className="text-xs text-gray-400">{activeArticle.authorRole}</p>
+                        <p className="text-sm font-bold text-gray-900">
+                          {activeArticle.author}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {activeArticle.authorRole}
+                        </p>
                       </div>
                       <button
                         onClick={() => setActiveId(null)}
                         className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-gray-900 transition"
                       >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <path
+                            d="M19 12H5M12 5l-7 7 7 7"
+                            stroke="currentColor"
+                            strokeWidth="2.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
                         Back to Blog
                       </button>
                     </div>
@@ -672,24 +1204,46 @@ export default function Blog() {
 
                   {/* Other articles */}
                   <div className="mt-8">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">More Articles</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">
+                      More Articles
+                    </p>
                     <div className="space-y-3">
-                      {articles.filter(a => a.id !== activeArticle.id).map(a => (
-                        <button
-                          key={a.id}
-                          onClick={() => setActiveId(a.id)}
-                          className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition text-left group"
-                        >
-                          <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-white">
-                            <a.Illustration />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-gray-900 truncate">{a.title}</p>
-                            <p className="text-xs text-gray-400 mt-0.5">{a.date} · {a.readTime}</p>
-                          </div>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 text-gray-300 group-hover:text-[#AE2108] transition"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        </button>
-                      ))}
+                      {articles
+                        .filter((a) => a.id !== activeArticle.id)
+                        .map((a) => (
+                          <button
+                            key={a.id}
+                            onClick={() => setActiveId(a.id)}
+                            className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition text-left group"
+                          >
+                            <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-white">
+                              <a.Illustration />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-gray-900 truncate">
+                                {a.title}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                {a.date} · {a.readTime}
+                              </p>
+                            </div>
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              className="flex-shrink-0 text-gray-300 group-hover:text-[#AE2108] transition"
+                            >
+                              <path
+                                d="M5 12h14M13 6l6 6-6 6"
+                                stroke="currentColor"
+                                strokeWidth="2.2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </button>
+                        ))}
                     </div>
                   </div>
                 </div>
