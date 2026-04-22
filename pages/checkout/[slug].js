@@ -278,7 +278,7 @@ export default function CheckoutPage() {
           price: item.price,
           quantity: item.quantity,
         })),
-          guestInfo: { name, phone, email },
+        customerInfo: { name, phone, email },
         totalAmount: finalTotal,
         deliveryFee,
         packFees: packFee,
@@ -416,7 +416,7 @@ export default function CheckoutPage() {
             ))}
 
             {/* ── Coupon card (local/Abeokuta orders only) ── */}
-            {isLocalVendor && (
+            {/* {isLocalVendor && (
               <div className="bg-white rounded-2xl border border-gray-200 p-6">
                 <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <Ticket size={18} className="text-[#AE2108]" />
@@ -500,7 +500,7 @@ export default function CheckoutPage() {
                   </div>
                 )}
               </div>
-            )}
+            )} */}
 
             {/* Order for toggle */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6">
