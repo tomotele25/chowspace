@@ -267,25 +267,35 @@ export default function CheckoutPage() {
       "_blank",
     );
 
-    // Save order in background
     try {
-      await axios.post(`${BACKENDURL}/api/orders`, {
-        orderId,
-        vendorId: vendor._id,
-        items: cartItems.map((item) => ({
-          productId: item._id,
-          name: item.productName,
-          price: item.price,
-          quantity: item.quantity,
-        })),
-        guestInfo: { name, phone, email },
-        totalAmount: finalTotal,
-        deliveryFee,
-        packFees: packFee,
-        // coupon: appliedCoupon
-        //   ? { code: appliedCoupon.code, discount: couponDiscount }
-        //   : null,
-      });
+    await axios.post(`${BACKENDURL}/api/orders`, {
+      orderId,
+      vendorId: vendor._id,
+      items: cartItems.map((item) => ({
+        productId: item._id,
+        name: item.productName,
+        price: item.price,
+        quantity: item.quantity,
+      })),
+
+      ...(session?.user
+        ? {
+            customerInfo: {
+              name: session.user.fullname,
+              email: session.user.email,
+              phone: phone,
+            },
+          }
+        : {
+            guestInfo: { name, phone, email },
+          }),
+
+      deliveryMethod: isLocalVendor ? "whatsapp" : "chat",
+      totalAmount: finalTotal,
+      deliveryFee,
+      packFees: packFee,
+    });
+
 
       setPlacedOrderId(orderId);
       if (clearCart) clearCart();
