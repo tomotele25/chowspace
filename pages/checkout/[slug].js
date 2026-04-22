@@ -278,7 +278,7 @@ export default function CheckoutPage() {
           price: item.price,
           quantity: item.quantity,
         })),
-        customerInfo: { name, phone, email },
+        guestInfo: { name, phone, email },
         totalAmount: finalTotal,
         deliveryFee,
         packFees: packFee,
