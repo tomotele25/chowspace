@@ -1,23 +1,21 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
 import { io } from "socket.io-client";
 import axios from "axios";
+import { useRouter } from "next/router";
 import {
   MessageCircle,
   Send,
   Paperclip,
   RefreshCw,
-  ArrowLeft,
   CheckCircle2,
   Package,
   MapPin,
   Phone,
   User,
-  Store,
-  Search,
-  Clock,
+  ArrowLeft,
+  ShoppingCart,
 } from "lucide-react";
 
 const BACKEND_URL = "http://localhost:2005";
@@ -25,6 +23,9 @@ const BACKEND_URL = "http://localhost:2005";
 /* ─────────────────────────────────────────────────────────────
    Helpers
 ─────────────────────────────────────────────────────────────── */
+const formatCurrency = (n) =>
+  typeof n === "number" ? n.toLocaleString() : "0";
+
 const isOrderCard = (text) =>
   typeof text === "string" && text.startsWith("🛒 NEW ORDER");
 
@@ -79,7 +80,56 @@ const parseOrderCard = (text) => {
 };
 
 /* ─────────────────────────────────────────────────────────────
-   OrderCard
+   Build the 🛒 NEW ORDER card text from sessionStorage data
+─────────────────────────────────────────────────────────────── */
+const buildOrderCardText = (order) => {
+  const {
+    orderId,
+    cart,
+    cartTotal,
+    packFee,
+    serviceCharge,
+    customerName,
+    customerPhone,
+    customerAddress,
+    vendorName,
+  } = order;
+
+  const packsText = (cart || [])
+    .map((pack, i) => {
+      const items = pack
+        .map(
+          (item) =>
+            `  • ${item.productName} x${item.quantity}  —  ₦${formatCurrency(item.price * item.quantity)}`,
+        )
+        .join("\n");
+      return `📦 Pack ${i + 1}\n${items}`;
+    })
+    .join("\n");
+
+  const subtotal = cartTotal || 0;
+  const packing = packFee || 0;
+  const service = serviceCharge || 60;
+  const total = subtotal + packing + service;
+
+  const divider = "─".repeat(32);
+
+  return (
+    `🛒 NEW ORDER — ${orderId}\n` +
+    `👤 Customer : ${customerName}\n` +
+    `📞 Phone    : ${customerPhone}\n` +
+    `🏠 Address  : ${customerAddress}\n` +
+    `\n${packsText}\n\n` +
+    `Subtotal     ₦${formatCurrency(subtotal)}\n` +
+    `Packing fee  ₦${formatCurrency(packing)}\n` +
+    `Service fee  ₦${formatCurrency(service)}\n` +
+    `${divider}\n` +
+    `TOTAL ₦${formatCurrency(total)}`
+  );
+};
+
+/* ─────────────────────────────────────────────────────────────
+   OrderCard — renders the structured order bubble
 ─────────────────────────────────────────────────────────────── */
 function OrderCard({ text }) {
   const {
@@ -244,226 +294,80 @@ function MessageBubble({ msg }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   RoomList — left panel showing all customer conversations
+   Main — CustomerChat
 ─────────────────────────────────────────────────────────────── */
-function RoomList({ vendorId, onSelectRoom, selectedRoomId }) {
-  const [rooms, setRooms] = useState([]);
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const socketRef = useRef(null);
+export default function CustomerChat() {
+  const router = useRouter();
 
-  const fetchRooms = useCallback(async () => {
-    try {
-      const { data } = await axios.get(
-        `${BACKEND_URL}/api/chat/vendor/${vendorId}`,
-      );
-      setRooms(data.rooms || []);
-    } catch {
-      // silent
-    } finally {
-      setLoading(false);
-    }
-  }, [vendorId]);
-
-  useEffect(() => {
-    fetchRooms();
-  }, [fetchRooms]);
-
-  // Real-time: refresh room list when a new message arrives
-  useEffect(() => {
-    if (!vendorId) return;
-
-    const socket = io(BACKEND_URL, {
-      transports: ["websocket", "polling"],
-      withCredentials: true,
-    });
-    socketRef.current = socket;
-
-    socket.on("connect", () => socket.emit("joinVendorRoom", vendorId));
-    socket.on("newChatNotification", () => fetchRooms());
-    socket.on("receiveMessage", () => fetchRooms());
-
-    return () => socket.disconnect();
-  }, [vendorId, fetchRooms]);
-
-  const filtered = rooms.filter((r) => {
-    const preview = r.lastMessage || "";
-    const sender = r.lastSender || "";
-    return (
-      preview.toLowerCase().includes(search.toLowerCase()) ||
-      sender.toLowerCase().includes(search.toLowerCase()) ||
-      (r.orderId || "").toLowerCase().includes(search.toLowerCase())
-    );
-  });
-
-  const formatTime = (iso) => {
-    if (!iso) return "";
-    const d = new Date(iso);
-    const now = new Date();
-    const isToday = d.toDateString() === now.toDateString();
-    return isToday
-      ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      : d.toLocaleDateString([], { month: "short", day: "numeric" });
-  };
-
-  return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-4 py-4 border-b border-gray-100">
-        <h2 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
-          <MessageCircle size={18} className="text-[#AE2108]" />
-          Customer Chats
-        </h2>
-        <div className="relative">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-          />
-          <input
-            type="text"
-            placeholder="Search conversations…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-2 text-sm bg-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-[#AE2108]/20"
-          />
-        </div>
-      </div>
-
-      {/* Room list */}
-      <div className="flex-1 overflow-y-auto">
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <RefreshCw size={20} className="text-gray-300 animate-spin" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-            <MessageCircle size={32} className="text-gray-200 mb-3" />
-            <p className="text-sm text-gray-400 font-medium">
-              No conversations yet
-            </p>
-            <p className="text-xs text-gray-300 mt-1">
-              Customer chats will appear here
-            </p>
-          </div>
-        ) : (
-          filtered.map((room) => {
-            const isSelected = room._id === selectedRoomId;
-            const isOrderChat = room._id?.startsWith("order_");
-            const previewText = isOrderCard(room.lastMessage)
-              ? "🛒 New order received"
-              : room.lastMessage || "No messages yet";
-
-            return (
-              <button
-                key={room._id}
-                onClick={() => onSelectRoom(room)}
-                className={`w-full text-left px-4 py-3.5 border-b border-gray-50 transition hover:bg-gray-50 ${
-                  isSelected
-                    ? "bg-[#AE2108]/5 border-l-2 border-l-[#AE2108]"
-                    : ""
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  {/* Avatar */}
-                  <div className="w-10 h-10 rounded-full bg-[#AE2108]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    {isOrderChat ? (
-                      <Package size={16} className="text-[#AE2108]" />
-                    ) : (
-                      <User size={16} className="text-[#AE2108]" />
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <p className="text-sm font-semibold text-gray-900 truncate">
-                        {room.lastSender || "Customer"}
-                      </p>
-                      <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                        {room.unreadCount > 0 && (
-                          <span className="min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-[#AE2108] text-white text-[9px] font-bold px-1">
-                            {room.unreadCount > 99 ? "99+" : room.unreadCount}
-                          </span>
-                        )}
-                        <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
-                          <Clock size={9} />
-                          {formatTime(room.lastTime)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {room.orderId && (
-                      <p className="text-[10px] text-[#AE2108] font-mono mb-0.5">
-                        {room.orderId}
-                      </p>
-                    )}
-
-                    <p className="text-xs text-gray-500 truncate">
-                      {previewText}
-                    </p>
-                  </div>
-                </div>
-              </button>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
-   ChatWindow — right panel for the active conversation
-─────────────────────────────────────────────────────────────── */
-function ChatWindow({ room, vendorId, vendorName, onBack }) {
+  const [order, setOrder] = useState(null); // parsed from sessionStorage
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [historyLoading, setHistoryLoading] = useState(true);
   const [connected, setConnected] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [orderSent, setOrderSent] = useState(false); // track if card already sent
 
   const socketRef = useRef(null);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const orderSentRef = useRef(false); // ref so socket handler closure sees it
 
-  const roomId = room._id;
-  const senderName = vendorName || "Vendor";
-  const senderType = "vendor";
-
-  /* ── Load history ── */
+  /* ── Read order from sessionStorage on mount ── */
   useEffect(() => {
-    setHistoryLoading(true);
-    setMessages([]);
-
-    const load = async () => {
-      try {
-        const { data } = await axios.get(`${BACKEND_URL}/api/chat/${roomId}`);
-        setMessages(
-          (data.messages || []).map((m) => ({
-            id: m._id,
-            isOwn: m.senderType === "vendor",
-            senderName: m.sender,
-            senderType: m.senderType,
-            text: m.text,
-            fileUrl: m.fileUrl || null,
-            fileName: m.fileName || null,
-            time: new Date(m.createdAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-          })),
-        );
-      } catch {
-        // silent
-      } finally {
-        setHistoryLoading(false);
+    try {
+      const raw = sessionStorage.getItem("chatOrder");
+      if (raw) {
+        setOrder(JSON.parse(raw));
       }
-    };
+    } catch {
+      // malformed JSON — ignore
+    }
+  }, []);
 
-    load();
+  // Derived values
+  const roomId = order ? `order_${order.orderId}` : null;
+  const customerName = order?.customerName || "Customer";
+  const vendorName = order?.vendorName || "Vendor";
+  const vendorId = order?.vendorId || null;
+
+  /* ── Load chat history once roomId is known ── */
+  useEffect(() => {
+    if (!roomId) return;
+    setHistoryLoading(true);
+
+    axios
+      .get(`${BACKEND_URL}/api/chat/${roomId}`)
+      .then(({ data }) => {
+        const mapped = (data.messages || []).map((m) => ({
+          id: m._id,
+          isOwn: m.senderType === "customer",
+          senderName: m.sender,
+          senderType: m.senderType,
+          text: m.text,
+          fileUrl: m.fileUrl || null,
+          fileName: m.fileName || null,
+          time: new Date(m.createdAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        }));
+        setMessages(mapped);
+
+        // If an order card already exists in history, mark it as already sent
+        const alreadySent = mapped.some((m) => isOrderCard(m.text));
+        if (alreadySent) {
+          orderSentRef.current = true;
+          setOrderSent(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setHistoryLoading(false));
   }, [roomId]);
 
-  /* ── Socket ── */
+  /* ── Socket setup ── */
   useEffect(() => {
+    if (!roomId || !vendorId) return;
+
     if (socketRef.current) socketRef.current.disconnect();
 
     const socket = io(BACKEND_URL, {
@@ -474,11 +378,47 @@ function ChatWindow({ room, vendorId, vendorName, onBack }) {
 
     socket.on("connect", () => {
       setConnected(true);
-      // Join correct room type
-      if (roomId.startsWith("order_")) {
-        socket.emit("joinOrderRoom", roomId.replace("order_", ""));
-      } else {
-        socket.emit("joinVendorRoom", vendorId);
+      // Join the order room so vendor and customer share the same room
+      socket.emit("joinOrderRoom", order.orderId);
+
+      // Send the order card as the first message, only once
+      if (!orderSentRef.current && order) {
+        orderSentRef.current = true;
+        setOrderSent(true);
+
+        const cardText = buildOrderCardText(order);
+        const optimisticId = `opt_order_${Date.now()}`;
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: optimisticId,
+            isOwn: true,
+            senderName: customerName,
+            senderType: "customer",
+            text: cardText,
+            fileUrl: null,
+            fileName: null,
+            time: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          },
+        ]);
+
+        socket.emit("sendMessage", {
+          roomId,
+          text: cardText,
+          sender: customerName,
+          senderType: "customer",
+          vendorId,
+          orderId: order.orderId,
+          fileUrl: null,
+          fileName: null,
+        });
+
+        // Clear sessionStorage so refreshing doesn't re-send the card
+        sessionStorage.removeItem("chatOrder");
       }
     });
 
@@ -487,8 +427,8 @@ function ChatWindow({ room, vendorId, vendorName, onBack }) {
     socket.on("receiveMessage", (msg) => {
       setMessages((prev) => {
         if (msg._id && prev.some((m) => m.id === msg._id)) return prev;
-        const isOwn = msg.senderType === "vendor";
-        if (isOwn) return prev; // already added optimistically
+        // Ignore messages sent by this customer (already added optimistically)
+        if (msg.senderType === "customer") return prev;
         return [
           ...prev,
           {
@@ -509,14 +449,14 @@ function ChatWindow({ room, vendorId, vendorName, onBack }) {
     });
 
     return () => socket.disconnect();
-  }, [roomId, vendorId]);
+  }, [roomId, vendorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Auto-scroll ── */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* ── Send ── */
+  /* ── Send message ── */
   const sendMessage = useCallback(
     ({ text = "", fileUrl = null, fileName = null } = {}) => {
       if ((!text && !fileUrl) || !socketRef.current?.connected) return;
@@ -527,8 +467,8 @@ function ChatWindow({ room, vendorId, vendorName, onBack }) {
         {
           id: optimisticId,
           isOwn: true,
-          senderName,
-          senderType,
+          senderName: customerName,
+          senderType: "customer",
           text,
           fileUrl,
           fileName,
@@ -543,15 +483,15 @@ function ChatWindow({ room, vendorId, vendorName, onBack }) {
       socketRef.current.emit("sendMessage", {
         roomId,
         text,
-        sender: senderName,
-        senderType,
+        sender: customerName,
+        senderType: "customer",
         vendorId,
-        orderId: room.orderId || null,
+        orderId: order?.orderId || null,
         fileUrl,
         fileName,
       });
     },
-    [roomId, senderName, senderType, vendorId, room.orderId],
+    [roomId, customerName, vendorId, order],
   );
 
   /* ── File upload ── */
@@ -572,30 +512,53 @@ function ChatWindow({ room, vendorId, vendorName, onBack }) {
     }
   };
 
-  const customerName = room.lastSender || "Customer";
+  /* ─── No order found ─────────────────────────────────────── */
+  if (!order && !historyLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="text-center max-w-sm">
+          <ShoppingCart size={48} className="text-gray-300 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-800 mb-2">
+            No order found
+          </h2>
+          <p className="text-gray-500 text-sm mb-6">
+            It looks like you arrived here directly. Please go back and place an
+            order first.
+          </p>
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#AE2108] text-white rounded-xl font-semibold text-sm hover:bg-[#941B06] transition"
+          >
+            <ArrowLeft size={16} />
+            Go back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
+  /* ─── MAIN ───────────────────────────────────────────────── */
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
       {/* Header */}
       <header className="bg-white border-b px-4 py-3 flex items-center gap-3 shadow-sm flex-shrink-0">
-        {/* Back button — mobile only */}
         <button
-          onClick={onBack}
-          className="lg:hidden w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center transition"
+          onClick={() => router.back()}
+          className="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center transition"
         >
           <ArrowLeft size={18} className="text-gray-600" />
         </button>
 
         <div className="w-10 h-10 rounded-full bg-[#AE2108]/10 flex items-center justify-center flex-shrink-0">
-          <User size={20} className="text-[#AE2108]" />
+          <Package size={20} className="text-[#AE2108]" />
         </div>
 
         <div className="flex-1 min-w-0">
           <h2 className="font-semibold text-gray-900 text-sm truncate">
-            {customerName}
+            {vendorName}
           </h2>
           <p className="text-xs text-gray-400">
-            {room.orderId ? `Order: ${room.orderId}` : "General enquiry"}
+            {order?.orderId ? `Order: ${order.orderId}` : "Chat with vendor"}
           </p>
         </div>
 
@@ -629,9 +592,11 @@ function ChatWindow({ room, vendorId, vendorName, onBack }) {
             <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
               <MessageCircle size={28} className="text-gray-300" />
             </div>
-            <p className="text-sm font-medium text-gray-400">No messages yet</p>
+            <p className="text-sm font-medium text-gray-400">
+              Connecting you with {vendorName}…
+            </p>
             <p className="text-xs text-gray-300 mt-1">
-              Reply to {customerName} below
+              Your order details will be sent automatically
             </p>
           </div>
         ) : (
@@ -662,9 +627,15 @@ function ChatWindow({ room, vendorId, vendorName, onBack }) {
 
           <input
             type="text"
-            placeholder={uploading ? "Uploading…" : `Reply to ${customerName}…`}
+            placeholder={
+              uploading
+                ? "Uploading…"
+                : connected
+                  ? `Message ${vendorName}…`
+                  : "Connecting…"
+            }
             value={input}
-            disabled={uploading}
+            disabled={uploading || !connected}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -672,7 +643,7 @@ function ChatWindow({ room, vendorId, vendorName, onBack }) {
                 sendMessage({ text: input.trim() });
               }
             }}
-            className="flex-1 bg-gray-100 rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#AE2108]/30 transition"
+            className="flex-1 bg-gray-100 rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#AE2108]/30 transition disabled:opacity-60"
           />
 
           <button
@@ -685,85 +656,6 @@ function ChatWindow({ room, vendorId, vendorName, onBack }) {
           </button>
         </div>
       </footer>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
-   Main export — VendorChat
-─────────────────────────────────────────────────────────────── */
-export default function VendorChat() {
-  const { data: session, status } = useSession();
-  const [selectedRoom, setSelectedRoom] = useState(null);
-
-  const vendorId = session?.user?.id;
-  const vendorName =
-    session?.user?.businessName || session?.user?.name || "Vendor";
-
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <RefreshCw size={24} className="text-gray-300 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!vendorId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="text-center">
-          <Store size={40} className="text-gray-200 mx-auto mb-3" />
-          <p className="text-sm text-gray-400">
-            You must be logged in as a vendor to view chats.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* ── Left: room list ── */}
-      {/* On mobile: show only if no room selected */}
-      {/* On desktop: always visible */}
-      <div
-        className={`w-full lg:w-80 xl:w-96 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col
-          ${selectedRoom ? "hidden lg:flex" : "flex"}`}
-      >
-        <RoomList
-          vendorId={vendorId}
-          selectedRoomId={selectedRoom?._id}
-          onSelectRoom={(room) => setSelectedRoom(room)}
-        />
-      </div>
-
-      {/* ── Right: chat window ── */}
-      <div
-        className={`flex-1 flex flex-col min-w-0
-          ${selectedRoom ? "flex" : "hidden lg:flex"}`}
-      >
-        {selectedRoom ? (
-          <ChatWindow
-            room={selectedRoom}
-            vendorId={vendorId}
-            vendorName={vendorName}
-            onBack={() => setSelectedRoom(null)}
-          />
-        ) : (
-          // Empty state on desktop when no room selected
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-6 bg-gray-50">
-            <div className="w-20 h-20 rounded-full bg-white border-2 border-gray-100 flex items-center justify-center mb-5 shadow-sm">
-              <MessageCircle size={36} className="text-gray-200" />
-            </div>
-            <h3 className="text-base font-semibold text-gray-400 mb-1">
-              Select a conversation
-            </h3>
-            <p className="text-sm text-gray-300">
-              Choose a customer chat from the left to start replying
-            </p>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
