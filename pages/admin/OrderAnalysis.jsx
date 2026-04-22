@@ -717,7 +717,7 @@ export default function AdminAnalytics() {
                         </td>
                         <td className="py-3 pr-4 text-xs font-semibold text-gray-900">
                           {order.guestInfo?.name ||
-                            order.customerId?.email ||
+                            order.customerId?.email ||  order.guestInfo?.phone ||
                             "Guest"}
                         </td>
                         <td className="py-3 pr-4 text-xs text-gray-500 max-w-[180px] truncate">
