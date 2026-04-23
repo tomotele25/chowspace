@@ -281,9 +281,9 @@ export default function CheckoutPage() {
         totalAmount: finalTotal,
         deliveryFee,
         packFees: packFee,
-        coupon: appliedCoupon
-          ? { code: appliedCoupon.code, discount: couponDiscount }
-          : null,
+        // coupon: appliedCoupon
+        //   ? { code: appliedCoupon.code, discount: couponDiscount }
+        //   : null,
       });
 
       setPlacedOrderId(orderId);
