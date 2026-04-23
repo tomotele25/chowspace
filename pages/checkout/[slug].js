@@ -268,23 +268,33 @@ export default function CheckoutPage() {
 
     // Save order in background
     try {
-      await axios.post(`${BACKENDURL}/api/orders`, {
-        orderId,
-        vendorId: vendor._id,
-        items: cartItems.map((item) => ({
-          productId: item._id,
-          name: item.productName,
-          price: item.price,
-          quantity: item.quantity,
-        })),
-        customerInfo: { name, phone, email },
-        totalAmount: finalTotal,
-        deliveryFee,
-        packFees: packFee,
-        // coupon: appliedCoupon
-        //   ? { code: appliedCoupon.code, discount: couponDiscount }
-        //   : null,
-      });
+   await axios.post(`${BACKENDURL}/api/orders`, {
+     orderId,
+     vendorId: vendor._id,
+     items: cartItems.map((item) => ({
+       productId: item._id,
+       name: item.productName,
+       price: item.price,
+       quantity: item.quantity,
+     })),
+
+     ...(session?.user
+       ? {
+           customerInfo: {
+             name: session.user.name,
+             email: session.user.email,
+             phone: phone,
+           },
+         }
+       : {
+           guestInfo: { name, phone, email },
+         }),
+
+     deliveryMethod: isLocalVendor ? "whatsapp" : "chat",
+     totalAmount: finalTotal,
+     deliveryFee,
+     packFees: packFee,
+   });
 
       setPlacedOrderId(orderId);
       if (clearCart) clearCart();
@@ -415,7 +425,7 @@ export default function CheckoutPage() {
             ))}
 
             {/* ── Coupon card (local/Abeokuta orders only) ── */}
-            {isLocalVendor && (
+            {/* {isLocalVendor && (
               <div className="bg-white rounded-2xl border border-gray-200 p-6">
                 <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <Ticket size={18} className="text-[#AE2108]" />
@@ -499,7 +509,7 @@ export default function CheckoutPage() {
                   </div>
                 )}
               </div>
-            )}
+            )} */}
 
             {/* Order for toggle */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6">
