@@ -232,17 +232,18 @@ export default function CheckoutPage() {
       return;
     }
 
-    const packsText = cart
-      .map((pack, i) => {
-        const items = pack
-          .map(
-            (item) =>
-              `- ${item.productName} | qty: ${item.quantity} | ₦${formatCurrency(item.price)}`,
-          )
-          .join("\n");
-        return `PACK ${i + 1}\n${items}`;
-      })
-      .join("\n\n");
+   const packsText = cart
+     .map((pack, i) => {
+       const items = pack
+         .map((item) => {
+           const total = item.price * item.quantity;
+           return `- ${item.productName} | qty: ${item.quantity} | ₦${formatCurrency(total)} (₦${formatCurrency(item.price)} each)`;
+         })
+         .join("\n");
+
+       return `PACK ${i + 1}\n${items}`;
+     })
+     .join("\n\n");
 
     const couponLine = appliedCoupon
       ? `COUPON (${appliedCoupon.code}): -₦${formatCurrency(couponDiscount)}\n`
@@ -281,9 +282,9 @@ export default function CheckoutPage() {
      ...(session?.user
        ? {
            customerInfo: {
-             name: session.user.name,
-             email: session.user.email,
-             phone: phone,
+             name: session?.user?.name,
+             email: session?.user?.email,
+             phone:session?.user?.phone,
            },
          }
        : {
