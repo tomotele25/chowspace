@@ -237,7 +237,7 @@ export default function CheckoutPage() {
        const items = pack
          .map((item) => {
            const total = item.price * item.quantity;
-           return `- ${item.productName} | qty: ${item.quantity} | ₦${formatCurrency(total)} (₦${formatCurrency(item.price)} each)`;
+           return `- ${item.productName} | qty: ${item.quantity} | ₦${formatCurrency(total)}`;
          })
          .join("\n");
 
