@@ -250,15 +250,14 @@ export default function CheckoutPage() {
 
     const waMessage = encodeURIComponent(
       `🍽️ CHOWSPACE ORDER\n\nORDER DETAILS\nOrder ID: ${orderId}\n\n${packsText}\n\n` +
-        `SUB TOTAL: ₦${formatCurrency(cartTotal)}\n` +
-        `PACKING FEE: ₦${formatCurrency(packFee)}\n` +
-        `DELIVERY PRICE: ₦${formatCurrency(deliveryFee)}\n` +
-        `SERVICE FEE: ₦${formatCurrency(serviceCharge)}\n` +
+        `SUB TOTAL: ₦${formatCurrency(cartTotal)}\nPACKING FEE: ₦${formatCurrency(packFee)}\n` +
+        `DELIVERY PRICE: ₦${formatCurrency(deliveryFee)}\nSERVICE FEE: ₦${formatCurrency(serviceCharge)}\n` +
         `${couponLine}` +
         `TOTAL PRICE: 💳 ₦${formatCurrency(finalTotal)}\n\n` +
-        `CUSTOMER DETAILS 👤\n` +
-        `Name: ${name}\nLocation: ${location}\nAddress: ${address}\nPhone: ${phone}\n\n` +
-        `🙏 Thank you for ordering with CHOWSPACE!`,
+        `CUSTOMER DETAILS 👤\nName: ${name}\nLocation: ${location}\nAddress: ${address}\nPhone: ${phone}\n\n` +
+        `🙏 Thank you for ordering with CHOWSPACE!\n\n` +
+        `PRICE CONFIRMATION\n🔗 https://chowspace.ng/confirm/${orderId}\n\n` +
+        `Leave a Review ✍️\n🔗 https://chowspace.ng/ReviewPage/${vendor._id}`,
     );
 
     // Open WhatsApp first (must be within user gesture)
@@ -267,35 +266,25 @@ export default function CheckoutPage() {
       "_blank",
     );
 
+    // Save order in background
     try {
-    await axios.post(`${BACKENDURL}/api/orders`, {
-      orderId,
-      vendorId: vendor._id,
-      items: cartItems.map((item) => ({
-        productId: item._id,
-        name: item.productName,
-        price: item.price,
-        quantity: item.quantity,
-      })),
-
-      ...(session?.user
-        ? {
-            customerInfo: {
-              name: session.user.fullname,
-              email: session.user.email,
-              phone: phone,
-            },
-          }
-        : {
-            guestInfo: { name, phone, email },
-          }),
-
-      deliveryMethod: isLocalVendor ? "whatsapp" : "chat",
-      totalAmount: finalTotal,
-      deliveryFee,
-      packFees: packFee,
-    });
-
+      await axios.post(`${BACKENDURL}/api/orders`, {
+        orderId,
+        vendorId: vendor._id,
+        items: cartItems.map((item) => ({
+          productId: item._id,
+          name: item.productName,
+          price: item.price,
+          quantity: item.quantity,
+        })),
+        customerInfo: { name, phone, email },
+        totalAmount: finalTotal,
+        deliveryFee,
+        packFees: packFee,
+        coupon: appliedCoupon
+          ? { code: appliedCoupon.code, discount: couponDiscount }
+          : null,
+      });
 
       setPlacedOrderId(orderId);
       if (clearCart) clearCart();
@@ -426,7 +415,7 @@ export default function CheckoutPage() {
             ))}
 
             {/* ── Coupon card (local/Abeokuta orders only) ── */}
-            {/* {isLocalVendor && (
+            {isLocalVendor && (
               <div className="bg-white rounded-2xl border border-gray-200 p-6">
                 <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <Ticket size={18} className="text-[#AE2108]" />
@@ -510,7 +499,7 @@ export default function CheckoutPage() {
                   </div>
                 )}
               </div>
-            )} */}
+            )}
 
             {/* Order for toggle */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6">
