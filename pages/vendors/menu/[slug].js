@@ -294,8 +294,8 @@ const VendorMenuPage = ({ vendorMeta }) => {
                     key={product._id}
                     className="bg-white rounded-2xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 flex flex-col"
                   >
-                    {/* Product Image */}
-                    <div className="w-full h-32 relative overflow-hidden rounded-t-2xl">
+                    {/* Product Image - fixed height */}
+                    <div className="w-full h-32 relative overflow-hidden rounded-t-2xl flex-shrink-0">
                       <Image
                         priority
                         src={product.image || "/placeholder.png"}
@@ -305,9 +305,22 @@ const VendorMenuPage = ({ vendorMeta }) => {
                       />
                     </div>
 
-                    <div className="p-4 flex flex-col justify-between flex-grow">
-                      <div className="space-y-1">
-                        <h3 className="font-semibold text-gray-900 text-sm truncate">
+                    {/* Card Body - fixed height so all cards are uniform */}
+                    <div className="p-3 flex flex-col flex-grow">
+                      {/* Fixed height text block */}
+                      <div
+                        className="flex flex-col gap-0.5"
+                        style={{ minHeight: "72px" }}
+                      >
+                        <h3
+                          className="font-semibold text-gray-900 text-xs leading-tight"
+                          style={{
+                            display: "-webkit-box",
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                          }}
+                        >
                           {product.productName}
                         </h3>
                         <p className="text-xs text-gray-500 truncate">
@@ -316,19 +329,19 @@ const VendorMenuPage = ({ vendorMeta }) => {
                         <p className="text-sm text-[#AE2108] font-semibold">
                           ₦{product.price}
                         </p>
-                        <span
-                          className={`text-xs font-medium ${
-                            product.available
-                              ? "text-green-600"
-                              : "text-red-500"
-                          }`}
-                        >
-                          {product.available ? "Available" : "Unavailable"}
-                        </span>
                       </div>
 
-                      {/* Quantity Controls */}
-                      <div className="mt-3">
+                      {/* Available badge */}
+                      <span
+                        className={`text-xs font-medium ${
+                          product.available ? "text-green-600" : "text-red-500"
+                        }`}
+                      >
+                        {product.available ? "Available" : "Unavailable"}
+                      </span>
+
+                      {/* Quantity Controls - always pinned to bottom */}
+                      <div className="mt-auto pt-2">
                         {count > 0 ? (
                           <div className="flex items-center gap-2">
                             <button
@@ -349,7 +362,7 @@ const VendorMenuPage = ({ vendorMeta }) => {
                           <button
                             onClick={() => addToCart(product)}
                             disabled={!product.available}
-                            className={`w-full py-2 mt-2 rounded text-xs font-medium flex items-center justify-center gap-1 transition ${
+                            className={`w-full py-2 rounded text-xs font-medium flex items-center justify-center gap-1 transition ${
                               product.available
                                 ? "bg-[#AE2108] text-white hover:bg-[#941B06]"
                                 : "bg-gray-200 text-gray-500 cursor-not-allowed"

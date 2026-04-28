@@ -19,6 +19,7 @@ import {
   TrendingUp,
   Bike,
   ClipboardList,
+  UserAnalysis,
 } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
@@ -32,6 +33,7 @@ const menuItems = [
     icon: ClipboardList,
     path: "/admin/AssignedOrders",
   },
+  { name: "User Analysis", icon: Users, path: "/admin/UserAnalysis" },
   { name: "Order Analysis", icon: BarChart3, path: "/admin/OrderAnalysis" },
   { name: "Promotion", icon: Star, path: "/admin/Promotion" },
   {
