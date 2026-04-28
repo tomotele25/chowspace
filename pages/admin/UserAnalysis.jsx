@@ -24,11 +24,12 @@ import {
   ShoppingBag,
   UserCheck,
   RefreshCw,
-  UserAnalysis,
+  ChevronLeft,
 } from "lucide-react";
 import Link from "next/link";
 
 const BACKENDURL = "https://chowspace-backend.vercel.app";
+const PAGE_SIZE = 30;
 
 const menuItems = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
@@ -138,7 +139,6 @@ const buildUsers = (orders) => {
   return Object.values(map).sort((a, b) => b.orderCount - a.orderCount);
 };
 
-/* ── top items across all users ── */
 const buildTopItems = (users) => {
   const map = {};
   users.forEach((u) =>
@@ -151,6 +151,244 @@ const buildTopItems = (users) => {
     .slice(0, 7);
 };
 
+/* ── User Detail Drawer ── */
+function UserDrawer({ user, onClose }) {
+  if (!user) return null;
+
+  const userFavItems = Object.entries(user.items)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  const waReminder = () => {
+    const phone = user.phone.replace(/\D/g, "");
+    const p = phone.startsWith("0") ? "234" + phone.slice(1) : phone;
+    const fav = Object.entries(user.items).sort((a, b) => b[1] - a[1])[0]?.[0];
+    const msg = encodeURIComponent(
+      `Hi ${user.name.split(" ")[0]}! 👋 We miss you on ChowSpace.\n\nYour favourite ${fav || "food"} is waiting 😋\n\nOrder now: https://chowspace.ng`,
+    );
+    window.open(`https://wa.me/${p}?text=${msg}`, "_blank");
+  };
+
+  const waBirthday = () => {
+    const phone = user.phone.replace(/\D/g, "");
+    const p = phone.startsWith("0") ? "234" + phone.slice(1) : phone;
+    const msg = encodeURIComponent(
+      `Happy Birthday ${user.name.split(" ")[0]}! 🎂🎉\n\nChowSpace is celebrating with you! Enjoy your special day and treat yourself to something delicious.\n\nOrder now: https://chowspace.ng`,
+    );
+    window.open(`https://wa.me/${p}?text=${msg}`, "_blank");
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      {/* Drawer — slides up from bottom on mobile, from right on desktop */}
+      <div className="fixed z-50 bottom-0 left-0 right-0 md:bottom-auto md:top-0 md:left-auto md:right-0 md:h-full md:w-96 bg-white rounded-t-2xl md:rounded-none shadow-2xl flex flex-col max-h-[90vh] md:max-h-full overflow-hidden">
+        {/* Handle bar (mobile only) */}
+        <div className="flex justify-center pt-3 pb-1 md:hidden">
+          <div className="w-10 h-1 rounded-full bg-gray-200" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+          <div>
+            <p className="text-sm font-bold text-gray-900">{user.name}</p>
+            <p className="text-[11px] text-gray-400 font-mono">{user.phone}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition"
+          >
+            <X size={15} className="text-gray-500" />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {/* Mini stats */}
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: "Orders", value: user.orderCount },
+              { label: "Total spend", value: `₦${fmt(user.totalSpend)}` },
+              {
+                label: "Last order",
+                value: user.lastOrderDate
+                  ? `${daysSince(user.lastOrderDate) === 0 ? "Today" : `${daysSince(user.lastOrderDate)}d ago`}`
+                  : "—",
+              },
+              {
+                label: "Customer since",
+                value: user.firstOrderDate
+                  ? new Date(user.firstOrderDate).toLocaleDateString("en-NG", {
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "—",
+              },
+            ].map(({ label, value }) => (
+              <div key={label} className="bg-gray-50 rounded-xl p-3">
+                <p className="text-[10px] text-gray-400 mb-1">{label}</p>
+                <p className="text-sm font-bold text-gray-900">{value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Favourite items */}
+          {userFavItems.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 mb-2">
+                Favourite items
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {userFavItems.map(([name, qty]) => (
+                  <span
+                    key={name}
+                    className="text-[11px] bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full"
+                  >
+                    {name}
+                    <span className="ml-1 text-[#AE2108] font-semibold">
+                      ×{qty}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Order history */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 mb-2">
+              Order history
+            </p>
+            <div className="space-y-1.5">
+              {user.orders
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                .slice(0, 8)
+                .map((o) => (
+                  <div
+                    key={o._id}
+                    className="flex items-center justify-between text-xs bg-gray-50 rounded-xl px-3 py-2"
+                  >
+                    <span className="text-gray-500 font-mono">
+                      #{o.orderId || o._id?.slice(-6).toUpperCase()}
+                    </span>
+                    <span className="text-gray-400">
+                      {new Date(o.createdAt).toLocaleDateString("en-NG", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                    <span className="font-semibold text-gray-900">
+                      ₦{fmt(o.totalAmount)}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Action buttons — sticky at bottom */}
+        <div className="flex gap-2 p-4 border-t border-gray-100 flex-shrink-0">
+          <button
+            onClick={waReminder}
+            className="flex-1 flex items-center justify-center gap-1.5 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-xl transition"
+          >
+            <MessageCircle size={13} /> Remind
+          </button>
+          {user.dob && (
+            <button
+              onClick={waBirthday}
+              className="flex-1 flex items-center justify-center gap-1.5 py-3 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-xl transition"
+            >
+              <Gift size={13} /> Birthday
+            </button>
+          )}
+          <a
+            href={`https://wa.me/${user.phone.replace(/\D/g, "").replace(/^0/, "234")}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex-1 flex items-center justify-center gap-1.5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-semibold rounded-xl transition"
+          >
+            <PhoneCall size={13} /> Chat
+          </a>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ── Pagination controls ── */
+function Pagination({ page, totalPages, onChange }) {
+  if (totalPages <= 1) return null;
+  const pages = [];
+  const start = Math.max(1, page - 2);
+  const end = Math.min(totalPages, page + 2);
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  return (
+    <div className="flex items-center justify-center gap-1 py-4">
+      <button
+        onClick={() => onChange(page - 1)}
+        disabled={page === 1}
+        className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition"
+      >
+        <ChevronLeft size={15} />
+      </button>
+
+      {start > 1 && (
+        <>
+          <button
+            onClick={() => onChange(1)}
+            className="w-8 h-8 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100 transition"
+          >
+            1
+          </button>
+          {start > 2 && <span className="text-xs text-gray-300 px-1">…</span>}
+        </>
+      )}
+
+      {pages.map((p) => (
+        <button
+          key={p}
+          onClick={() => onChange(p)}
+          className={`w-8 h-8 rounded-lg text-xs font-semibold transition ${
+            p === page
+              ? "bg-[#AE2108] text-white"
+              : "text-gray-500 hover:bg-gray-100"
+          }`}
+        >
+          {p}
+        </button>
+      ))}
+
+      {end < totalPages && (
+        <>
+          {end < totalPages - 1 && (
+            <span className="text-xs text-gray-300 px-1">…</span>
+          )}
+          <button
+            onClick={() => onChange(totalPages)}
+            className="w-8 h-8 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100 transition"
+          >
+            {totalPages}
+          </button>
+        </>
+      )}
+
+      <button
+        onClick={() => onChange(page + 1)}
+        disabled={page === totalPages}
+        className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition"
+      >
+        <ChevronRight size={15} />
+      </button>
+    </div>
+  );
+}
+
 /* ════════════════════════════════════════════════════════════ */
 export default function UserAnalysisPage() {
   const { data: session, status } = useSession();
@@ -161,6 +399,7 @@ export default function UserAnalysisPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [selectedUser, setSelectedUser] = useState(null);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/Login");
@@ -193,7 +432,6 @@ export default function UserAnalysisPage() {
   const repeatPct = totalUsers
     ? Math.round((repeatUsers / totalUsers) * 100)
     : 0;
-
   const today = new Date();
   const birthdayUsers = users.filter((u) => {
     if (!u.dob) return false;
@@ -209,7 +447,13 @@ export default function UserAnalysisPage() {
       (filter === "hot" && badge === "regular") ||
       (filter === "new" && badge === "new") ||
       (filter === "cold" && badge === "inactive") ||
-      (filter === "returning" && badge === "returning");
+      (filter === "returning" && badge === "returning") ||
+      (filter === "bday" &&
+        (() => {
+          if (!u.dob) return false;
+          const d = new Date(u.dob);
+          return d.getMonth() === today.getMonth();
+        })());
 
     const q = search.toLowerCase();
     const matchSearch =
@@ -218,31 +462,13 @@ export default function UserAnalysisPage() {
     return matchFilter && matchSearch;
   });
 
-  const waReminder = (user) => {
-    const phone = user.phone.replace(/\D/g, "");
-    const p = phone.startsWith("0") ? "234" + phone.slice(1) : phone;
-    const fav = Object.entries(user.items).sort((a, b) => b[1] - a[1])[0]?.[0];
-    const msg = encodeURIComponent(
-      `Hi ${user.name.split(" ")[0]}! 👋 We miss you on ChowSpace.\n\nYour favourite ${fav || "food"} is waiting 😋\n\nOrder now: https://chowspace.ng`,
-    );
-    window.open(`https://wa.me/${p}?text=${msg}`, "_blank");
-  };
+  /* ── reset to page 1 on filter/search change ── */
+  useEffect(() => {
+    setPage(1);
+  }, [filter, search]);
 
-  const waBirthday = (user) => {
-    const phone = user.phone.replace(/\D/g, "");
-    const p = phone.startsWith("0") ? "234" + phone.slice(1) : phone;
-    const msg = encodeURIComponent(
-      `Happy Birthday ${user.name.split(" ")[0]}! 🎂🎉\n\nChowSpace is celebrating with you! Enjoy your special day and treat yourself to something delicious.\n\nOrder now: https://chowspace.ng`,
-    );
-    window.open(`https://wa.me/${p}?text=${msg}`, "_blank");
-  };
-
-  /* ── selected user favourite items ── */
-  const userFavItems = selectedUser
-    ? Object.entries(selectedUser.items)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-    : [];
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="h-screen flex overflow-hidden bg-gray-50">
@@ -339,9 +565,16 @@ export default function UserAnalysisPage() {
               </p>
             </div>
           </div>
+          {/* Result count badge */}
+          {!loading && (
+            <span className="text-xs font-semibold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full">
+              {filtered.length.toLocaleString()} customer
+              {filtered.length !== 1 ? "s" : ""}
+            </span>
+          )}
         </header>
 
-        <div className="px-5 py-6 max-w-6xl mx-auto space-y-6">
+        <div className="px-4 py-5 max-w-6xl mx-auto space-y-5">
           {/* ── Stat cards ── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
@@ -363,7 +596,7 @@ export default function UserAnalysisPage() {
               {
                 label: "Repeat customers",
                 value: loading ? "—" : `${repeatPct}%`,
-                sub: `${fmt(repeatUsers)} ordered 2+ times`,
+                sub: `${fmt(repeatUsers)} ordered 2+`,
                 icon: RefreshCw,
                 iconClass: "bg-emerald-50 text-emerald-600",
               },
@@ -377,7 +610,7 @@ export default function UserAnalysisPage() {
             ].map(({ label, value, sub, icon: Icon, iconClass, primary }) => (
               <div
                 key={label}
-                className={`relative overflow-hidden rounded-2xl p-5 border transition-all hover:-translate-y-0.5 hover:shadow-lg
+                className={`relative overflow-hidden rounded-2xl p-4 border transition-all hover:-translate-y-0.5 hover:shadow-lg
                 ${primary ? "bg-[#AE2108] border-[#AE2108] shadow-[0_4px_24px_rgba(174,33,8,0.2)]" : "bg-white border-gray-100 shadow-sm"}`}
               >
                 {primary && (
@@ -386,15 +619,15 @@ export default function UserAnalysisPage() {
                     <div className="absolute -right-1 bottom-0 w-12 h-12 rounded-full bg-white/5 pointer-events-none" />
                   </>
                 )}
-                <div className="relative flex items-start justify-between mb-4">
+                <div className="relative flex items-start justify-between mb-3">
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center ${primary ? "bg-white/20" : iconClass}`}
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center ${primary ? "bg-white/20" : iconClass}`}
                   >
-                    <Icon size={18} className={primary ? "text-white" : ""} />
+                    <Icon size={16} className={primary ? "text-white" : ""} />
                   </div>
                 </div>
                 <p
-                  className={`text-2xl font-bold mb-0.5 ${primary ? "text-white" : "text-gray-900"}`}
+                  className={`text-xl font-bold mb-0.5 ${primary ? "text-white" : "text-gray-900"}`}
                 >
                   {value}
                 </p>
@@ -414,8 +647,8 @@ export default function UserAnalysisPage() {
 
           {/* ── Birthday banner ── */}
           {birthdayUsers.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 flex items-center gap-3">
-              <Gift size={18} className="text-amber-500 flex-shrink-0" />
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+              <Gift size={16} className="text-amber-500 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-amber-800">
                   {birthdayUsers.length} customer
@@ -438,7 +671,7 @@ export default function UserAnalysisPage() {
           {/* ── Main grid ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* ── Left: user list ── */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className="lg:col-span-2 space-y-3">
               {/* Search + filters */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
                 <div className="relative">
@@ -454,29 +687,36 @@ export default function UserAnalysisPage() {
                     className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#AE2108]/20 focus:border-[#AE2108] outline-none bg-gray-50 focus:bg-white transition"
                   />
                 </div>
-                <div className="flex flex-wrap gap-2">
+                {/* Horizontally scrollable filter pills */}
+                <div
+                  className="flex gap-2 overflow-x-auto pb-0.5"
+                  style={{ scrollbarWidth: "none" }}
+                >
                   {[
-                    { key: "all", label: "All" },
+                    { key: "all", label: `All (${users.length})` },
                     { key: "hot", label: "Regulars" },
                     { key: "returning", label: "Returning" },
                     { key: "new", label: "New" },
                     { key: "cold", label: "Inactive" },
+                    ...(birthdayUsers.length > 0
+                      ? [
+                          {
+                            key: "bday",
+                            label: `🎂 Birthdays (${birthdayUsers.length})`,
+                          },
+                        ]
+                      : []),
                   ].map(({ key, label }) => (
                     <button
                       key={key}
                       onClick={() => setFilter(key)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition whitespace-nowrap flex-shrink-0 ${
                         filter === key
                           ? "bg-[#AE2108] text-white"
                           : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                       }`}
                     >
                       {label}
-                      {key === "all" && !loading && (
-                        <span className="ml-1 opacity-70">
-                          ({users.length})
-                        </span>
-                      )}
                     </button>
                   ))}
                 </div>
@@ -486,7 +726,7 @@ export default function UserAnalysisPage() {
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 {loading ? (
                   <div className="p-5 space-y-4">
-                    {[...Array(5)].map((_, i) => (
+                    {[...Array(8)].map((_, i) => (
                       <div
                         key={i}
                         className="flex items-center gap-3 animate-pulse"
@@ -500,224 +740,91 @@ export default function UserAnalysisPage() {
                       </div>
                     ))}
                   </div>
-                ) : filtered.length === 0 ? (
+                ) : paginated.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16">
                     <Users size={28} className="text-gray-200 mb-3" />
                     <p className="text-sm text-gray-400">No customers found</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-gray-50">
-                    {filtered.map((user) => {
-                      const badge = getUserBadge(user);
-                      const av = avatarColor(user.phone);
-                      const initials = user.name
-                        .split(" ")
-                        .slice(0, 2)
-                        .map((w) => w[0])
-                        .join("")
-                        .toUpperCase();
-                      const days = daysSince(user.lastOrderDate);
-                      const isSelected = selectedUser?.phone === user.phone;
+                  <>
+                    <div className="divide-y divide-gray-50">
+                      {paginated.map((user) => {
+                        const badge = getUserBadge(user);
+                        const av = avatarColor(user.phone);
+                        const initials = user.name
+                          .split(" ")
+                          .slice(0, 2)
+                          .map((w) => w[0])
+                          .join("")
+                          .toUpperCase();
+                        const days = daysSince(user.lastOrderDate);
 
-                      return (
-                        <div
-                          key={user.phone}
-                          onClick={() =>
-                            setSelectedUser(isSelected ? null : user)
-                          }
-                          className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors ${
-                            isSelected
-                              ? "bg-[#AE2108]/5"
-                              : "hover:bg-gray-50/70"
-                          }`}
-                        >
+                        return (
                           <div
-                            className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-xs ${av.bg} ${av.text}`}
+                            key={user.phone}
+                            onClick={() => setSelectedUser(user)}
+                            className="flex items-center gap-3 px-4 py-3.5 cursor-pointer hover:bg-gray-50/70 transition-colors active:bg-gray-100"
                           >
-                            {initials}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate">
-                              {user.name}
-                            </p>
-                            <p className="text-[11px] text-gray-400 font-mono">
-                              {user.phone}
-                            </p>
-                          </div>
-                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.style}`}
+                            <div
+                              className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-xs ${av.bg} ${av.text}`}
                             >
-                              {badge.label}
-                            </span>
-                            <span className="text-[10px] text-gray-400">
-                              {user.orderCount} order
-                              {user.orderCount !== 1 ? "s" : ""}
-                              {days !== null
-                                ? ` · ${days === 0 ? "today" : `${days}d ago`}`
-                                : ""}
-                            </span>
+                              {initials}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-gray-900 truncate">
+                                {user.name}
+                              </p>
+                              <p className="text-[11px] text-gray-400 font-mono">
+                                {user.phone}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.style}`}
+                              >
+                                {badge.label}
+                              </span>
+                              <span className="text-[10px] text-gray-400">
+                                {user.orderCount} order
+                                {user.orderCount !== 1 ? "s" : ""}
+                                {days !== null
+                                  ? ` · ${days === 0 ? "today" : `${days}d ago`}`
+                                  : ""}
+                              </span>
+                            </div>
+                            <ChevronRight
+                              size={14}
+                              className="flex-shrink-0 text-gray-300"
+                            />
                           </div>
-                          <ChevronRight
-                            size={14}
-                            className={`flex-shrink-0 transition-transform ${isSelected ? "rotate-90 text-[#AE2108]" : "text-gray-300"}`}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Pagination */}
+                    <div className="border-t border-gray-100">
+                      <Pagination
+                        page={page}
+                        totalPages={totalPages}
+                        onChange={(p) => {
+                          setPage(p);
+                          // scroll list back to top on page change
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                      />
+                      <p className="text-center text-[11px] text-gray-400 pb-3">
+                        Showing {(page - 1) * PAGE_SIZE + 1}–
+                        {Math.min(page * PAGE_SIZE, filtered.length)} of{" "}
+                        {filtered.length.toLocaleString()}
+                      </p>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
 
-            {/* ── Right: top items + detail panel ── */}
-            <div className="space-y-4">
-              {/* Selected user detail */}
-              {selectedUser && (
-                <div className="bg-white rounded-2xl border border-[#AE2108]/20 shadow-sm overflow-hidden">
-                  <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-bold text-gray-900">
-                        {selectedUser.name}
-                      </p>
-                      <p className="text-[11px] text-gray-400 font-mono">
-                        {selectedUser.phone}
-                      </p>
-                    </div>
-                    <button onClick={() => setSelectedUser(null)}>
-                      <X
-                        size={16}
-                        className="text-gray-400 hover:text-gray-600"
-                      />
-                    </button>
-                  </div>
-
-                  <div className="p-4 space-y-4">
-                    {/* Mini stats */}
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { label: "Orders", value: selectedUser.orderCount },
-                        {
-                          label: "Total spend",
-                          value: `₦${fmt(selectedUser.totalSpend)}`,
-                        },
-                        {
-                          label: "Last order",
-                          value: selectedUser.lastOrderDate
-                            ? `${daysSince(selectedUser.lastOrderDate)}d ago`
-                            : "—",
-                        },
-                        {
-                          label: "Customer since",
-                          value: selectedUser.firstOrderDate
-                            ? new Date(
-                                selectedUser.firstOrderDate,
-                              ).toLocaleDateString("en-NG", {
-                                month: "short",
-                                year: "numeric",
-                              })
-                            : "—",
-                        },
-                      ].map(({ label, value }) => (
-                        <div key={label} className="bg-gray-50 rounded-xl p-3">
-                          <p className="text-[10px] text-gray-400 mb-1">
-                            {label}
-                          </p>
-                          <p className="text-sm font-bold text-gray-900">
-                            {value}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Favourite items */}
-                    {userFavItems.length > 0 && (
-                      <div>
-                        <p className="text-xs font-semibold text-gray-500 mb-2">
-                          Favourite items
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {userFavItems.map(([name, qty]) => (
-                            <span
-                              key={name}
-                              className="text-[11px] bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full"
-                            >
-                              {name}
-                              <span className="ml-1 text-[#AE2108] font-semibold">
-                                ×{qty}
-                              </span>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Recent orders */}
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 mb-2">
-                        Order history
-                      </p>
-                      <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                        {selectedUser.orders
-                          .sort(
-                            (a, b) =>
-                              new Date(b.createdAt) - new Date(a.createdAt),
-                          )
-                          .slice(0, 6)
-                          .map((o) => (
-                            <div
-                              key={o._id}
-                              className="flex items-center justify-between text-xs"
-                            >
-                              <span className="text-gray-500 font-mono">
-                                #{o.orderId || o._id?.slice(-6).toUpperCase()}
-                              </span>
-                              <span className="text-gray-400">
-                                {new Date(o.createdAt).toLocaleDateString(
-                                  "en-NG",
-                                  {
-                                    month: "short",
-                                    day: "numeric",
-                                  },
-                                )}
-                              </span>
-                              <span className="font-semibold text-gray-900">
-                                ₦{fmt(o.totalAmount)}
-                              </span>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="flex gap-2 pt-1">
-                      <button
-                        onClick={() => waReminder(selectedUser)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-xl transition"
-                      >
-                        <MessageCircle size={13} /> Remind
-                      </button>
-                      {selectedUser.dob && (
-                        <button
-                          onClick={() => waBirthday(selectedUser)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-xl transition"
-                        >
-                          <Gift size={13} /> Birthday
-                        </button>
-                      )}
-                      <a
-                        href={`https://wa.me/${selectedUser.phone.replace(/\D/g, "").replace(/^0/, "234")}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-semibold rounded-xl transition"
-                      >
-                        <PhoneCall size={13} /> Chat
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              )}
-
+            {/* ── Right: top items + quick actions (desktop only) ── */}
+            <div className="hidden lg:flex flex-col gap-4">
               {/* Top items chart */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                 <p className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -769,37 +876,37 @@ export default function UserAnalysisPage() {
                 <div className="space-y-1">
                   {[
                     {
-                      label: "Send bulk reminder",
-                      icon: MessageCircle,
-                      color: "text-emerald-600",
-                      bg: "bg-emerald-50",
+                      label: "Regulars",
+                      icon: UserCheck,
+                      color: "text-[#AE2108]",
+                      bg: "bg-[#AE2108]/10",
+                      filterKey: "hot",
                     },
                     {
                       label: "Birthday greetings",
                       icon: Gift,
                       color: "text-amber-600",
                       bg: "bg-amber-50",
+                      filterKey: "bday",
                     },
                     {
                       label: "Inactive customers",
                       icon: Clock,
                       color: "text-gray-500",
                       bg: "bg-gray-100",
+                      filterKey: "cold",
                     },
                     {
-                      label: "Top spenders",
-                      icon: UserCheck,
+                      label: "New customers",
+                      icon: Users,
                       color: "text-blue-600",
                       bg: "bg-blue-50",
+                      filterKey: "new",
                     },
-                  ].map(({ label, icon: Icon, color, bg }) => (
+                  ].map(({ label, icon: Icon, color, bg, filterKey }) => (
                     <button
                       key={label}
-                      onClick={() => {
-                        if (label === "Inactive customers") setFilter("cold");
-                        if (label === "Top spenders") setFilter("hot");
-                        if (label === "Birthday greetings") setFilter("bday");
-                      }}
+                      onClick={() => setFilter(filterKey)}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors group text-left"
                     >
                       <div
@@ -818,10 +925,56 @@ export default function UserAnalysisPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Top items mobile — shown below list on mobile */}
             </div>
+          </div>
+
+          {/* Most ordered items — mobile only, shown below list */}
+          <div className="lg:hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <p className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <TrendingUp size={16} className="text-[#AE2108]" />
+              Most ordered items
+            </p>
+            {loading ? (
+              <div className="space-y-3 animate-pulse">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="h-2.5 bg-gray-100 rounded-full w-24 flex-shrink-0" />
+                    <div className="h-2 bg-gray-100 rounded-full flex-1" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {topItems.map(([name, count]) => (
+                  <div key={name} className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 w-28 truncate flex-shrink-0">
+                      {name}
+                    </span>
+                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[#AE2108] rounded-full"
+                        style={{
+                          width: `${Math.round((count / maxItemCount) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <span className="text-[11px] text-gray-400 w-6 text-right flex-shrink-0">
+                      {count}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </main>
+
+      {/* ── User detail drawer (mobile bottom sheet + desktop side panel) ── */}
+      {selectedUser && (
+        <UserDrawer user={selectedUser} onClose={() => setSelectedUser(null)} />
+      )}
     </div>
   );
 }
