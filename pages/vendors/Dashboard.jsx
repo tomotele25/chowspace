@@ -221,12 +221,12 @@ export default function VendorDashboard() {
     { name: "Subscribe", icon: Rocket, path: "/vendors/Subscribe" },
     { name: "Announcement", icon: Bell, path: "/vendors/Announcement" },
     { name: "Manage Team", icon: Users, path: "/vendors/ManageTeam" },
-    // {
-    //   name: "Chat",
-    //   icon: MessageCircle,
-    //   path: "/vendors/vendorchat",
-    //   badge: unreadChats || null,
-    // },
+    {
+      name: "Chat",
+      icon: MessageCircle,
+      path: "/vendors/vendorchat",
+      badge: unreadChats || null,
+    },
     { name: "Settings", icon: Settings, path: "/Settings" },
   ];
 
