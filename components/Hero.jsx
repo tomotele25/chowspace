@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { cloudinaryResize } from "@/utils/captcha";
 
 const slides = [
   {
@@ -80,12 +81,9 @@ export default function Hero() {
             src={s.image}
             alt={s.title}
             fill
+            unoptimized
             priority={i === 0}
             className="object-cover"
-            style={{
-              transform: i === current ? "scale(1.04)" : "scale(1)",
-              transition: "transform 7s ease-out",
-            }}
           />
         </div>
       ))}
