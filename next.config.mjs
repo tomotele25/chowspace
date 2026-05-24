@@ -1,10 +1,11 @@
-/** @type {import('next').NextConfig} */
+/** @type {import('next').Config} */
 import withPWA from "next-pwa";
 
 const nextConfig = {
   reactStrictMode: true,
 
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
@@ -16,7 +17,7 @@ const nextConfig = {
       },
       {
         protocol: "https",
-        hostname: "chowspace.ng",
+        hostname: "www.cloudinary.com",
       },
     ],
   },
@@ -24,5 +25,5 @@ const nextConfig = {
 
 export default withPWA({
   dest: "public",
-  disable: process.env.NODE_ENV === "development",
+  disabled: process.env.NODE_ENV === "development",
 })(nextConfig);

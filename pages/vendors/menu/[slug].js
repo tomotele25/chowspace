@@ -17,6 +17,7 @@ import {
 import { useCart } from "@/context/CartContext";
 import Head from "next/head";
 
+import { cloudinaryResize } from "@/utils/captcha";
 const VendorMenuPage = ({ vendorMeta }) => {
   const router = useRouter();
   const { slug } = router.query;
@@ -184,7 +185,7 @@ const VendorMenuPage = ({ vendorMeta }) => {
               <div className="w-20 h-20 relative rounded-full overflow-hidden border-2 border-[#AE2108]">
                 <Image
                   loading="lazy"
-                  src={vendor.logo || "/logo.jpg"}
+                  src={cloudinaryResize(vendor.logo, 80) || "/logo.jpg"}
                   alt={vendor.businessName}
                   fill
                   className="object-cover"
@@ -297,8 +298,11 @@ const VendorMenuPage = ({ vendorMeta }) => {
                     {/* Product Image - fixed height */}
                     <div className="w-full h-32 relative overflow-hidden rounded-t-2xl flex-shrink-0">
                       <Image
-                        priority
-                        src={product.image || "/placeholder.png"}
+                       
+                        src={
+                          cloudinaryResize(product.image, 300) ||
+                          "/placeholder.png"
+                        }
                         alt={product.productName}
                         fill
                         className="object-cover transition-transform duration-300 hover:scale-105"

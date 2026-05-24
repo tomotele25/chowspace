@@ -13,6 +13,7 @@ import ContactSupport from "@/components/ContactSupport";
 import Categories from "@/components/Categories";
 import VendorSkeletonCard from "@/components/VendorSkeletonCard";
 import IOSInstallNotice from "@/components/IOSInstallNotice";
+import { cloudinaryResize } from "@/utils/captcha";
 import Image from "next/image";
 import Link from "next/link";
 import axios from "axios";
@@ -329,7 +330,8 @@ const BACKENDURL =
                     {/* Image */}
                     <div className="relative w-full h-48">
                       <Image
-                        src={vendor.logo || "/logo.jpg"}
+
+                        src={cloudinaryResize(vendor.logo, 300) || "/logo.jpg"}
                         alt={vendor.businessName}
                         fill
                         className="object-cover"
