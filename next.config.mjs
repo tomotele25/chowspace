@@ -1,29 +1,22 @@
-/** @type {import('next').Config} */
-import withPWA from "next-pwa";
+/** @type {import('next').NextConfig} */
+
+const withPWA = require("next-pwa")({
+  dest: "public",
+  register: true,
+  skipWaiting: true,
+  disable: process.env.NODE_ENV === "development",
+});
 
 const nextConfig = {
   reactStrictMode: true,
 
   images: {
-    unoptimized: true,
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "res.cloudinary.com",
-      },
-      {
-        protocol: "https",
-        hostname: "via.placeholder.com",
-      },
-      {
-        protocol: "https",
-        hostname: "www.cloudinary.com",
-      },
+      { protocol: "https", hostname: "res.cloudinary.com" },
+      { protocol: "https", hostname: "via.placeholder.com" },
+      { protocol: "https", hostname: "chowspace.ng" },
     ],
   },
 };
 
-export default withPWA({
-  dest: "public",
-  disabled: process.env.NODE_ENV === "development",
-})(nextConfig);
+module.exports = withPWA(nextConfig);
