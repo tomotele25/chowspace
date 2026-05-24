@@ -152,12 +152,15 @@ function BirthdayNudge({ phone: prefillPhone, vendorId }) {
     }
     setSaving(true);
     try {
-      await axios.post(`${BACKENDURL}/api/customers/birthday`, {
-        phone: formatPhoneNumber(cleanPhone),
-        month: dobMonth,
-        day,
-        vendorId,
-      });
+      await axios.post(
+        `https://chowspace-backend.vercel.app/api/customers/birthday`,
+        {
+          phone: formatPhoneNumber(cleanPhone),
+          month: dobMonth,
+          day,
+          vendorId,
+        },
+      );
       setSaved(true);
       try {
         localStorage.setItem(BIRTHDAY_KEY, "1");
