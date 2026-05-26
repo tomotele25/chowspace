@@ -13,20 +13,12 @@ import {
   MapPin,
   Package,
   ShoppingCart,
-  CheckCircle2,
   MessageCircle,
   Gift,
   X,
+  ChevronDown,
 } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
-/* ─── Helpers ─────────────────────────────────────────────── */
 const formatCurrency = (n) =>
   typeof n === "number" ? n.toLocaleString() : "0";
 
@@ -62,31 +54,25 @@ const MONTHS = [
   "December",
 ];
 
-/* ─── Shared input style ──────────────────────────────────── */
 const inputCls =
   "w-full pl-10 pr-4 py-3.5 rounded-2xl border border-gray-200 bg-white text-sm text-gray-800 placeholder-gray-400 outline-none transition focus:border-[#AE2108] focus:ring-2 focus:ring-[#AE2108]/15 hover:border-gray-300";
 
 const inputErrCls =
   "w-full pl-10 pr-4 py-3.5 rounded-2xl border border-red-400 bg-white text-sm text-gray-800 placeholder-gray-400 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-400/15";
 
-/* ─── Validation ──────────────────────────────────────────── */
-const validateNigerianPhone = (raw) => {
+const validatePhone = (raw) => {
   const d = raw.replace(/\D/g, "");
-  const local = /^0[7-9][01]\d{8}$/.test(d);
-  const intl = /^234[7-9][01]\d{8}$/.test(d);
-  return local || intl;
+  return d.length >= 7 && d.length <= 15;
 };
 
 const validateName = (name) => {
   const trimmed = name.trim();
-  if (trimmed.length < 3) return false;
+  if (trimmed.length < 2) return false;
   if (!/^[a-zA-Z\s'-]+$/.test(trimmed)) return false;
-  // Reject same char repeated (e.g. "aaaa", "xxxx xxxx")
   if (/^(.)\1+$/.test(trimmed.replace(/\s/g, ""))) return false;
   return true;
 };
 
-/* ─── Birthday Nudge ──────────────────────────────────────── */
 function BirthdayNudge({ phone: prefillPhone, vendorId }) {
   const [phone, setPhone] = useState(prefillPhone || "");
   const [dobMonth, setDobMonth] = useState("");
@@ -137,8 +123,8 @@ function BirthdayNudge({ phone: prefillPhone, vendorId }) {
       toast.error("Please enter your phone number");
       return;
     }
-    if (!validateNigerianPhone(cleanPhone)) {
-      toast.error("Enter a valid Nigerian phone number (e.g. 08012345678)");
+    if (!validatePhone(cleanPhone)) {
+      toast.error("Enter a valid phone number");
       return;
     }
     if (!dobMonth || !dobDay) {
@@ -147,7 +133,7 @@ function BirthdayNudge({ phone: prefillPhone, vendorId }) {
     }
     const day = parseInt(dobDay, 10);
     if (isNaN(day) || day < 1 || day > 31) {
-      toast.error("Enter a valid day (1–31)");
+      toast.error("Enter a valid day (1-31)");
       return;
     }
     setSaving(true);
@@ -183,7 +169,6 @@ function BirthdayNudge({ phone: prefillPhone, vendorId }) {
           type="button"
           onClick={() => setDismissed(true)}
           className="absolute top-5 right-5 text-gray-300 hover:text-gray-500 transition"
-          aria-label="Dismiss"
         >
           <X size={16} />
         </button>
@@ -277,7 +262,6 @@ function BirthdayNudge({ phone: prefillPhone, vendorId }) {
   );
 }
 
-/* ─── Main Checkout Page ──────────────────────────────────── */
 export default function CheckoutPage() {
   const router = useRouter();
   const { slug } = router.query;
@@ -292,8 +276,6 @@ export default function CheckoutPage() {
   const [placedOrderId, setPlacedOrderId] = useState(null);
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [packingFeePerPack, setPackingFeePerPack] = useState(300);
-  const [couponCode, setCouponCode] = useState("");
-  const [couponStatus, setCouponStatus] = useState("idle");
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [deliveryDetails, setDeliveryDetails] = useState({
@@ -302,8 +284,6 @@ export default function CheckoutPage() {
     address: "",
     location: "",
   });
-
-  // Inline field errors
   const [fieldErrors, setFieldErrors] = useState({
     name: "",
     phone: "",
@@ -357,7 +337,6 @@ export default function CheckoutPage() {
     })();
   }, [slug]);
 
-  /* ── Live field validation on change ── */
   const handleChange = (e) => {
     const { name, value } = e.target;
     setDeliveryDetails((p) => ({ ...p, [name]: value }));
@@ -367,13 +346,10 @@ export default function CheckoutPage() {
       setDeliveryFee(match?.fee || 0);
     }
 
-    // Live feedback after user has typed enough
     if (name === "phone" && value.length > 6) {
       setFieldErrors((p) => ({
         ...p,
-        phone: validateNigerianPhone(value)
-          ? ""
-          : "Enter a valid Phone no",
+        phone: validatePhone(value) ? "" : "Enter a valid phone number",
       }));
     } else if (name === "phone" && value.length <= 6) {
       setFieldErrors((p) => ({ ...p, phone: "" }));
@@ -401,7 +377,6 @@ export default function CheckoutPage() {
     }
   };
 
-  /* ── Full validation before submit ── */
   const validateInputs = ({ name, phone, address, location }) => {
     const errors = { name: "", phone: "", address: "" };
     let valid = true;
@@ -417,8 +392,8 @@ export default function CheckoutPage() {
     if (!phone.trim()) {
       errors.phone = "Please enter your phone number";
       valid = false;
-    } else if (!validateNigerianPhone(phone)) {
-      errors.phone = "Enter a valid Phone ";
+    } else if (!validatePhone(phone)) {
+      errors.phone = "Enter a valid phone number";
       valid = false;
     }
 
@@ -431,27 +406,20 @@ export default function CheckoutPage() {
     }
 
     setFieldErrors(errors);
-
-    if (!valid) {
-      toast.error("Please fix the errors in the form");
-    }
-
+    if (!valid) toast.error("Please fix the errors in the form");
     if (valid && isLocalVendor && !location) {
       toast.error("Please select a delivery location");
       return false;
     }
-
     return valid;
   };
 
-  /* ── Place order ── */
   const handlePay = async () => {
     if (loading || isSubmitting.current) return;
     isSubmitting.current = true;
     setLoading(true);
 
     const { name, phone, address, location } = deliveryDetails;
-
     if (!validateInputs({ name, phone, address, location })) {
       setLoading(false);
       isSubmitting.current = false;
@@ -554,18 +522,16 @@ export default function CheckoutPage() {
     }
   };
 
-  /* ── Loading ── */
   if (!vendor)
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-[#AE2108] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-500 font-medium">Loading checkout…</p>
+          <p className="text-gray-500 font-medium">Loading checkout...</p>
         </div>
       </div>
     );
 
-  /* ── Empty cart ── */
   if (cartItems.length === 0 && !placedOrderId)
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -587,12 +553,10 @@ export default function CheckoutPage() {
       </div>
     );
 
-  /* ── Main ── */
   return (
     <div className="min-h-screen bg-gray-50">
       <Toaster position="top-right" />
       <div className="max-w-5xl mx-auto px-4 py-10 sm:py-12">
-        {/* Page title */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-1">
             Order from{" "}
@@ -604,7 +568,6 @@ export default function CheckoutPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* ── Left ── */}
           <div className="lg:col-span-2 space-y-5">
             {/* Cart packs */}
             {cart.map((pack, index) => (
@@ -670,7 +633,9 @@ export default function CheckoutPage() {
             ))}
 
             {/* Birthday nudge */}
-            <BirthdayNudge phone={resolvedPhone} vendorId={vendor._id} />
+            {vendor && (
+              <BirthdayNudge phone={resolvedPhone} vendorId={vendor._id} />
+            )}
 
             {/* Who is this order for */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6">
@@ -752,16 +717,14 @@ export default function CheckoutPage() {
                       type="tel"
                       value={deliveryDetails.phone}
                       onChange={handleChange}
-                      placeholder="Phone number (e.g. 08012345678)"
+                      placeholder="Phone number"
                       className={fieldErrors.phone ? inputErrCls : inputCls}
                     />
                   </div>
-                  {fieldErrors.phone ? (
+                  {fieldErrors.phone && (
                     <p className="text-xs text-red-500 mt-1.5 ml-1">
                       {fieldErrors.phone}
                     </p>
-                  ) : (
-                    <p className="text-xs text-gray-400 mt-1.5 ml-1"></p>
                   )}
                 </div>
 
@@ -792,35 +755,32 @@ export default function CheckoutPage() {
                   )}
                 </div>
 
-                {/* Location dropdown — Abeokuta only */}
-                {/* Location dropdown — Abeokuta only */}
+                {/* Location — native select, works on all devices */}
                 {isLocalVendor && (
                   <div className="relative">
-                    {/* Remove the MapPin icon here — it blocks clicks on mobile */}
-                    <Select
+                    <MapPin
+                      size={16}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
+                    />
+                    <ChevronDown
+                      size={16}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
+                    />
+                    <select
+                      name="location"
                       value={deliveryDetails.location}
-                      onValueChange={(value) => {
-                        setDeliveryDetails((p) => ({ ...p, location: value }));
-                        const match = locations.find((l) => l.name === value);
-                        setDeliveryFee(match?.fee || 0);
-                      }}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-10 py-3.5 rounded-2xl border border-gray-200 bg-white text-sm text-gray-800 outline-none transition focus:border-[#AE2108] focus:ring-2 focus:ring-[#AE2108]/15 hover:border-gray-300 appearance-none cursor-pointer"
                     >
-                      <SelectTrigger className="w-full px-4 py-3.5 h-12 rounded-2xl border border-gray-200 bg-white text-sm focus:ring-2 focus:ring-[#AE2108]/15 focus:border-[#AE2108] cursor-pointer">
-                        <SelectValue placeholder="Select delivery location" />
-                      </SelectTrigger>
-                      <SelectContent className="z-[9999]">
-                        {locations.map((l) => (
-                          <SelectItem key={l.name} value={l.name}>
-                            <div className="flex items-center justify-between gap-6 w-full">
-                              <span>{l.name}</span>
-                              <span className="text-[#AE2108] font-semibold">
-                                ₦{formatCurrency(l.fee)}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <option value="" disabled>
+                        Select delivery location
+                      </option>
+                      {locations.map((l) => (
+                        <option key={l.name} value={l.name}>
+                          {l.name} — ₦{formatCurrency(l.fee)}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
 
@@ -859,7 +819,7 @@ export default function CheckoutPage() {
                   {loading ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />{" "}
-                      Processing…
+                      Processing...
                     </>
                   ) : isLocalVendor ? (
                     "Place Order"
@@ -878,7 +838,7 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* ── Right: summary ── */}
+          {/* Right: summary */}
           <div className="lg:col-span-1">
             <div className="sticky top-6 space-y-4">
               <div className="bg-white rounded-2xl border border-gray-200 p-6">
@@ -948,7 +908,6 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Hint card */}
               {!isLocalVendor ? (
                 <div className="bg-orange-50 rounded-2xl border border-orange-100 p-4">
                   <p className="text-xs text-orange-800 font-medium">
@@ -965,7 +924,6 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {/* Birthday sidebar */}
               <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4 flex items-start gap-3">
                 <Gift
                   size={15}
