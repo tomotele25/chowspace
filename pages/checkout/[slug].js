@@ -761,9 +761,7 @@ export default function CheckoutPage() {
                       {fieldErrors.phone}
                     </p>
                   ) : (
-                    <p className="text-xs text-gray-400 mt-1.5 ml-1">
-                     
-                    </p>
+                    <p className="text-xs text-gray-400 mt-1.5 ml-1"></p>
                   )}
                 </div>
 
@@ -795,12 +793,10 @@ export default function CheckoutPage() {
                 </div>
 
                 {/* Location dropdown — Abeokuta only */}
+                {/* Location dropdown — Abeokuta only */}
                 {isLocalVendor && (
                   <div className="relative">
-                    <MapPin
-                      size={16}
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
-                    />
+                    {/* Remove the MapPin icon here — it blocks clicks on mobile */}
                     <Select
                       value={deliveryDetails.location}
                       onValueChange={(value) => {
@@ -809,10 +805,10 @@ export default function CheckoutPage() {
                         setDeliveryFee(match?.fee || 0);
                       }}
                     >
-                      <SelectTrigger className="w-full pl-10 py-3.5 h-auto rounded-2xl border border-gray-200 bg-white text-sm focus:ring-2 focus:ring-[#AE2108]/15 focus:border-[#AE2108]">
+                      <SelectTrigger className="w-full px-4 py-3.5 h-12 rounded-2xl border border-gray-200 bg-white text-sm focus:ring-2 focus:ring-[#AE2108]/15 focus:border-[#AE2108] cursor-pointer">
                         <SelectValue placeholder="Select delivery location" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[9999]">
                         {locations.map((l) => (
                           <SelectItem key={l.name} value={l.name}>
                             <div className="flex items-center justify-between gap-6 w-full">
