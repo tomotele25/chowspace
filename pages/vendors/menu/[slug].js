@@ -13,11 +13,12 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Clock,
 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import Head from "next/head";
-
 import { cloudinaryResize } from "@/utils/captcha";
+
 const VendorMenuPage = ({ vendorMeta }) => {
   const router = useRouter();
   const { slug } = router.query;
@@ -64,7 +65,15 @@ const VendorMenuPage = ({ vendorMeta }) => {
           setError("Vendor or products not found");
           return;
         }
-        setVendor(res.data.vendor);
+        const vendorData = res.data.vendor;
+        setVendor(vendorData);
+
+        // If vendor is closed, don't load products at all
+        if (vendorData?.status === "closed") {
+          setProducts([]);
+          return;
+        }
+
         setProducts(res.data.products);
         setSelectedCategory("All");
       } catch (err) {
@@ -88,7 +97,6 @@ const VendorMenuPage = ({ vendorMeta }) => {
     )
     .sort((a, b) => {
       if (a.position !== b.position) return a.position - b.position;
-
       const aIsDrink = a.category?.toLowerCase().includes("drink");
       const bIsDrink = b.category?.toLowerCase().includes("drink");
       if (aIsDrink && !bIsDrink) return 1;
@@ -125,6 +133,78 @@ const VendorMenuPage = ({ vendorMeta }) => {
     }
   };
 
+  /* ── Loading skeleton ── */
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white px-6 py-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center gap-4 mb-10 animate-pulse">
+            <div className="w-20 h-20 rounded-full bg-gray-100 flex-shrink-0" />
+            <div className="space-y-2">
+              <div className="h-5 bg-gray-100 rounded w-40" />
+              <div className="h-3 bg-gray-100 rounded w-24" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
+            {[...Array(8)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-white rounded-2xl shadow-md flex flex-col animate-pulse"
+              >
+                <div className="w-full h-32 bg-gray-100 rounded-t-2xl" />
+                <div className="p-3 space-y-2">
+                  <div className="h-3 bg-gray-100 rounded w-3/4" />
+                  <div className="h-3 bg-gray-100 rounded w-1/2" />
+                  <div className="h-4 bg-gray-100 rounded w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Vendor closed screen ── */
+  if (vendor && vendor?.status === "closed") {
+    return (
+      <>
+        <Head>
+          <title>{vendor.businessName} | Closed | ChowSpace</title>
+        </Head>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+          <div className="text-center max-w-sm">
+            <div className="w-20 h-20 relative rounded-full overflow-hidden border-2 border-gray-200 mx-auto mb-6">
+              <Image
+                src={cloudinaryResize(vendor.logo, 80) || "/logo.jpg"}
+                alt={vendor.businessName}
+                fill
+                unoptimized
+                className="object-cover grayscale"
+              />
+            </div>
+            <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+              <Clock size={28} className="text-[#AE2108]" />
+            </div>
+            <h1 className="text-xl font-bold text-gray-900 mb-2">
+              {vendor.businessName} is currently closed
+            </h1>
+            <p className="text-gray-500 text-sm leading-relaxed mb-6">
+              This vendor is not taking orders right now. Please check back
+              later or explore other vendors on ChowSpace.
+            </p>
+            <button
+              onClick={() => router.back()}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#AE2108] text-white rounded-xl font-semibold text-sm hover:bg-[#941B06] transition"
+            >
+              <ArrowLeftCircle size={16} /> Go Back
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <Head>
@@ -133,8 +213,6 @@ const VendorMenuPage = ({ vendorMeta }) => {
             ? `${vendorMeta.businessName} | Menu | ChowSpace`
             : "Menu | ChowSpace"}
         </title>
-
-        {/* Open Graph - for WhatsApp, Facebook, LinkedIn */}
         <meta
           property="og:title"
           content={vendorMeta?.businessName || "ChowSpace"}
@@ -152,8 +230,6 @@ const VendorMenuPage = ({ vendorMeta }) => {
           content={`https://chowspace.ng/vendors/menu/${vendorMeta?.slug}`}
         />
         <meta property="og:type" content="website" />
-
-        {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta
           name="twitter:title"
@@ -171,7 +247,6 @@ const VendorMenuPage = ({ vendorMeta }) => {
 
       <section className="px-6 py-8 bg-white min-h-screen">
         <div className="max-w-6xl mx-auto">
-          {/* Back Button */}
           <button
             onClick={() => router.back()}
             className="mb-6 flex items-center gap-2 text-[#AE2108] hover:underline"
@@ -179,7 +254,6 @@ const VendorMenuPage = ({ vendorMeta }) => {
             <ArrowLeftCircle size={20} /> Back
           </button>
 
-          {/* Vendor Info */}
           {vendor && (
             <div className="flex items-center gap-4 mb-10">
               <div className="w-20 h-20 relative rounded-full overflow-hidden border-2 border-[#AE2108]">
@@ -188,6 +262,7 @@ const VendorMenuPage = ({ vendorMeta }) => {
                   src={cloudinaryResize(vendor.logo, 80) || "/logo.jpg"}
                   alt={vendor.businessName}
                   fill
+                  unoptimized
                   className="object-cover"
                 />
               </div>
@@ -201,7 +276,6 @@ const VendorMenuPage = ({ vendorMeta }) => {
             </div>
           )}
 
-          {/* Pack Buttons */}
           <div className="flex flex-wrap gap-2 mb-8">
             {cart.map((_, index) => (
               <button
@@ -231,8 +305,7 @@ const VendorMenuPage = ({ vendorMeta }) => {
             </button>
           </div>
 
-          {/* Horizontal Scrollable Categories */}
-          {!loading && categories.length > 1 && (
+          {categories.length > 1 && (
             <div className="mb-8 flex items-center gap-3">
               {canScrollLeft && (
                 <button
@@ -242,7 +315,6 @@ const VendorMenuPage = ({ vendorMeta }) => {
                   <ChevronLeft size={18} className="text-gray-600" />
                 </button>
               )}
-
               <div
                 ref={categoryRef}
                 onScroll={checkScroll}
@@ -263,7 +335,6 @@ const VendorMenuPage = ({ vendorMeta }) => {
                   </button>
                 ))}
               </div>
-
               {canScrollRight && (
                 <button
                   onClick={() => scroll("right")}
@@ -275,18 +346,15 @@ const VendorMenuPage = ({ vendorMeta }) => {
             </div>
           )}
 
-          {/* Menu */}
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             {selectedCategory === "All" ? "Menu" : selectedCategory}
           </h2>
 
-          {loading ? (
-            <p>Loading...</p>
-          ) : error ? (
+          {error ? (
             <p className="text-red-600">{error}</p>
           ) : sortedAndFilteredProducts.length > 0 ? (
             <div className="grid pb-20 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
-              {sortedAndFilteredProducts.map((product) => {
+              {sortedAndFilteredProducts.map((product, index) => {
                 const item = currentPack.find((p) => p._id === product._id);
                 const count = item ? item.quantity : 0;
 
@@ -295,23 +363,21 @@ const VendorMenuPage = ({ vendorMeta }) => {
                     key={product._id}
                     className="bg-white rounded-2xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 flex flex-col"
                   >
-                    {/* Product Image - fixed height */}
                     <div className="w-full h-32 relative overflow-hidden rounded-t-2xl flex-shrink-0">
                       <Image
-                       
                         src={
                           cloudinaryResize(product.image, 300) ||
                           "/placeholder.png"
                         }
                         alt={product.productName}
                         fill
+                        unoptimized
+                        loading={index < 6 ? "eager" : "lazy"}
                         className="object-cover transition-transform duration-300 hover:scale-105"
                       />
                     </div>
 
-                    {/* Card Body - fixed height so all cards are uniform */}
                     <div className="p-3 flex flex-col flex-grow">
-                      {/* Fixed height text block */}
                       <div
                         className="flex flex-col gap-0.5"
                         style={{ minHeight: "72px" }}
@@ -335,16 +401,12 @@ const VendorMenuPage = ({ vendorMeta }) => {
                         </p>
                       </div>
 
-                      {/* Available badge */}
                       <span
-                        className={`text-xs font-medium ${
-                          product.available ? "text-green-600" : "text-red-500"
-                        }`}
+                        className={`text-xs font-medium ${product.available ? "text-green-600" : "text-red-500"}`}
                       >
                         {product.available ? "Available" : "Unavailable"}
                       </span>
 
-                      {/* Quantity Controls - always pinned to bottom */}
                       <div className="mt-auto pt-2">
                         {count > 0 ? (
                           <div className="flex items-center gap-2">
@@ -389,10 +451,9 @@ const VendorMenuPage = ({ vendorMeta }) => {
             </p>
           )}
 
-          {/* Cart (Mobile + Desktop) */}
           {currentPack.length > 0 && (
             <>
-              {/* Mobile Drawer */}
+              {/* Mobile Cart */}
               <div className="fixed bottom-0 left-0 w-full z-50 md:hidden">
                 <div
                   className="bg-white border-t border-gray-200 shadow-lg p-4 flex justify-between items-center cursor-pointer"

@@ -271,6 +271,7 @@ export default function CheckoutPage() {
 
   const [vendor, setVendor] = useState(null);
   const [locations, setLocations] = useState([]);
+  const [locationsLoading, setLocationsLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [orderFor, setOrderFor] = useState("myself");
   const [placedOrderId, setPlacedOrderId] = useState(null);
@@ -323,13 +324,20 @@ export default function CheckoutPage() {
         if (typeof vd.packingFee === "number")
           setPackingFeePerPack(vd.packingFee);
         if (vd?.location?.toLowerCase().trim() === "abeokuta") {
-          const lr = await axios.get(`${BACKENDURL}/api/locations/${vd._id}`);
-          setLocations(
-            (lr.data.locations || []).map((l) => ({
-              name: l.location,
-              fee: l.price,
-            })),
-          );
+          setLocationsLoading(true);
+          try {
+            const lr = await axios.get(`${BACKENDURL}/api/locations/${vd._id}`);
+            setLocations(
+              (lr.data.locations || []).map((l) => ({
+                name: l.location,
+                fee: l.price,
+              })),
+            );
+          } catch {
+            toast.error("Failed to load delivery locations");
+          } finally {
+            setLocationsLoading(false);
+          }
         }
       } catch {
         toast.error("Failed to load vendor");
@@ -342,8 +350,12 @@ export default function CheckoutPage() {
     setDeliveryDetails((p) => ({ ...p, [name]: value }));
 
     if (name === "location") {
-      const match = locations.find((l) => l.name === value);
-      setDeliveryFee(match?.fee || 0);
+      if (value === "walk-in") {
+        setDeliveryFee(0);
+      } else {
+        const match = locations.find((l) => l.name === value);
+        setDeliveryFee(match?.fee || 0);
+      }
     }
 
     if (name === "phone" && value.length > 6) {
@@ -473,12 +485,15 @@ export default function CheckoutPage() {
       ? `COUPON (${appliedCoupon.code}): -₦${formatCurrency(couponDiscount)}\n`
       : "";
 
+    const locationDisplay =
+      location === "walk-in" ? "Walk-in (Pick up)" : location;
+
     const waMessage = encodeURIComponent(
       `🍽️ CHOWSPACE ORDER\n\nORDER DETAILS\nOrder ID: ${orderId}\n\n${packsText}\n\n` +
         `SUB TOTAL: ₦${formatCurrency(cartTotal)}\nPACKING FEE: ₦${formatCurrency(packFee)}\n` +
         `DELIVERY PRICE: ₦${formatCurrency(deliveryFee)}\nSERVICE FEE: ₦${formatCurrency(serviceCharge)}\n` +
         `${couponLine}TOTAL PRICE: 💳 ₦${formatCurrency(finalTotal)}\n\n` +
-        `CUSTOMER DETAILS 👤\nName: ${name}\nLocation: ${location}\nAddress: ${address}\nPhone: ${phone}\n\n` +
+        `CUSTOMER DETAILS 👤\nName: ${name}\nLocation: ${locationDisplay}\nAddress: ${address}\nPhone: ${phone}\n\n` +
         `🙏 Thank you for ordering with CHOWSPACE!\n\nPRICE CONFIRMATION\n🔗 https://chowspace.ng/confirm/${orderId}\n\n` +
         `Leave a Review ✍️\n🔗 https://chowspace.ng/ReviewPage/${vendor._id}`,
     );
@@ -755,7 +770,7 @@ export default function CheckoutPage() {
                   )}
                 </div>
 
-                {/* Location — native select, works on all devices */}
+                {/* Location — native select with walk-in option */}
                 {isLocalVendor && (
                   <div className="relative">
                     <MapPin
@@ -770,10 +785,17 @@ export default function CheckoutPage() {
                       name="location"
                       value={deliveryDetails.location}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-10 py-3.5 rounded-2xl border border-gray-200 bg-white text-sm text-gray-800 outline-none transition focus:border-[#AE2108] focus:ring-2 focus:ring-[#AE2108]/15 hover:border-gray-300 appearance-none cursor-pointer"
+                      disabled={locationsLoading}
+                      className="w-full pl-10 pr-10 py-3.5 rounded-2xl border border-gray-200 bg-white text-sm text-gray-800 outline-none transition focus:border-[#AE2108] focus:ring-2 focus:ring-[#AE2108]/15 hover:border-gray-300 appearance-none cursor-pointer disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
                     >
                       <option value="" disabled>
-                        Select delivery location
+                        {locationsLoading
+                          ? "Loading locations..."
+                          : "Select delivery location"}
+                      </option>
+                      {/* Walk-in option always first */}
+                      <option value="walk-in">
+                        🚶 Walk-in (Pick up) — Free
                       </option>
                       {locations.map((l) => (
                         <option key={l.name} value={l.name}>
@@ -781,6 +803,22 @@ export default function CheckoutPage() {
                         </option>
                       ))}
                     </select>
+                  </div>
+                )}
+
+                {/* Walk-in notice */}
+                {isLocalVendor && deliveryDetails.location === "walk-in" && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
+                    <span className="text-lg leading-none">🚶</span>
+                    <div>
+                      <p className="text-sm font-semibold text-blue-800">
+                        Walk-in / Pick up
+                      </p>
+                      <p className="text-xs text-blue-600 mt-0.5 leading-relaxed">
+                        You&apos;ll pick up your order directly from the vendor.
+                        No delivery fee applies.
+                      </p>
+                    </div>
                   </div>
                 )}
 
@@ -855,9 +893,11 @@ export default function CheckoutPage() {
                       "Delivery",
                       !isLocalVendor
                         ? "TBD via chat"
-                        : deliveryFee === 0
-                          ? "Select location"
-                          : `₦${formatCurrency(deliveryFee)}`,
+                        : deliveryDetails.location === "walk-in"
+                          ? "Free (Walk-in)"
+                          : deliveryFee === 0
+                            ? "Select location"
+                            : `₦${formatCurrency(deliveryFee)}`,
                     ],
                   ].map(([label, value]) => (
                     <div key={label} className="flex justify-between">
@@ -865,9 +905,14 @@ export default function CheckoutPage() {
                       <span
                         className={`font-semibold ${
                           label === "Delivery" &&
-                          (!isLocalVendor || deliveryFee === 0)
+                          (!isLocalVendor ||
+                            (deliveryFee === 0 &&
+                              deliveryDetails.location !== "walk-in"))
                             ? "text-gray-400 italic"
-                            : "text-gray-900"
+                            : label === "Delivery" &&
+                                deliveryDetails.location === "walk-in"
+                              ? "text-green-600"
+                              : "text-gray-900"
                         }`}
                       >
                         {value}
