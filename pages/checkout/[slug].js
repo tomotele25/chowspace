@@ -17,6 +17,7 @@ import {
   Gift,
   X,
   ChevronDown,
+  RefreshCw,
 } from "lucide-react";
 
 const formatCurrency = (n) =>
@@ -236,11 +237,7 @@ function BirthdayNudge({ phone: prefillPhone, vendorId }) {
               type="button"
               onClick={handleSave}
               disabled={!canSave}
-              className={`px-4 py-3 rounded-xl text-sm font-bold transition whitespace-nowrap flex items-center justify-center min-w-[64px] ${
-                canSave
-                  ? "bg-[#AE2108] hover:bg-[#941B06] text-white active:scale-[0.98]"
-                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
-              }`}
+              className={`px-4 py-3 rounded-xl text-sm font-bold transition whitespace-nowrap flex items-center justify-center min-w-[64px] ${canSave ? "bg-[#AE2108] hover:bg-[#941B06] text-white active:scale-[0.98]" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
             >
               {saving ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -270,8 +267,10 @@ export default function CheckoutPage() {
   const isSubmitting = useRef(false);
 
   const [vendor, setVendor] = useState(null);
+  const [vendorId, setVendorId] = useState(null);
   const [locations, setLocations] = useState([]);
   const [locationsLoading, setLocationsLoading] = useState(false);
+  const [locationsFailed, setLocationsFailed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [orderFor, setOrderFor] = useState("myself");
   const [placedOrderId, setPlacedOrderId] = useState(null);
@@ -312,6 +311,31 @@ export default function CheckoutPage() {
     if (orderFor === "guest") setDeliveryDetails((p) => ({ ...p, name: "" }));
   }, [session, orderFor]);
 
+  /* ── Fetch locations — extracted so we can retry ── */
+  const fetchLocations = async (vid) => {
+    setLocationsLoading(true);
+    setLocationsFailed(false);
+    try {
+      const lr = await axios.get(`${BACKENDURL}/api/locations/${vid}`);
+      const locs = (lr.data.locations || []).map((l) => ({
+        name: l.location,
+        fee: l.price,
+      }));
+      if (locs.length === 0) {
+        // API returned empty — mark as failed so user can retry
+        setLocationsFailed(true);
+      } else {
+        setLocations(locs);
+        setLocationsFailed(false);
+      }
+    } catch {
+      setLocationsFailed(true);
+      toast.error("Failed to load delivery locations");
+    } finally {
+      setLocationsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!slug) return;
     (async () => {
@@ -321,23 +345,11 @@ export default function CheckoutPage() {
         );
         const vd = vr.data.vendor;
         setVendor(vd);
+        setVendorId(vd._id);
         if (typeof vd.packingFee === "number")
           setPackingFeePerPack(vd.packingFee);
         if (vd?.location?.toLowerCase().trim() === "abeokuta") {
-          setLocationsLoading(true);
-          try {
-            const lr = await axios.get(`${BACKENDURL}/api/locations/${vd._id}`);
-            setLocations(
-              (lr.data.locations || []).map((l) => ({
-                name: l.location,
-                fee: l.price,
-              })),
-            );
-          } catch {
-            toast.error("Failed to load delivery locations");
-          } finally {
-            setLocationsLoading(false);
-          }
+          await fetchLocations(vd._id);
         }
       } catch {
         toast.error("Failed to load vendor");
@@ -770,39 +782,76 @@ export default function CheckoutPage() {
                   )}
                 </div>
 
-                {/* Location — native select with walk-in option */}
+                {/* Location dropdown */}
                 {isLocalVendor && (
-                  <div className="relative">
-                    <MapPin
-                      size={16}
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
-                    />
-                    <ChevronDown
-                      size={16}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
-                    />
-                    <select
-                      name="location"
-                      value={deliveryDetails.location}
-                      onChange={handleChange}
-                      disabled={locationsLoading}
-                      className="w-full pl-10 pr-10 py-3.5 rounded-2xl border border-gray-200 bg-white text-sm text-gray-800 outline-none transition focus:border-[#AE2108] focus:ring-2 focus:ring-[#AE2108]/15 hover:border-gray-300 appearance-none cursor-pointer disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-                    >
-                      <option value="" disabled>
-                        {locationsLoading
-                          ? "Loading locations..."
-                          : "Select delivery location"}
-                      </option>
-                      {/* Walk-in option always first */}
-                      <option value="walk-in">
-                        🚶 Walk-in (Pick up) — Free
-                      </option>
-                      {locations.map((l) => (
-                        <option key={l.name} value={l.name}>
-                          {l.name} — ₦{formatCurrency(l.fee)}
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <MapPin
+                        size={16}
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
+                      />
+                      <ChevronDown
+                        size={16}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
+                      />
+                      <select
+                        name="location"
+                        value={deliveryDetails.location}
+                        onChange={handleChange}
+                        disabled={locationsLoading}
+                        className="w-full pl-10 pr-10 py-3.5 rounded-2xl border border-gray-200 bg-white text-sm text-gray-800 outline-none transition focus:border-[#AE2108] focus:ring-2 focus:ring-[#AE2108]/15 hover:border-gray-300 appearance-none cursor-pointer disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+                      >
+                        <option value="" disabled>
+                          {locationsLoading
+                            ? "Loading locations..."
+                            : "Select delivery location"}
                         </option>
-                      ))}
-                    </select>
+                        {/* Walk-in always first */}
+                        <option value="walk-in">
+                          🚶 Walk-in (Pick up) — Free
+                        </option>
+                        {locations.map((l) => (
+                          <option key={l.name} value={l.name}>
+                            {l.name} — ₦{formatCurrency(l.fee)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Retry button if locations failed to load */}
+                    {locationsFailed && !locationsLoading && (
+                      <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+                        <p className="text-xs text-red-600 flex-1">
+                          Couldn&apos;t load delivery locations.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => fetchLocations(vendorId)}
+                          className="flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 transition flex-shrink-0"
+                        >
+                          <RefreshCw size={12} /> Retry
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Locations loaded but empty (besides walk-in) warning */}
+                    {!locationsLoading &&
+                      !locationsFailed &&
+                      locations.length === 0 && (
+                        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                          <p className="text-xs text-amber-700 flex-1">
+                            No delivery areas set up yet. You can still choose
+                            Walk-in.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => fetchLocations(vendorId)}
+                            className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 hover:text-amber-800 transition flex-shrink-0"
+                          >
+                            <RefreshCw size={12} /> Retry
+                          </button>
+                        </div>
+                      )}
                   </div>
                 )}
 
