@@ -233,12 +233,13 @@ const VendorMenuPage = ({ vendorMeta, ogImage }) => {
           content={`Order from ${vendorMeta?.businessName || "this vendor"} on ChowSpace`}
         />
         <meta property="og:image" content={finalOgImage} />
+        <meta property="og:image:secure_url" content={finalOgImage} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:type" content="image/jpeg" />
         <meta
           property="og:url"
-          content={`https://chowspace.ng/vendors/menu/${vendorMeta?.slug}`}
+          content={`https://chowspace.ng/vendors/menu/${vendorMeta?.slug || ""}`}
         />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="ChowSpace" />
@@ -842,7 +843,17 @@ const VendorMenuPage = ({ vendorMeta, ogImage }) => {
   );
 };
 
-export async function getServerSideProps({ params }) {
+// ── Pre-render each vendor page so the OG tags are baked into the static
+// HTML that WhatsApp / Facebook read. getServerSideProps was never running
+// on the Cloudflare deploy, which is why the tags came out empty.
+export async function getStaticPaths() {
+  return {
+    paths: [], // nothing pre-built at build time
+    fallback: "blocking", // build each vendor page on first visit, then cache
+  };
+}
+
+export async function getStaticProps({ params }) {
   try {
     const res = await fetch(
       `https://chowspace-backend.vercel.app/api/product/vendor/slug/${params.slug}`,
@@ -850,36 +861,27 @@ export async function getServerSideProps({ params }) {
     const data = await res.json();
     const vendor = data.vendor || null;
 
+    if (!vendor) {
+      return { notFound: true, revalidate: 60 };
+    }
+
+  
     let ogImage = "https://chowspace.ng/logo.jpg";
-    if (vendor?.logo?.includes("cloudinary.com")) {
-      if (/\/upload\/(v\d+\/)/.test(vendor.logo)) {
-        ogImage = vendor.logo.replace(
-          /\/upload\/(v\d+\/)/,
-          "/upload/w_1200,q_auto,f_jpg/$1",
-        );
-      } else {
-        ogImage = vendor.logo.replace(
-          /\/upload\/[^/]+\//,
-          "/upload/w_1200,q_auto,f_jpg/",
-        );
-      }
-    } else if (vendor?.logo) {
+    if (vendor.logo && vendor.logo.includes("/upload/")) {
+      ogImage = vendor.logo.replace(
+        "/upload/",
+        "/upload/w_1200,h_630,c_pad,b_auto,q_auto,f_jpg/",
+      );
+    } else if (vendor.logo) {
       ogImage = vendor.logo;
     }
 
     return {
-      props: {
-        vendorMeta: vendor,
-        ogImage,
-      },
+      props: { vendorMeta: vendor, ogImage },
+      revalidate: 60,
     };
   } catch {
-    return {
-      props: {
-        vendorMeta: null,
-        ogImage: "https://chowspace.ng/logo.jpg",
-      },
-    };
+    return { notFound: true, revalidate: 60 };
   }
 }
 
