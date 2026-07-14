@@ -843,14 +843,28 @@ const VendorMenuPage = ({ vendorMeta, ogImage }) => {
   );
 };
 
-// ── Pre-render each vendor page so the OG tags are baked into the static
-// HTML that WhatsApp / Facebook read. getServerSideProps was never running
-// on the Cloudflare deploy, which is why the tags came out empty.
+// ─────────────────────────────────────────────────────────────
+// Pre-build a static HTML page for EVERY vendor at build time, so each
+// vendor page ships with its OG tags already baked into the HTML - the
+// same way the homepage (which has no data function) works. This is what
+// makes WhatsApp/Facebook see the logo, business name and description:
+// they read raw HTML and never run JavaScript, so the tags must exist
+// before the page is ever requested.
+// ─────────────────────────────────────────────────────────────
 export async function getStaticPaths() {
-  return {
-    paths: [], // nothing pre-built at build time
-    fallback: "blocking", // build each vendor page on first visit, then cache
-  };
+  try {
+    const res = await fetch(
+      "https://chowspace-backend.vercel.app/api/vendor/getVendors",
+    );
+    const data = await res.json();
+    const paths = (data.vendors || [])
+      .filter((v) => v.slug)
+      .map((v) => ({ params: { slug: v.slug } }));
+
+    return { paths, fallback: false };
+  } catch {
+    return { paths: [], fallback: false };
+  }
 }
 
 export async function getStaticProps({ params }) {
@@ -862,10 +876,9 @@ export async function getStaticProps({ params }) {
     const vendor = data.vendor || null;
 
     if (!vendor) {
-      return { notFound: true, revalidate: 60 };
+      return { notFound: true };
     }
 
-  
     let ogImage = "https://chowspace.ng/logo.jpg";
     if (vendor.logo && vendor.logo.includes("/upload/")) {
       ogImage = vendor.logo.replace(
@@ -878,10 +891,10 @@ export async function getStaticProps({ params }) {
 
     return {
       props: { vendorMeta: vendor, ogImage },
-      revalidate: 60,
+      revalidate: 60, 
     };
   } catch {
-    return { notFound: true, revalidate: 60 };
+    return { notFound: true };
   }
 }
 
