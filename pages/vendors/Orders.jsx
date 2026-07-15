@@ -13,9 +13,9 @@ import { useRouter } from "next/router";
 import axios from "axios";
 
 const BACKENDURL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "https://chowspace-backend.vercel.app";
+  "https://chowspace-backend.vercel.app";
 
-// One clear step at a time. Each status knows the single next action.
+
 const STATUS = {
   pending: {
     label: "New order",

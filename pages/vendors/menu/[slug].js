@@ -10,7 +10,6 @@ import {
   CopyPlus,
   ShoppingCart,
   PackagePlus,
-  X,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -23,16 +22,23 @@ import { useCart } from "@/context/CartContext";
 import Head from "next/head";
 import { cloudinaryResize } from "@/utils/captcha";
 
-const VendorMenuPage = ({ vendorMeta, ogImage }) => {
+const VendorMenuPage = ({
+  vendorMeta,
+  initialProducts,
+  ogImage,
+  slug: staticSlug,
+}) => {
   const router = useRouter();
-  const { slug } = router.query;
+  const slug = staticSlug || router.query.slug;
   const categoryRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
-  const [vendor, setVendor] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Seed from props so the first paint (and the crawler's HTML) already has data.
+  // Falls back to the old client-fetch behaviour if props are missing.
+  const [vendor, setVendor] = useState(vendorMeta || null);
+  const [products, setProducts] = useState(initialProducts || []);
+  const [loading, setLoading] = useState(!vendorMeta);
   const [error, setError] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -63,18 +69,23 @@ const VendorMenuPage = ({ vendorMeta, ogImage }) => {
     .flat()
     .reduce((sum, item) => sum + item.quantity, 0);
 
+  // Revalidate prices / availability in the background. Does not block paint.
   useEffect(() => {
     if (!slug) return;
+    let cancelled = false;
+
     const fetchData = async () => {
-      setLoading(true);
       try {
         const res = await axios.get(
           `${BACKENDURL}/api/product/vendor/slug/${slug}`,
         );
+        if (cancelled) return;
+
         if (!res.data.success) {
-          setError("Vendor or products not found");
+          if (!vendorMeta) setError("Vendor or products not found");
           return;
         }
+
         const vendorData = res.data.vendor;
         setVendor(vendorData);
 
@@ -84,15 +95,18 @@ const VendorMenuPage = ({ vendorMeta, ogImage }) => {
         }
 
         setProducts(res.data.products);
-        setSelectedCategory("All");
       } catch (err) {
-        setError("Failed to load data");
+        if (!cancelled && !vendorMeta) setError("Failed to load data");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
+
     fetchData();
-  }, [slug]);
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, vendorMeta]);
 
   const categories = [
     "All",
@@ -129,7 +143,7 @@ const VendorMenuPage = ({ vendorMeta, ogImage }) => {
     checkScroll();
     window.addEventListener("resize", checkScroll);
     return () => window.removeEventListener("resize", checkScroll);
-  }, []);
+  }, [products]);
 
   const scroll = (direction) => {
     if (categoryRef.current) {
@@ -142,35 +156,74 @@ const VendorMenuPage = ({ vendorMeta, ogImage }) => {
     }
   };
 
+  /* ═══════════════════════════════════════════════════════════
+     META — built once, rendered in EVERY return branch.
+     Crawlers never run JS, so this must not sit below an early
+     return that only the browser reaches.
+     ═══════════════════════════════════════════════════════════ */
+  const name = vendorMeta?.businessName || vendor?.businessName || "ChowSpace";
+  const finalOgImage = ogImage || "https://chowspace.ng/logo.jpg";
+  const pageUrl = `https://chowspace.ng/vendors/menu/${vendorMeta?.slug || staticSlug || ""}`;
+  const description = `Order from ${vendorMeta?.businessName || vendor?.businessName || "this vendor"} on ChowSpace`;
+
+  const meta = (
+    <Head>
+      <title>
+        {vendorMeta ? `${name} | Menu | ChowSpace` : "Menu | ChowSpace"}
+      </title>
+      <meta name="description" content={description} />
+
+      <meta property="og:title" content={name} />
+      <meta property="og:description" content={description} />
+      <meta property="og:image" content={finalOgImage} />
+      <meta property="og:image:secure_url" content={finalOgImage} />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta property="og:image:type" content="image/jpeg" />
+      <meta property="og:image:alt" content={`${name} on ChowSpace`} />
+      <meta property="og:url" content={pageUrl} />
+      <meta property="og:type" content="website" />
+      <meta property="og:site_name" content="ChowSpace" />
+
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:title" content={name} />
+      <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content={finalOgImage} />
+    </Head>
+  );
+
   /* ── Loading skeleton ── */
   if (loading) {
     return (
-      <div className="min-h-screen bg-white px-6 py-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-4 mb-10 animate-pulse">
-            <div className="w-20 h-20 rounded-full bg-gray-100 flex-shrink-0" />
-            <div className="space-y-2">
-              <div className="h-5 bg-gray-100 rounded w-40" />
-              <div className="h-3 bg-gray-100 rounded w-24" />
+      <>
+        {meta}
+        <div className="min-h-screen bg-white px-6 py-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center gap-4 mb-10 animate-pulse">
+              <div className="w-20 h-20 rounded-full bg-gray-100 flex-shrink-0" />
+              <div className="space-y-2">
+                <div className="h-5 bg-gray-100 rounded w-40" />
+                <div className="h-3 bg-gray-100 rounded w-24" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
+              {[...Array(8)].map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-2xl shadow-md flex flex-col animate-pulse"
+                >
+                  <div className="w-full h-32 bg-gray-100 rounded-t-2xl" />
+                  <div className="p-3 space-y-2">
+                    <div className="h-3 bg-gray-100 rounded w-3/4" />
+                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                    <div className="h-4 bg-gray-100 rounded w-1/3" />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
-            {[...Array(8)].map((_, i) => (
-              <div
-                key={i}
-                className="bg-white rounded-2xl shadow-md flex flex-col animate-pulse"
-              >
-                <div className="w-full h-32 bg-gray-100 rounded-t-2xl" />
-                <div className="p-3 space-y-2">
-                  <div className="h-3 bg-gray-100 rounded w-3/4" />
-                  <div className="h-3 bg-gray-100 rounded w-1/2" />
-                  <div className="h-4 bg-gray-100 rounded w-1/3" />
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -178,9 +231,7 @@ const VendorMenuPage = ({ vendorMeta, ogImage }) => {
   if (vendor && vendor?.status === "closed") {
     return (
       <>
-        <Head>
-          <title>{vendor.businessName} | Closed | ChowSpace</title>
-        </Head>
+        {meta}
         <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
             <div className="w-20 h-20 relative rounded-full overflow-hidden border-2 border-gray-200 mx-auto mb-6">
@@ -214,46 +265,9 @@ const VendorMenuPage = ({ vendorMeta, ogImage }) => {
     );
   }
 
-  const finalOgImage = ogImage || "https://chowspace.ng/logo.jpg";
-
   return (
     <>
-      <Head>
-        <title>
-          {vendorMeta
-            ? `${vendorMeta.businessName} | Menu | ChowSpace`
-            : "Menu | ChowSpace"}
-        </title>
-        <meta
-          property="og:title"
-          content={vendorMeta?.businessName || "ChowSpace"}
-        />
-        <meta
-          property="og:description"
-          content={`Order from ${vendorMeta?.businessName || "this vendor"} on ChowSpace`}
-        />
-        <meta property="og:image" content={finalOgImage} />
-        <meta property="og:image:secure_url" content={finalOgImage} />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:image:type" content="image/jpeg" />
-        <meta
-          property="og:url"
-          content={`https://chowspace.ng/vendors/menu/${vendorMeta?.slug || ""}`}
-        />
-        <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="ChowSpace" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta
-          name="twitter:title"
-          content={vendorMeta?.businessName || "ChowSpace"}
-        />
-        <meta
-          name="twitter:description"
-          content={`Order from ${vendorMeta?.businessName || "this vendor"} on ChowSpace`}
-        />
-        <meta name="twitter:image" content={finalOgImage} />
-      </Head>
+      {meta}
 
       <section className="px-6 py-8 bg-white min-h-screen">
         <div className="max-w-6xl mx-auto">
@@ -660,7 +674,7 @@ const VendorMenuPage = ({ vendorMeta, ogImage }) => {
 
               {/* ── Desktop Cart Panel ── */}
               <div
-                className="hidden md:flex fixed right-6 bottom-6 w-88 bg-white rounded-2xl shadow-2xl shadow-black/10 border border-gray-100 flex-col z-50 overflow-hidden"
+                className="hidden md:flex fixed right-6 bottom-6 bg-white rounded-2xl shadow-2xl shadow-black/10 border border-gray-100 flex-col z-50 overflow-hidden"
                 style={{ width: "360px" }}
               >
                 {/* Header */}
@@ -845,11 +859,10 @@ const VendorMenuPage = ({ vendorMeta, ogImage }) => {
 
 // ─────────────────────────────────────────────────────────────
 // Pre-build a static HTML page for EVERY vendor at build time, so each
-// vendor page ships with its OG tags already baked into the HTML - the
-// same way the homepage (which has no data function) works. This is what
-// makes WhatsApp/Facebook see the logo, business name and description:
-// they read raw HTML and never run JavaScript, so the tags must exist
-// before the page is ever requested.
+// vendor page ships with its OG tags already baked into the HTML.
+// WhatsApp/Facebook read raw HTML and never run JavaScript, so the tags
+// must exist before the page is ever requested — and must render in
+// EVERY branch of the component, including the loading branch.
 // ─────────────────────────────────────────────────────────────
 export async function getStaticPaths() {
   try {
@@ -861,9 +874,14 @@ export async function getStaticPaths() {
       .filter((v) => v.slug)
       .map((v) => ({ params: { slug: v.slug } }));
 
-    return { paths, fallback: false };
-  } catch {
-    return { paths: [], fallback: false };
+    console.log(`[getStaticPaths] building ${paths.length} vendor pages`);
+
+    // "blocking" so vendors that sign up after the last build still resolve
+    // instead of hard 404ing until the next deploy.
+    return { paths, fallback: "blocking" };
+  } catch (err) {
+    console.error("[getStaticPaths] failed:", err);
+    return { paths: [], fallback: "blocking" };
   }
 }
 
@@ -875,6 +893,10 @@ export async function getStaticProps({ params }) {
     const data = await res.json();
     const vendor = data.vendor || null;
 
+    console.log(
+      `[getStaticProps] ${params.slug} → vendor: ${vendor?.businessName || "NOT FOUND"}`,
+    );
+
     if (!vendor) {
       return { notFound: true };
     }
@@ -883,17 +905,23 @@ export async function getStaticProps({ params }) {
     if (vendor.logo && vendor.logo.includes("/upload/")) {
       ogImage = vendor.logo.replace(
         "/upload/",
-        "/upload/w_1200,h_630,c_pad,b_auto,q_auto,f_jpg/",
+        "/upload/w_1200,h_630,c_pad,b_white,q_auto,f_jpg/",
       );
     } else if (vendor.logo) {
       ogImage = vendor.logo;
     }
 
     return {
-      props: { vendorMeta: vendor, ogImage },
-      revalidate: 60, 
+      props: {
+        vendorMeta: vendor,
+        initialProducts: data.products || [],
+        ogImage,
+        slug: params.slug,
+      },
+      revalidate: 60,
     };
-  } catch {
+  } catch (err) {
+    console.error(`[getStaticProps] ${params.slug} failed:`, err);
     return { notFound: true };
   }
 }
