@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import { Poppins } from "next/font/google";
 import {
   ArrowLeft,
   Search,
@@ -7,65 +8,22 @@ import {
   MapPin,
   Bike,
   ShoppingBag,
-  Loader2,
+  RefreshCw,
+  X,
+  CalendarDays,
 } from "lucide-react";
 import { useRouter } from "next/router";
 import axios from "axios";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app";
+const poppins = Poppins({
+  variable: "--font-poppins",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
 
-
-const STATUS = {
-  pending: {
-    label: "New order",
-    accent: "#AE2108",
-    tint: "bg-[#AE2108]/10 text-[#AE2108]",
-    next: "preparing",
-    action: "Start preparing",
-  },
-  preparing: {
-    label: "Preparing",
-    accent: "#D97706",
-    tint: "bg-amber-100 text-amber-700",
-    next: "ready",
-    action: "Mark as ready",
-  },
-  ready: {
-    label: "Ready",
-    accent: "#059669",
-    tint: "bg-emerald-100 text-emerald-700",
-    next: "completed",
-    action: "Mark as done",
-  },
-  completed: {
-    label: "Done",
-    accent: "#94A3B8",
-    tint: "bg-slate-100 text-slate-500",
-    next: null,
-    action: null,
-  },
-  cancelled: {
-    label: "Cancelled",
-    accent: "#E11D48",
-    tint: "bg-rose-100 text-rose-600",
-    next: null,
-    action: null,
-  },
-};
-
-function normaliseStatus(raw) {
-  const s = (raw || "").toString().toLowerCase();
-  if (
-    ["confirmed", "accepted", "preparing", "cooking", "in_progress"].includes(s)
-  )
-    return "preparing";
-  if (["ready", "ready_for_pickup", "prepared"].includes(s)) return "ready";
-  if (["completed", "delivered", "done", "fulfilled"].includes(s))
-    return "completed";
-  if (["cancelled", "canceled", "rejected"].includes(s)) return "cancelled";
-  return "pending";
-}
+const BACKENDURL = "https://chowspace-backend.vercel.app";
+const POLL_MS = 30000;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function timeAgo(date) {
   if (!date) return "";
@@ -78,14 +36,34 @@ function timeAgo(date) {
   return days === 1 ? "yesterday" : `${days} days ago`;
 }
 
+function clockTime(date) {
+  if (!date) return "";
+  return new Date(date).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function naira(n) {
   return "\u20A6" + Number(n || 0).toLocaleString();
 }
 
-// Presets ("all"/"today"/"yesterday"/"week") or a specific "YYYY-MM-DD".
+function prettyDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+// Dates are built from explicit local parts so the browser never has to guess
+// a timezone — string parsing of "YYYY-MM-DDT00:00:00" is inconsistent across
+// mobile engines and silently shifts the window by hours.
 function inDateRange(date, filter) {
-  if (filter === "all") return true;
+  if (!filter || filter === "all") return true;
   const d = new Date(date);
+  if (isNaN(d.getTime())) return false;
+
   const now = new Date();
   const startOfToday = new Date(
     now.getFullYear(),
@@ -94,151 +72,229 @@ function inDateRange(date, filter) {
   );
 
   if (filter === "today") return d >= startOfToday;
+
   if (filter === "yesterday") {
     const startYesterday = new Date(startOfToday);
     startYesterday.setDate(startYesterday.getDate() - 1);
     return d >= startYesterday && d < startOfToday;
   }
+
   if (filter === "week") {
     const weekAgo = new Date(startOfToday);
     weekAgo.setDate(weekAgo.getDate() - 6); // last 7 days incl. today
     return d >= weekAgo;
   }
-  // specific day picked from the calendar
-  const start = new Date(filter + "T00:00:00");
-  if (isNaN(start)) return true;
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  return d >= start && d < end;
+
+  if (!DATE_RE.test(filter)) return true;
+  const [y, m, day] = filter.split("-").map(Number);
+  return d >= new Date(y, m - 1, day) && d < new Date(y, m - 1, day + 1);
 }
 
-function OrderTicket({ order, status, onAdvance, onCancel, updating }) {
-  const s = STATUS[status];
+// The cart is built as packs. If the order carries a pack marker, group by it
+// so the kitchen can see the boundaries. Falls back to one flat list.
+function groupIntoPacks(items) {
+  const marked = items.some(
+    (i) => i.packIndex != null || i.packId != null || i.pack != null,
+  );
+  if (!marked) return [{ key: "all", label: null, items }];
+
+  const map = new Map();
+  items.forEach((i) => {
+    const k = i.packIndex ?? i.packId ?? i.pack ?? 0;
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(i);
+  });
+  return [...map.entries()].map(([k, v], idx) => ({
+    key: String(k),
+    label: `Pack ${idx + 1}`,
+    items: v,
+  }));
+}
+
+function extrasText(item) {
+  const extras = item.options || item.addons || item.extras || item.note;
+  if (!extras) return null;
+  if (typeof extras === "string") return extras;
+  if (Array.isArray(extras))
+    return extras.map((e) => (typeof e === "string" ? e : e.name)).join(", ");
+  return null;
+}
+
+/* ── The tear line. Two notches punched out of the card edges, a dashed rule
+      between them. It separates who the order is for from what to cook. ── */
+function Perforation() {
+  return (
+    <div className="chit-tear" aria-hidden="true">
+      <span className="chit-notch chit-notch-l" />
+      <span className="chit-notch chit-notch-r" />
+    </div>
+  );
+}
+
+function TicketSkeleton({ index = 0 }) {
+  return (
+    <div className="chit chit-skeleton" style={{ "--i": index }}>
+      <div className="px-5 pb-4 pt-5">
+        <div className="mb-3 flex justify-between">
+          <div className="space-y-2">
+            <div className="h-6 w-28 rounded bg-black/[0.06]" />
+            <div className="h-3 w-20 rounded bg-black/[0.06]" />
+          </div>
+          <div className="h-7 w-24 rounded-full bg-black/[0.06]" />
+        </div>
+        <div className="h-4 w-36 rounded bg-black/[0.06]" />
+      </div>
+      <Perforation />
+      <div className="space-y-3 px-5 pb-5 pt-5">
+        <div className="h-4 w-full rounded bg-black/[0.06]" />
+        <div className="h-4 w-4/5 rounded bg-black/[0.06]" />
+        <div className="h-4 w-2/3 rounded bg-black/[0.06]" />
+      </div>
+    </div>
+  );
+}
+
+function OrderTicket({ order, index = 0 }) {
   const name = order.guestInfo?.name || order.customerId?.fullname || "Guest";
   const phone = order.guestInfo?.phone || order.customerId?.phone;
   const address = order.guestInfo?.address || order.deliveryAddress;
   const isDelivery = !!address || order.orderType === "delivery";
+  const items = order.items || [];
+  const ref = (order._id || "").slice(-6).toUpperCase();
+  const packs = useMemo(() => groupIntoPacks(items), [items]);
+  const itemCount = items.reduce((s, i) => s + (i.quantity || 1), 0);
 
   return (
-    <div
-      className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100"
-      style={{ borderTop: `4px solid ${s.accent}` }}
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between px-5 pt-4">
-        <div>
-          <p className="text-lg font-bold tracking-tight text-gray-900">
-            #{order._id.slice(-6).toUpperCase()}
-          </p>
-          <p className="text-xs text-gray-400">{timeAgo(order.createdAt)}</p>
+    <article className="chit" style={{ "--i": index }}>
+      {/* ── Stub: who it's for ── */}
+      <header className="px-5 pb-4 pt-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="mono text-[22px] font-bold leading-none tracking-tight text-[#AE2108]">
+              #{ref}
+            </p>
+            <p className="mt-1.5 text-xs text-[#8A867F]">
+              {clockTime(order.createdAt)}
+              <span className="px-1.5 text-[#D6D3CD]">{"\u2022"}</span>
+              {timeAgo(order.createdAt)}
+            </p>
+          </div>
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#F3F2EF] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#5C584F]">
+            {isDelivery ? (
+              <Bike size={13} className="text-[#AE2108]" />
+            ) : (
+              <ShoppingBag size={13} className="text-[#AE2108]" />
+            )}
+            {isDelivery ? "Delivery" : "Pickup"}
+          </span>
         </div>
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${s.tint}`}
-        >
-          {s.label}
-        </span>
-      </div>
 
-      {/* Customer */}
-      <div className="px-5 pt-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
-          {isDelivery ? (
-            <Bike size={15} className="text-gray-400" />
-          ) : (
-            <ShoppingBag size={15} className="text-gray-400" />
+        <p className="mt-4 text-[15px] font-semibold text-[#171512]">{name}</p>
+
+        <div className="mt-1.5 space-y-1">
+          {phone && (
+            <a
+              href={`tel:${phone}`}
+              className="-mx-2 flex w-fit items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-[#6B6862] transition-colors hover:text-[#AE2108] active:bg-[#F3F2EF]"
+            >
+              <Phone size={13} className="shrink-0" />
+              <span className="mono">{phone}</span>
+            </a>
           )}
-          {name}
-          <span className="text-xs font-normal text-gray-400">
-            {"\u00B7"} {isDelivery ? "Delivery" : "Pickup"}
-          </span>
+          {address && (
+            <p className="flex items-start gap-1.5 text-sm leading-relaxed text-[#6B6862]">
+              <MapPin size={13} className="mt-[3px] shrink-0" />
+              {address}
+            </p>
+          )}
         </div>
-        {phone && (
-          <a
-            href={`tel:${phone}`}
-            onClick={(e) => e.stopPropagation()}
-            className="mt-1 flex w-fit items-center gap-1.5 text-sm text-gray-500 hover:text-[#AE2108]"
-          >
-            <Phone size={13} />
-            {phone}
-          </a>
+      </header>
+
+      <Perforation />
+
+      {/* ── Body: what to cook ── */}
+      <div className="px-5 pb-5 pt-5">
+        {items.length === 0 ? (
+          <p className="text-sm text-[#A5A199]">No items on this order.</p>
+        ) : (
+          packs.map((pack, pi) => (
+            <div key={pack.key} className={pi > 0 ? "mt-5" : ""}>
+              {pack.label && (
+                <p className="mb-2.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.12em] text-[#A5A199]">
+                  {pack.label}
+                  <span className="h-px flex-1 bg-[#EBE9E5]" />
+                </p>
+              )}
+              <ul className="space-y-3">
+                {pack.items.map((item, i) => {
+                  const qty = item.quantity || 1;
+                  const line = item.price != null ? item.price * qty : null;
+                  const extras = extrasText(item);
+                  return (
+                    <li key={i}>
+                      <div className="flex items-baseline gap-2.5">
+                        <span className="mono shrink-0 rounded bg-[#AE2108]/[0.07] px-1.5 py-0.5 text-[13px] font-bold text-[#AE2108]">
+                          {qty}
+                          {"\u00D7"}
+                        </span>
+                        <span className="text-[15px] font-medium text-[#171512]">
+                          {item.name}
+                        </span>
+                        <span className="mx-0.5 h-px flex-1 translate-y-[-2px] border-b border-dashed border-[#DEDBD5]" />
+                        {line != null && (
+                          <span className="mono shrink-0 text-[14px] font-semibold text-[#171512]">
+                            {naira(line)}
+                          </span>
+                        )}
+                      </div>
+                      {(qty > 1 || extras) && (
+                        <p className="mt-1 pl-9 text-xs leading-relaxed text-[#8A867F]">
+                          {qty > 1 && item.price != null && (
+                            <span className="mono">
+                              {naira(item.price)} each
+                            </span>
+                          )}
+                          {qty > 1 && item.price != null && extras && (
+                            <span className="px-1.5 text-[#D6D3CD]">
+                              {"\u2022"}
+                            </span>
+                          )}
+                          {extras}
+                        </p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))
         )}
-        {address && (
-          <p className="mt-1 flex items-start gap-1.5 text-sm text-gray-500">
-            <MapPin size={13} className="mt-0.5 shrink-0" />
-            {address}
+
+        {order.note && (
+          <p className="mt-4 rounded-lg border-l-2 border-[#AE2108] bg-[#AE2108]/[0.04] px-3 py-2 text-sm leading-relaxed text-[#5C584F]">
+            {order.note}
           </p>
         )}
-      </div>
 
-      {/* Full order - everything the customer got */}
-      <div className="mx-5 my-4 rounded-xl bg-gray-50 px-4 py-3">
-        <ul className="space-y-2.5">
-          {order.items.map((item, i) => {
-            const qty = item.quantity || 1;
-            const line = item.price != null ? item.price * qty : null;
-            const extras =
-              item.options || item.addons || item.extras || item.note;
-            return (
-              <li key={i}>
-                <div className="flex items-baseline gap-2">
-                  <span className="font-semibold text-gray-900">
-                    {qty}
-                    {"\u00D7"}
-                  </span>
-                  <span className="text-gray-800">{item.name}</span>
-                  <span className="mx-1 flex-1 translate-y-[-3px] border-b border-dotted border-gray-300" />
-                  {line != null && (
-                    <span className="tabular-nums text-gray-700">
-                      {naira(line)}
-                    </span>
-                  )}
-                </div>
-                {extras && (
-                  <p className="pl-6 text-xs text-gray-400">
-                    {typeof extras === "string"
-                      ? extras
-                      : Array.isArray(extras)
-                        ? extras
-                            .map((e) => (typeof e === "string" ? e : e.name))
-                            .join(", ")
-                        : ""}
-                  </p>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-
-        <div className="mt-3 flex items-center justify-between border-t border-dashed border-gray-300 pt-3">
-          <span className="text-sm font-medium text-gray-500">Total</span>
-          <span className="text-lg font-bold text-gray-900">
-            {naira(order.totalAmount)}
-          </span>
+        {/* ── Tally ── */}
+        <div className="mt-5 border-t border-[#EBE9E5] pt-4">
+          {order.deliveryFee != null && (
+            <div className="mb-1.5 flex items-baseline justify-between text-sm text-[#8A867F]">
+              <span>Delivery fee</span>
+              <span className="mono">{naira(order.deliveryFee)}</span>
+            </div>
+          )}
+          <div className="flex items-baseline justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#A5A199]">
+              Total {"\u00B7"} {itemCount} item{itemCount !== 1 ? "s" : ""}
+            </span>
+            <span className="mono text-[20px] font-bold leading-none text-[#171512]">
+              {naira(order.totalAmount)}
+            </span>
+          </div>
         </div>
       </div>
-
-      {/* Single clear action */}
-      {s.next && (
-        <div className="flex items-center gap-3 px-5 pb-4">
-          <button
-            onClick={() => onAdvance(order)}
-            disabled={updating}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 font-semibold text-white transition-opacity disabled:opacity-60"
-            style={{ backgroundColor: s.accent }}
-          >
-            {updating && <Loader2 size={16} className="animate-spin" />}
-            {s.action}
-          </button>
-          <button
-            onClick={() => onCancel(order)}
-            disabled={updating}
-            className="rounded-xl px-3 py-3 text-sm text-gray-400 hover:text-rose-500 disabled:opacity-60"
-          >
-            Cancel
-          </button>
-        </div>
-      )}
-    </div>
+    </article>
   );
 }
 
@@ -246,239 +302,507 @@ export default function OrderTracking() {
   const { data: session, status: authStatus } = useSession();
   const [orders, setOrders] = useState([]);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("active");
   const [dateFilter, setDateFilter] = useState("all");
-  const [updatingId, setUpdatingId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const dateInputRef = useRef(null);
+  const isCustomDate = DATE_RE.test(dateFilter);
 
-  useEffect(() => {
-    if (authStatus !== "authenticated") return;
-    const fetchOrders = async () => {
+  const vendorId = session?.user?.vendorId;
+
+  const load = useCallback(
+    async ({ silent } = {}) => {
+      if (!vendorId) return;
+      if (silent) setRefreshing(true);
       try {
-        const vendorId = session?.user?.vendorId;
-        if (!vendorId) {
-          setError(
-            "We couldn't find your vendor account. Sign in again to continue.",
-          );
-          return;
-        }
         const res = await axios.get(
           `${BACKENDURL}/api/getAllOrders?vendorId=${vendorId}`,
         );
         setOrders(res.data.orders || []);
+        setError("");
       } catch (err) {
         console.error(err);
-        setError("Orders didn't load. Check your connection and try again.");
+        // A failed background poll should not wipe the screen the vendor is using
+        if (!silent)
+          setError("Orders didn't load. Check your connection and try again.");
       } finally {
         setLoading(false);
+        setRefreshing(false);
       }
-    };
-    fetchOrders();
-  }, [session, authStatus]);
-
-  const changeStatus = async (order, nextStatus) => {
-    const id = order._id;
-    const prev = order.status;
-    setUpdatingId(id);
-    setOrders((list) =>
-      list.map((o) => (o._id === id ? { ...o, status: nextStatus } : o)),
-    );
-    try {
-      await axios.patch(`${BACKENDURL}/api/updateOrderStatus`, {
-        orderId: id,
-        status: nextStatus,
-      });
-    } catch (err) {
-      console.error(err);
-      setOrders((list) =>
-        list.map((o) => (o._id === id ? { ...o, status: prev } : o)),
-      );
-      setError("That didn't save. Try again in a moment.");
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const advance = (order) => {
-    const next = STATUS[normaliseStatus(order.status)].next;
-    if (next) changeStatus(order, next);
-  };
-  const cancel = (order) => changeStatus(order, "cancelled");
-
-  const decorated = useMemo(
-    () => orders.map((o) => ({ ...o, _status: normaliseStatus(o.status) })),
-    [orders],
+    },
+    [vendorId],
   );
+
+  useEffect(() => {
+    // Without this, an unauthenticated visit spins forever on the skeletons
+    if (authStatus === "loading") return;
+    if (authStatus !== "authenticated") {
+      setLoading(false);
+      setError("Sign in to view your orders.");
+      return;
+    }
+    if (!vendorId) {
+      setLoading(false);
+      setError(
+        "We couldn't find your vendor account. Sign in again to continue.",
+      );
+      return;
+    }
+    load();
+  }, [authStatus, vendorId, load]);
+
+  // New orders land on their own, no pull to refresh needed
+  useEffect(() => {
+    if (authStatus !== "authenticated" || !vendorId) return;
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") load({ silent: true });
+    }, POLL_MS);
+    return () => clearInterval(id);
+  }, [authStatus, vendorId, load]);
+
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => setError(""), 6000);
+    return () => clearTimeout(t);
+  }, [error]);
 
   const dateFiltered = useMemo(
-    () => decorated.filter((o) => inDateRange(o.createdAt, dateFilter)),
-    [decorated, dateFilter],
+    () => orders.filter((o) => inDateRange(o.createdAt, dateFilter)),
+    [orders, dateFilter],
   );
 
-  const counts = useMemo(() => {
-    const c = { active: 0, completed: 0, cancelled: 0 };
-    dateFiltered.forEach((o) => {
-      if (["pending", "preparing", "ready"].includes(o._status)) c.active += 1;
-      else if (c[o._status] !== undefined) c[o._status] += 1;
-    });
-    return c;
-  }, [dateFiltered]);
-
-  const filters = [
-    { key: "active", label: "Active", count: counts.active },
-    { key: "completed", label: "Done", count: counts.completed },
-    { key: "cancelled", label: "Cancelled", count: counts.cancelled },
-  ];
-
   const visible = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = search.trim().toLowerCase();
     return dateFiltered
-      .filter((o) => {
-        const inFilter =
-          filter === "active"
-            ? ["pending", "preparing", "ready"].includes(o._status)
-            : o._status === filter;
-        const matches =
+      .filter(
+        (o) =>
           !q ||
           o.guestInfo?.name?.toLowerCase().includes(q) ||
           o.customerId?.fullname?.toLowerCase().includes(q) ||
-          o._id.toLowerCase().includes(q);
-        return inFilter && matches;
-      })
-      .sort((a, b) =>
-        filter === "active"
-          ? new Date(a.createdAt) - new Date(b.createdAt) // oldest waiting first
-          : new Date(b.createdAt) - new Date(a.createdAt),
-      );
-  }, [dateFiltered, filter, search]);
+          o.guestInfo?.phone?.includes(q) ||
+          o.customerId?.phone?.includes(q) ||
+          o._id?.toLowerCase().includes(q) ||
+          (o.items || []).some((i) => i.name?.toLowerCase().includes(q)),
+      )
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [dateFiltered, search]);
+
+  const summary = useMemo(() => {
+    const revenue = visible.reduce((s, o) => s + Number(o.totalAmount || 0), 0);
+    const items = visible.reduce(
+      (s, o) => s + (o.items || []).reduce((n, i) => n + (i.quantity || 1), 0),
+      0,
+    );
+    return { count: visible.length, revenue, items };
+  }, [visible]);
+
+  const datePresets = [
+    { key: "all", label: "All time" },
+    { key: "today", label: "Today" },
+    { key: "yesterday", label: "Yesterday" },
+    { key: "week", label: "Last 7 days" },
+  ];
+
+  const openDatePicker = () => {
+    const el = dateInputRef.current;
+    if (!el) return;
+    // showPicker() is the only reliable way to open the native sheet from a
+    // custom control; falls back to focus on browsers that lack it.
+    if (typeof el.showPicker === "function") {
+      try {
+        el.showPicker();
+        return;
+      } catch (_) {}
+    }
+    el.focus();
+    el.click();
+  };
+
+  const rangeLabel = isCustomDate
+    ? prettyDate(dateFilter)
+    : datePresets.find((d) => d.key === dateFilter)?.label || "All time";
 
   return (
-    <div className="min-h-screen bg-gray-100 px-4 py-6">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex items-center justify-between">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-1 text-[#AE2108] hover:underline"
-          >
-            <ArrowLeft size={18} />
-            Back
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
-        </div>
+    <div className={`${poppins.variable} order-page`}>
+      {/* ── Header ── */}
+      <div className="order-head">
+        <div className="mx-auto max-w-5xl px-4 pb-3 pt-4">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <button
+              onClick={() => router.back()}
+              className="-ml-2 flex min-h-[44px] items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-[#AE2108] transition-colors active:bg-black/[0.04]"
+            >
+              <ArrowLeft size={17} />
+              Back
+            </button>
 
-        <div className="relative mb-4">
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-          />
-          <input
-            type="text"
-            placeholder="Search customer or order number"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 focus:border-[#AE2108] focus:outline-none focus:ring-1 focus:ring-[#AE2108]"
-          />
-        </div>
-
-        {/* Date filter */}
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          {[
-            { key: "all", label: "All time" },
-            { key: "today", label: "Today" },
-            { key: "yesterday", label: "Yesterday" },
-            { key: "week", label: "Last 7 days" },
-          ].map((d) => {
-            const active = dateFilter === d.key;
-            return (
+            <div className="flex items-center gap-2.5">
+              <div className="text-right">
+                <h1 className="text-[17px] font-bold leading-none tracking-tight text-[#171512]">
+                  Orders
+                </h1>
+                <p className="mt-1 text-[11px] leading-none text-[#A5A199]">
+                  {rangeLabel}
+                </p>
+              </div>
               <button
-                key={d.key}
-                onClick={() => setDateFilter(d.key)}
-                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
-                  active
-                    ? "bg-gray-900 text-white"
-                    : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50"
-                }`}
+                onClick={() => load({ silent: true })}
+                disabled={refreshing}
+                aria-label="Refresh orders"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E5E4E0] bg-white text-[#8A867F] transition-colors active:bg-[#F3F2EF] hover:text-[#AE2108] disabled:opacity-50"
               >
-                {d.label}
+                <RefreshCw size={15} className={refreshing ? "spin" : ""} />
               </button>
-            );
-          })}
-          <input
-            type="date"
-            value={/^\d{4}-\d{2}-\d{2}$/.test(dateFilter) ? dateFilter : ""}
-            onChange={(e) => setDateFilter(e.target.value || "all")}
-            className={`rounded-full border px-3.5 py-1.5 text-sm transition focus:border-gray-900 focus:outline-none ${
-              /^\d{4}-\d{2}-\d{2}$/.test(dateFilter)
-                ? "border-gray-900 text-gray-900"
-                : "border-gray-200 text-gray-500"
-            }`}
-          />
-        </div>
+            </div>
+          </div>
 
-        <div className="mb-6 flex gap-2">
-          {filters.map((f) => {
-            const active = filter === f.key;
-            return (
+          {/* Search */}
+          <div className="relative mb-3">
+            <Search
+              size={17}
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A5A199]"
+            />
+            <input
+              type="search"
+              inputMode="search"
+              placeholder="Search name, phone, item or order number"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-xl border border-[#E5E4E0] bg-white py-3 pl-11 pr-11 text-base text-[#171512] placeholder:text-[#A5A199] focus:border-[#AE2108] focus:outline-none focus:ring-2 focus:ring-[#AE2108]/15"
+            />
+            {search && (
               <button
-                key={f.key}
-                onClick={() => setFilter(f.key)}
-                className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                  active
-                    ? "bg-[#AE2108] text-white"
-                    : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50"
-                }`}
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+                className="absolute right-2.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#A5A199] transition-colors active:bg-[#F3F2EF] hover:text-[#171512]"
               >
-                {f.label}
-                <span
-                  className={`rounded-full px-1.5 text-xs ${
-                    active ? "bg-white/20" : "bg-gray-100 text-gray-500"
-                  }`}
+                <X size={15} />
+              </button>
+            )}
+          </div>
+
+          {/* Date filter — scrolls sideways instead of wrapping into a tall
+              stack on a narrow screen. The native date input is kept offscreen
+              and driven by a real button, because iOS renders a bare
+              <input type="date"> at an unpredictable width and ignores an
+              empty controlled value, so "All time" appeared not to clear it. */}
+          <div className="rail -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+            {datePresets.map((d) => {
+              const active = dateFilter === d.key;
+              return (
+                <button
+                  key={d.key}
+                  onClick={() => setDateFilter(d.key)}
+                  className={`chip ${active ? "chip-on" : ""}`}
                 >
-                  {f.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                  {d.label}
+                </button>
+              );
+            })}
 
-        {error && (
-          <div className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 ring-1 ring-rose-100">
-            {error}
+            <button
+              onClick={openDatePicker}
+              className={`chip ${isCustomDate ? "chip-on" : ""}`}
+            >
+              <CalendarDays size={14} />
+              {isCustomDate ? prettyDate(dateFilter) : "Pick a day"}
+              {isCustomDate && (
+                <X
+                  size={14}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDateFilter("all");
+                  }}
+                  className="ml-0.5 opacity-70"
+                />
+              )}
+            </button>
+
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={isCustomDate ? dateFilter : ""}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setDateFilter(e.target.value || "all")}
+              className="pointer-events-none absolute h-0 w-0 opacity-0"
+              tabIndex={-1}
+              aria-hidden="true"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── List ── */}
+      <div className="mx-auto max-w-5xl px-4 pb-24 pt-5">
+        {/* The tally for whatever range is showing, set like the foot of a receipt roll */}
+        {!loading && visible.length > 0 && (
+          <div className="tally">
+            <span className="tally-k">Orders</span>
+            <span className="tally-dots" />
+            <span className="mono tally-v">{summary.count}</span>
+
+            <span className="tally-k tally-gap">Items</span>
+            <span className="tally-dots" />
+            <span className="mono tally-v">{summary.items}</span>
+
+            <span className="tally-k tally-gap">Value</span>
+            <span className="tally-dots" />
+            <span className="mono tally-v tally-brand">
+              {naira(summary.revenue)}
+            </span>
           </div>
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-20 text-gray-400">
-            <Loader2 size={18} className="animate-spin" /> Loading orders
+          <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
+            {[...Array(4)].map((_, i) => (
+              <TicketSkeleton key={i} index={i} />
+            ))}
           </div>
         ) : visible.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {visible.map((order) => (
-              <OrderTicket
-                key={order._id}
-                order={order}
-                status={order._status}
-                onAdvance={advance}
-                onCancel={cancel}
-                updating={updatingId === order._id}
-              />
+          <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
+            {visible.map((order, i) => (
+              <OrderTicket key={order._id} order={order} index={i} />
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white py-16 text-center">
-            <p className="font-medium text-gray-600">
-              No orders here right now
+          <div className="rounded-2xl border border-dashed border-[#DEDBD5] bg-white/60 py-20 text-center">
+            <p className="text-[15px] font-semibold text-[#171512]">
+              {search ? "Nothing matches that search" : "No orders yet"}
             </p>
-            <p className="mt-1 text-sm text-gray-400">
-              {filter === "active"
-                ? "New orders show up here the moment they come in."
-                : "Nothing in this list yet."}
+            <p className="mx-auto mt-1.5 max-w-[260px] text-sm leading-relaxed text-[#8A867F]">
+              {search
+                ? "Try a different name, phone number, item or order number."
+                : dateFilter !== "all"
+                  ? "Widen the date range to see more."
+                  : "New orders show up here the moment they come in."}
             </p>
+            {(search || dateFilter !== "all") && (
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setDateFilter("all");
+                }}
+                className="mt-5 rounded-xl bg-[#AE2108] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#941B06] active:bg-[#7A1605]"
+              >
+                Clear filters
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      {error && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center p-4">
+          <div className="toast pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-xl bg-[#171512] px-4 py-3.5 text-sm text-white">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#AE2108]" />
+            <span className="flex-1">{error}</span>
+            <button
+              onClick={() => setError("")}
+              aria-label="Dismiss"
+              className="shrink-0 text-white/40 transition-colors hover:text-white"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        .order-page {
+          --brand: #ae2108;
+          --paper: #ffffff;
+          --surface: #f4f3f0;
+          --line: #e5e4e0;
+          min-height: 100vh;
+          background: var(--surface);
+          font-family: var(--font-poppins), system-ui, sans-serif;
+          color: #171512;
+        }
+
+        .order-head {
+          position: sticky;
+          top: 0;
+          z-index: 20;
+          background: color-mix(in srgb, var(--surface) 88%, transparent);
+          backdrop-filter: saturate(1.4) blur(12px);
+          border-bottom: 1px solid var(--line);
+        }
+
+        /* Prices, quantities and refs are data — they line up in a column and
+           should be read as a column. */
+        .mono {
+          font-family: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
+          font-variant-numeric: tabular-nums;
+        }
+
+        .rail {
+          scrollbar-width: none;
+          -webkit-overflow-scrolling: touch;
+        }
+        .rail::-webkit-scrollbar {
+          display: none;
+        }
+
+        .chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          flex-shrink: 0;
+          min-height: 38px;
+          padding: 0 14px;
+          border-radius: 999px;
+          border: 1px solid var(--line);
+          background: var(--paper);
+          color: #6b6862;
+          font-size: 13px;
+          font-weight: 500;
+          white-space: nowrap;
+          transition:
+            background-color 0.15s,
+            border-color 0.15s,
+            color 0.15s;
+        }
+        .chip:active {
+          background: #f3f2ef;
+        }
+        .chip-on {
+          background: var(--brand);
+          border-color: var(--brand);
+          color: #fff;
+        }
+        .chip-on:active {
+          background: #7a1605;
+        }
+
+        /* ── The chit ──
+           Every card is an order docket: a stub with the customer, a tear,
+           then the list to cook from. */
+        .chit {
+          position: relative;
+          background: var(--paper);
+          border-radius: 14px;
+          box-shadow:
+            0 1px 2px rgba(23, 21, 18, 0.04),
+            0 4px 16px -6px rgba(23, 21, 18, 0.08);
+          animation: rise 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
+          animation-delay: calc(var(--i, 0) * 40ms);
+        }
+        /* the spine */
+        .chit::before {
+          content: "";
+          position: absolute;
+          left: 0;
+          top: 14px;
+          bottom: 14px;
+          width: 3px;
+          border-radius: 0 3px 3px 0;
+          background: var(--brand);
+        }
+
+        .chit-tear {
+          position: relative;
+          height: 1px;
+          margin: 0 14px;
+          border-top: 1px dashed #dedbd5;
+        }
+        .chit-notch {
+          position: absolute;
+          top: -8px;
+          width: 16px;
+          height: 16px;
+          border-radius: 999px;
+          background: var(--surface);
+        }
+        .chit-notch-l {
+          left: -22px;
+        }
+        .chit-notch-r {
+          right: -22px;
+        }
+
+        .chit-skeleton {
+          animation: none;
+        }
+        .chit-skeleton :global(div) {
+          animation: pulse 1.4s ease-in-out infinite;
+        }
+
+        /* ── Tally ── */
+        .tally {
+          display: flex;
+          align-items: baseline;
+          flex-wrap: wrap;
+          gap: 0 8px;
+          margin-bottom: 20px;
+          padding: 14px 18px;
+          background: var(--paper);
+          border-radius: 14px;
+          box-shadow: 0 1px 2px rgba(23, 21, 18, 0.04);
+        }
+        .tally-k {
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: #a5a199;
+        }
+        .tally-gap {
+          margin-left: 20px;
+        }
+        .tally-dots {
+          flex: 1 1 24px;
+          min-width: 16px;
+          transform: translateY(-3px);
+          border-bottom: 1px dashed #dedbd5;
+        }
+        .tally-v {
+          font-size: 15px;
+          font-weight: 700;
+          color: #171512;
+        }
+        .tally-brand {
+          color: var(--brand);
+        }
+
+        .toast {
+          box-shadow: 0 8px 30px -8px rgba(23, 21, 18, 0.4);
+          animation: rise 0.25s ease-out backwards;
+        }
+
+        .spin {
+          animation: spin 0.9s linear infinite;
+        }
+
+        @keyframes rise {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+        }
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        @keyframes pulse {
+          50% {
+            opacity: 0.45;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .chit,
+          .toast {
+            animation: none;
+          }
+          .chit-skeleton :global(div) {
+            animation: none;
+          }
+        }
+      `}</style>
     </div>
   );
 }
