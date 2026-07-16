@@ -12,7 +12,6 @@ import {
   X,
   CalendarDays,
 } from "lucide-react";
-import { useRouter } from "next/router";
 import axios from "axios";
 
 const poppins = Poppins({
@@ -24,6 +23,11 @@ const poppins = Poppins({
 const BACKENDURL = "https://chowspace-backend.vercel.app";
 const POLL_MS = 30000;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Every ticket is a full docket — shadow, spine, per-item rows. Mounting a
+// vendor's whole history at once is what makes Safari kill the tab. Render a
+// page at a time; the vendor asks for more if they want it.
+const PAGE_SIZE = 30;
 
 function timeAgo(date) {
   if (!date) return "";
@@ -302,11 +306,13 @@ export default function OrderTracking() {
   const { data: session, status: authStatus } = useSession();
   const [orders, setOrders] = useState([]);
   const [search, setSearch] = useState("");
-  const [dateFilter, setDateFilter] = useState("all");
+  // Opening on the whole history is what killed the tab. A vendor lands here
+  // to work today's orders; older ones are a filter away.
+  const [dateFilter, setDateFilter] = useState("today");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const router = useRouter();
   const dateInputRef = useRef(null);
   const isCustomDate = DATE_RE.test(dateFilter);
 
@@ -368,6 +374,11 @@ export default function OrderTracking() {
     return () => clearTimeout(t);
   }, [error]);
 
+  // A new search or range is a fresh look — don't carry a huge page over.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [search, dateFilter]);
+
   const dateFiltered = useMemo(
     () => orders.filter((o) => inDateRange(o.createdAt, dateFilter)),
     [orders, dateFilter],
@@ -389,6 +400,14 @@ export default function OrderTracking() {
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [dateFiltered, search]);
 
+  // Only this slice is ever mounted.
+  const shown = useMemo(
+    () => visible.slice(0, visibleCount),
+    [visible, visibleCount],
+  );
+  const remaining = visible.length - shown.length;
+
+  // The tally still counts the whole range, not just what's rendered.
   const summary = useMemo(() => {
     const revenue = visible.reduce((s, o) => s + Number(o.totalAmount || 0), 0);
     const items = visible.reduce(
@@ -399,10 +418,10 @@ export default function OrderTracking() {
   }, [visible]);
 
   const datePresets = [
-    { key: "all", label: "All time" },
     { key: "today", label: "Today" },
     { key: "yesterday", label: "Yesterday" },
     { key: "week", label: "Last 7 days" },
+    { key: "all", label: "All time" },
   ];
 
   const openDatePicker = () => {
@@ -422,7 +441,7 @@ export default function OrderTracking() {
 
   const rangeLabel = isCustomDate
     ? prettyDate(dateFilter)
-    : datePresets.find((d) => d.key === dateFilter)?.label || "All time";
+    : datePresets.find((d) => d.key === dateFilter)?.label || "Today";
 
   return (
     <div className={`${poppins.variable} order-page`}>
@@ -431,7 +450,7 @@ export default function OrderTracking() {
         <div className="mx-auto max-w-5xl px-4 pb-3 pt-4">
           <div className="mb-4 flex items-center justify-between gap-3">
             <button
-              onClick={() => router.back()}
+              onClick={() => window.history.back()}
               className="-ml-2 flex min-h-[44px] items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-[#AE2108] transition-colors active:bg-black/[0.04]"
             >
               <ArrowLeft size={17} />
@@ -513,7 +532,7 @@ export default function OrderTracking() {
                   size={14}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setDateFilter("all");
+                    setDateFilter("today");
                   }}
                   className="ml-0.5 opacity-70"
                 />
@@ -525,7 +544,7 @@ export default function OrderTracking() {
               type="date"
               value={isCustomDate ? dateFilter : ""}
               max={new Date().toISOString().slice(0, 10)}
-              onChange={(e) => setDateFilter(e.target.value || "all")}
+              onChange={(e) => setDateFilter(e.target.value || "today")}
               className="pointer-events-none absolute h-0 w-0 opacity-0"
               tabIndex={-1}
               aria-hidden="true"
@@ -561,12 +580,29 @@ export default function OrderTracking() {
               <TicketSkeleton key={i} index={i} />
             ))}
           </div>
-        ) : visible.length > 0 ? (
-          <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
-            {visible.map((order, i) => (
-              <OrderTicket key={order._id} order={order} index={i} />
-            ))}
-          </div>
+        ) : shown.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
+              {shown.map((order, i) => (
+                <OrderTicket key={order._id} order={order} index={i} />
+              ))}
+            </div>
+
+            {remaining > 0 && (
+              <div className="mt-8 text-center">
+                <button
+                  onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                  className="rounded-xl border border-[#E5E4E0] bg-white px-5 py-3 text-sm font-semibold text-[#171512] transition-colors hover:border-[#AE2108] hover:text-[#AE2108] active:bg-[#F3F2EF]"
+                >
+                  Show {Math.min(PAGE_SIZE, remaining)} more
+                </button>
+                <p className="mt-2 text-xs text-[#A5A199]">
+                  {remaining} older order{remaining !== 1 ? "s" : ""} in this
+                  range
+                </p>
+              </div>
+            )}
+          </>
         ) : (
           <div className="rounded-2xl border border-dashed border-[#DEDBD5] bg-white/60 py-20 text-center">
             <p className="text-[15px] font-semibold text-[#171512]">
@@ -579,11 +615,11 @@ export default function OrderTracking() {
                   ? "Widen the date range to see more."
                   : "New orders show up here the moment they come in."}
             </p>
-            {(search || dateFilter !== "all") && (
+            {(search || dateFilter !== "today") && (
               <button
                 onClick={() => {
                   setSearch("");
-                  setDateFilter("all");
+                  setDateFilter("today");
                 }}
                 className="mt-5 rounded-xl bg-[#AE2108] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#941B06] active:bg-[#7A1605]"
               >
@@ -622,12 +658,14 @@ export default function OrderTracking() {
           color: #171512;
         }
 
+        /* Opaque on purpose. A backdrop-filter here has to re-composite the
+           blur against the whole list on every scroll frame, which is a
+           memory sink on iOS. */
         .order-head {
           position: sticky;
           top: 0;
           z-index: 20;
-          background: color-mix(in srgb, var(--surface) 88%, transparent);
-          backdrop-filter: saturate(1.4) blur(12px);
+          background: var(--surface);
           border-bottom: 1px solid var(--line);
         }
 
@@ -688,7 +726,9 @@ export default function OrderTracking() {
             0 1px 2px rgba(23, 21, 18, 0.04),
             0 4px 16px -6px rgba(23, 21, 18, 0.08);
           animation: rise 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
-          animation-delay: calc(var(--i, 0) * 40ms);
+          /* Capped — a full page of tickets would otherwise stagger for
+             seconds before the last one appeared. */
+          animation-delay: min(calc(var(--i, 0) * 40ms), 400ms);
         }
         /* the spine */
         .chit::before {

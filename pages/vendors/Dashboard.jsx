@@ -21,6 +21,8 @@ import {
   TrendingUp,
   ShoppingBag,
   ChevronRight,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/router";
@@ -32,6 +34,8 @@ import Notification from "@/components/Notification";
 const BACKENDURL =
   "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 const CHAT_URL = "http://localhost:2005";
+
+const NEW_VERSION_KEY = "cs_new_version";
 
 function StatusDot({ status }) {
   return (
@@ -98,12 +102,153 @@ function StatCard({ label, value, icon: Icon, trend, primary }) {
   );
 }
 
+/* ── Where customers message you ──
+   Written for a vendor, not for us: says what changes on their side, and
+   lets them look at it before they choose. */
+function NewVersionCard({ enabled, onToggle }) {
+  const [showPreview, setShowPreview] = useState(false);
+
+  return (
+    <div
+      className={`rounded-2xl border transition-colors ${
+        enabled
+          ? "bg-[#AE2108]/[0.04] border-[#AE2108]/15"
+          : "bg-white border-gray-100 shadow-sm"
+      }`}
+    >
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-1.5">
+              <MessageCircle
+                size={15}
+                className={enabled ? "text-[#AE2108]" : "text-gray-400"}
+              />
+              <h3 className="text-sm font-bold text-gray-900">
+                {enabled
+                  ? "Customers now message you here"
+                  : "Chat with customers here, not on WhatsApp"}
+              </h3>
+              {!enabled && (
+                <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+                  New
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 leading-relaxed max-w-lg">
+              {enabled
+                ? "When someone orders, their chat opens on this page instead of WhatsApp. Turn it off and orders go back to WhatsApp — nothing is lost."
+                : "Right now, customers who order are sent to your WhatsApp. You can have them message you inside ChowSpace instead. Your choice — you can change it back any time."}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            role="switch"
+            aria-checked={enabled}
+            aria-label="Chat with customers inside ChowSpace"
+            onClick={onToggle}
+            className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#AE2108]/40 focus-visible:ring-offset-2 ${
+              enabled ? "bg-[#AE2108]" : "bg-gray-200"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+                enabled ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* What actually changes, in their words */}
+        {!enabled && (
+          <ul className="mt-4 space-y-2">
+            {[
+              "The order and the chat sit together — you stop copying addresses into WhatsApp.",
+              "Send your account number and confirm payment in the same chat.",
+              "Your phone still alerts you, so you won't miss an order.",
+            ].map((point) => (
+              <li key={point} className="flex items-start gap-2">
+                <Check
+                  size={13}
+                  className="text-[#AE2108] mt-0.5 flex-shrink-0"
+                />
+                <span className="text-xs text-gray-600 leading-relaxed">
+                  {point}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="flex items-center gap-4 mt-4">
+          {enabled ? (
+            <Link
+              href="/vendors/vendorchat"
+              className="inline-flex items-center gap-1 text-xs text-[#AE2108] font-semibold hover:underline"
+            >
+              Open chat <ChevronRight size={12} />
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowPreview((p) => !p)}
+              className="inline-flex items-center gap-1 text-xs text-[#AE2108] font-semibold hover:underline"
+            >
+              {showPreview ? "Hide example" : "Show me what it looks like"}
+              <ChevronDown
+                size={12}
+                className={`transition-transform ${showPreview ? "rotate-180" : ""}`}
+              />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Example chat — so they can see it before deciding */}
+      {!enabled && showPreview && (
+        <div className="border-t border-gray-100 bg-gray-50/70 px-5 py-4">
+          <p className="text-[11px] text-gray-400 mb-3">
+            An example of how an order would come in
+          </p>
+          <div className="max-w-sm space-y-2">
+            <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-md p-3 shadow-sm">
+              <p className="text-[11px] font-bold text-gray-900 mb-1.5">
+                🛒 NEW ORDER
+              </p>
+              <p className="text-[11px] text-gray-500 leading-relaxed">
+                2× Jollof Rice, 1× Fried Chicken
+                <br />
+                Deliver to: 14 Quarry Road, Oke-Ilewo
+              </p>
+              <p className="text-[11px] font-bold text-gray-900 mt-1.5">
+                ₦4,500
+              </p>
+            </div>
+            <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-md px-3 py-2 shadow-sm w-fit">
+              <p className="text-[11px] text-gray-600">
+                Good afternoon, please add extra plantain 🙏
+              </p>
+            </div>
+            <div className="bg-[#AE2108] rounded-2xl rounded-br-md px-3 py-2 shadow-sm w-fit ml-auto">
+              <p className="text-[11px] text-white">
+                Noted. Transfer ₦5,000 to 0123456789 — GTB
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function VendorDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [storeStatus, setStoreStatus] = useState("closed");
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [unreadChats, setUnreadChats] = useState(0);
+  const [newVersion, setNewVersion] = useState(false);
 
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -112,6 +257,34 @@ export default function VendorDashboard() {
   useEffect(() => {
     if (status === "unauthenticated") router.push("/Login");
   }, [status]);
+
+  // Read the preference after mount so SSR and client markup match.
+  useEffect(() => {
+    try {
+      setNewVersion(localStorage.getItem(NEW_VERSION_KEY) === "true");
+    } catch {}
+  }, []);
+
+  const toggleNewVersion = async () => {
+    const next = !newVersion;
+    setNewVersion(next);
+    try {
+      localStorage.setItem(NEW_VERSION_KEY, String(next));
+    } catch {}
+
+    // When the flag moves to the vendor record, swap the two lines above for:
+    // await axios.patch(
+    //   `${BACKENDURL}/api/vendor/preferences`,
+    //   { useInAppChat: next },
+    //   { headers: { Authorization: `Bearer ${session?.user?.accessToken}` } },
+    // );
+
+    toast.success(
+      next
+        ? "Done — customers will message you here from now on"
+        : "Done — customers will message you on WhatsApp again",
+    );
+  };
 
   const fetchOrders = async () => {
     try {
@@ -419,8 +592,15 @@ export default function VendorDashboard() {
               </div>
             </div>
 
+            {/* New version opt-in */}
+            <NewVersionCard enabled={newVersion} onToggle={toggleNewVersion} />
+
             {/* Stat cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div
+              className={`grid grid-cols-2 gap-3 sm:gap-4 ${
+                newVersion ? "lg:grid-cols-4" : "lg:grid-cols-3"
+              }`}
+            >
               <StatCard
                 label="Today's Orders"
                 value={loadingOrders ? "—" : orders.length}
@@ -436,9 +616,20 @@ export default function VendorDashboard() {
                 icon={Wallet}
                 trend="+8%"
               />
-              <div className="col-span-2 lg:col-span-1">
-                <StatCard label="Store Rating" value="4.8 ★" icon={Star} />
-              </div>
+              {newVersion ? (
+                <>
+                  <StatCard
+                    label="Waiting for your reply"
+                    value={unreadChats}
+                    icon={MessageCircle}
+                  />
+                  <StatCard label="Store Rating" value="4.8 ★" icon={Star} />
+                </>
+              ) : (
+                <div className="col-span-2 lg:col-span-1">
+                  <StatCard label="Store Rating" value="4.8 ★" icon={Star} />
+                </div>
+              )}
             </div>
 
             {/* Quick actions */}
@@ -547,7 +738,9 @@ export default function VendorDashboard() {
                     No orders yet today
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    New orders will appear here automatically
+                    {newVersion
+                      ? "New orders open a chat thread here automatically"
+                      : "New orders will appear here automatically"}
                   </p>
                 </div>
               ) : (
@@ -584,6 +777,15 @@ export default function VendorDashboard() {
                             {st.charAt(0).toUpperCase() + st.slice(1)}
                           </span>
                         </div>
+                        {newVersion && (
+                          <Link
+                            href={`/vendors/vendorchat?order=${order._id}`}
+                            title="Reply in chat"
+                            className="w-8 h-8 rounded-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-[#AE2108] hover:border-[#AE2108]/20 hover:bg-[#AE2108]/5 transition-colors flex-shrink-0"
+                          >
+                            <MessageCircle size={14} />
+                          </Link>
+                        )}
                       </div>
                     );
                   })}
