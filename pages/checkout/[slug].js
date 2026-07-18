@@ -293,7 +293,7 @@ export default function CheckoutPage() {
   const cartItems = cart.flat();
   const cartTotal = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
   const packFee = cart.length * packingFeePerPack;
-  const serviceCharge = 60;
+  const serviceCharge = 100;
   const finalTotal =
     cartTotal + deliveryFee + packFee + serviceCharge - couponDiscount;
   const isLocalVendor = isAbeokutaVendor(vendor);

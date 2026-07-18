@@ -10,7 +10,6 @@ import {
   ShoppingBag,
   RefreshCw,
   X,
-  CalendarDays,
 } from "lucide-react";
 import axios from "axios";
 
@@ -22,7 +21,6 @@ const poppins = Poppins({
 
 const BACKENDURL = "https://chowspace-backend.vercel.app";
 const POLL_MS = 30000;
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // Every ticket is a full docket — shadow, spine, per-item rows. Mounting a
 // vendor's whole history at once is what makes Safari kill the tab. Render a
@@ -52,46 +50,19 @@ function naira(n) {
   return "\u20A6" + Number(n || 0).toLocaleString();
 }
 
-function prettyDate(iso) {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-  });
-}
-
-// Dates are built from explicit local parts so the browser never has to guess
-// a timezone — string parsing of "YYYY-MM-DDT00:00:00" is inconsistent across
-// mobile engines and silently shifts the window by hours.
-function inDateRange(date, filter) {
-  if (!filter || filter === "all") return true;
+// Today means the local calendar day. Built from explicit local parts so the
+// browser never has to guess a timezone from a parsed string — that parsing is
+// inconsistent across mobile engines and silently shifts the window by hours.
+function isToday(date) {
   const d = new Date(date);
   if (isNaN(d.getTime())) return false;
-
   const now = new Date();
   const startOfToday = new Date(
     now.getFullYear(),
     now.getMonth(),
     now.getDate(),
   );
-
-  if (filter === "today") return d >= startOfToday;
-
-  if (filter === "yesterday") {
-    const startYesterday = new Date(startOfToday);
-    startYesterday.setDate(startYesterday.getDate() - 1);
-    return d >= startYesterday && d < startOfToday;
-  }
-
-  if (filter === "week") {
-    const weekAgo = new Date(startOfToday);
-    weekAgo.setDate(weekAgo.getDate() - 6); // last 7 days incl. today
-    return d >= weekAgo;
-  }
-
-  if (!DATE_RE.test(filter)) return true;
-  const [y, m, day] = filter.split("-").map(Number);
-  return d >= new Date(y, m - 1, day) && d < new Date(y, m - 1, day + 1);
+  return d >= startOfToday;
 }
 
 // The cart is built as packs. If the order carries a pack marker, group by it
@@ -306,15 +277,10 @@ export default function OrderTracking() {
   const { data: session, status: authStatus } = useSession();
   const [orders, setOrders] = useState([]);
   const [search, setSearch] = useState("");
-  // Opening on the whole history is what killed the tab. A vendor lands here
-  // to work today's orders; older ones are a filter away.
-  const [dateFilter, setDateFilter] = useState("today");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const dateInputRef = useRef(null);
-  const isCustomDate = DATE_RE.test(dateFilter);
 
   const vendorId = session?.user?.vendorId;
 
@@ -374,19 +340,20 @@ export default function OrderTracking() {
     return () => clearTimeout(t);
   }, [error]);
 
-  // A new search or range is a fresh look — don't carry a huge page over.
+  // A new search is a fresh look — don't carry a huge page over.
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [search, dateFilter]);
+  }, [search]);
 
-  const dateFiltered = useMemo(
-    () => orders.filter((o) => inDateRange(o.createdAt, dateFilter)),
-    [orders, dateFilter],
+  // This page is today-only. Everything downstream works off today's orders.
+  const todaysOrders = useMemo(
+    () => orders.filter((o) => isToday(o.createdAt)),
+    [orders],
   );
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return dateFiltered
+    return todaysOrders
       .filter(
         (o) =>
           !q ||
@@ -398,7 +365,7 @@ export default function OrderTracking() {
           (o.items || []).some((i) => i.name?.toLowerCase().includes(q)),
       )
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  }, [dateFiltered, search]);
+  }, [todaysOrders, search]);
 
   // Only this slice is ever mounted.
   const shown = useMemo(
@@ -407,41 +374,19 @@ export default function OrderTracking() {
   );
   const remaining = visible.length - shown.length;
 
-  // The tally still counts the whole range, not just what's rendered.
+  // The tally always reflects today in full, not just the rendered slice or a
+  // search subset.
   const summary = useMemo(() => {
-    const revenue = visible.reduce((s, o) => s + Number(o.totalAmount || 0), 0);
-    const items = visible.reduce(
+    const revenue = todaysOrders.reduce(
+      (s, o) => s + Number(o.totalAmount || 0),
+      0,
+    );
+    const items = todaysOrders.reduce(
       (s, o) => s + (o.items || []).reduce((n, i) => n + (i.quantity || 1), 0),
       0,
     );
-    return { count: visible.length, revenue, items };
-  }, [visible]);
-
-  const datePresets = [
-    { key: "today", label: "Today" },
-    { key: "yesterday", label: "Yesterday" },
-    { key: "week", label: "Last 7 days" },
-    { key: "all", label: "All time" },
-  ];
-
-  const openDatePicker = () => {
-    const el = dateInputRef.current;
-    if (!el) return;
-    // showPicker() is the only reliable way to open the native sheet from a
-    // custom control; falls back to focus on browsers that lack it.
-    if (typeof el.showPicker === "function") {
-      try {
-        el.showPicker();
-        return;
-      } catch (_) {}
-    }
-    el.focus();
-    el.click();
-  };
-
-  const rangeLabel = isCustomDate
-    ? prettyDate(dateFilter)
-    : datePresets.find((d) => d.key === dateFilter)?.label || "Today";
+    return { count: todaysOrders.length, revenue, items };
+  }, [todaysOrders]);
 
   return (
     <div className={`${poppins.variable} order-page`}>
@@ -463,7 +408,7 @@ export default function OrderTracking() {
                   Orders
                 </h1>
                 <p className="mt-1 text-[11px] leading-none text-[#A5A199]">
-                  {rangeLabel}
+                  Today
                 </p>
               </div>
               <button
@@ -478,7 +423,7 @@ export default function OrderTracking() {
           </div>
 
           {/* Search */}
-          <div className="relative mb-3">
+          <div className="relative">
             <Search
               size={17}
               className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A5A199]"
@@ -501,62 +446,13 @@ export default function OrderTracking() {
               </button>
             )}
           </div>
-
-          {/* Date filter — scrolls sideways instead of wrapping into a tall
-              stack on a narrow screen. The native date input is kept offscreen
-              and driven by a real button, because iOS renders a bare
-              <input type="date"> at an unpredictable width and ignores an
-              empty controlled value, so "All time" appeared not to clear it. */}
-          <div className="rail -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-            {datePresets.map((d) => {
-              const active = dateFilter === d.key;
-              return (
-                <button
-                  key={d.key}
-                  onClick={() => setDateFilter(d.key)}
-                  className={`chip ${active ? "chip-on" : ""}`}
-                >
-                  {d.label}
-                </button>
-              );
-            })}
-
-            <button
-              onClick={openDatePicker}
-              className={`chip ${isCustomDate ? "chip-on" : ""}`}
-            >
-              <CalendarDays size={14} />
-              {isCustomDate ? prettyDate(dateFilter) : "Pick a day"}
-              {isCustomDate && (
-                <X
-                  size={14}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDateFilter("today");
-                  }}
-                  className="ml-0.5 opacity-70"
-                />
-              )}
-            </button>
-
-            <input
-              ref={dateInputRef}
-              type="date"
-              value={isCustomDate ? dateFilter : ""}
-              max={new Date().toISOString().slice(0, 10)}
-              onChange={(e) => setDateFilter(e.target.value || "today")}
-              className="pointer-events-none absolute h-0 w-0 opacity-0"
-              tabIndex={-1}
-              aria-hidden="true"
-            />
-          </div>
         </div>
       </div>
 
       {/* ── List ── */}
       <div className="mx-auto max-w-5xl px-4 pb-24 pt-5">
-        {/* The tally for whatever range is showing, set like the foot of a receipt roll */}
-        {!loading && visible.length > 0 && (
+        {/* Today's tally, set like the foot of a receipt roll */}
+        {!loading && todaysOrders.length > 0 && (
           <div className="tally">
             <span className="tally-k">Orders</span>
             <span className="tally-dots" />
@@ -597,8 +493,7 @@ export default function OrderTracking() {
                   Show {Math.min(PAGE_SIZE, remaining)} more
                 </button>
                 <p className="mt-2 text-xs text-[#A5A199]">
-                  {remaining} older order{remaining !== 1 ? "s" : ""} in this
-                  range
+                  {remaining} more order{remaining !== 1 ? "s" : ""} today
                 </p>
               </div>
             )}
@@ -606,24 +501,19 @@ export default function OrderTracking() {
         ) : (
           <div className="rounded-2xl border border-dashed border-[#DEDBD5] bg-white/60 py-20 text-center">
             <p className="text-[15px] font-semibold text-[#171512]">
-              {search ? "Nothing matches that search" : "No orders yet"}
+              {search ? "Nothing matches that search" : "No orders yet today"}
             </p>
             <p className="mx-auto mt-1.5 max-w-[260px] text-sm leading-relaxed text-[#8A867F]">
               {search
                 ? "Try a different name, phone number, item or order number."
-                : dateFilter !== "all"
-                  ? "Widen the date range to see more."
-                  : "New orders show up here the moment they come in."}
+                : "New orders show up here the moment they come in."}
             </p>
-            {(search || dateFilter !== "today") && (
+            {search && (
               <button
-                onClick={() => {
-                  setSearch("");
-                  setDateFilter("today");
-                }}
+                onClick={() => setSearch("")}
                 className="mt-5 rounded-xl bg-[#AE2108] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#941B06] active:bg-[#7A1605]"
               >
-                Clear filters
+                Clear search
               </button>
             )}
           </div>
@@ -674,45 +564,6 @@ export default function OrderTracking() {
         .mono {
           font-family: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
           font-variant-numeric: tabular-nums;
-        }
-
-        .rail {
-          scrollbar-width: none;
-          -webkit-overflow-scrolling: touch;
-        }
-        .rail::-webkit-scrollbar {
-          display: none;
-        }
-
-        .chip {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          flex-shrink: 0;
-          min-height: 38px;
-          padding: 0 14px;
-          border-radius: 999px;
-          border: 1px solid var(--line);
-          background: var(--paper);
-          color: #6b6862;
-          font-size: 13px;
-          font-weight: 500;
-          white-space: nowrap;
-          transition:
-            background-color 0.15s,
-            border-color 0.15s,
-            color 0.15s;
-        }
-        .chip:active {
-          background: #f3f2ef;
-        }
-        .chip-on {
-          background: var(--brand);
-          border-color: var(--brand);
-          color: #fff;
-        }
-        .chip-on:active {
-          background: #7a1605;
         }
 
         /* ── The chit ──
