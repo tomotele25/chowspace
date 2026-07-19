@@ -13,18 +13,29 @@ import {
   X,
   BarChart3,
   TrendingUp,
+  TrendingDown,
   Calendar,
+  CalendarDays,
   ArrowUpRight,
+  ArrowDownRight,
   ChevronRight,
   ShoppingBag,
   Wallet,
   Star,
+  Copy,
+  Check,
+  MessageCircle,
+  Crown,
+  Clock,
+  Repeat,
+  Flame,
+  Rocket,
+  Activity,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -32,6 +43,9 @@ import {
   CartesianGrid,
   Area,
   AreaChart,
+  BarChart,
+  Bar,
+  Cell,
 } from "recharts";
 
 const menuItems = [
@@ -49,6 +63,85 @@ const menuItems = [
 
 const BACKENDURL =
   "https://chowspace-backend.vercel.app" || "http://localhost:2005";
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ── Commission engine (date-aware)
+   Old rate applies to every order created BEFORE the change date.
+   New rate applies from the change date onward. Change these 4 lines only.
+   ───────────────────────────────────────────────────────────────────────── */
+const OLD_RATE = 60;
+const NEW_RATE = 100;
+// Sun Jul 19 2026, 00:00 local — new pricing starts here. (month is 0-indexed)
+const RATE_CHANGE_DATE = new Date(2026, 6, 19, 0, 0, 0, 0);
+const PAYOUT_ACCOUNT = { number: "9152580773", bank: "Opay" };
+
+// At/above this many orders in the current week = "high volume".
+const HIGH_VOLUME_WEEKLY = 20;
+
+const commissionForOrder = (o) =>
+  new Date(o.createdAt) >= RATE_CHANGE_DATE ? NEW_RATE : OLD_RATE;
+
+const commissionForOrders = (list) =>
+  list.reduce((s, o) => s + commissionForOrder(o), 0);
+
+const rateSplit = (list) => {
+  let old = 0;
+  let neu = 0;
+  list.forEach((o) =>
+    commissionForOrder(o) === NEW_RATE ? (neu += 1) : (old += 1),
+  );
+  return { old, neu };
+};
+
+const greeting = () => {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+};
+
+const isSameDay = (a, b) =>
+  new Date(a).toDateString() === new Date(b).toDateString();
+
+const pct = (cur, prev) =>
+  prev === 0 ? (cur > 0 ? 100 : 0) : Math.round(((cur - prev) / prev) * 100);
+
+// Normalise a Nigerian number to wa.me format (234XXXXXXXXXX)
+const waNumber = (raw) => {
+  if (!raw) return null;
+  let d = String(raw).replace(/\D/g, "");
+  if (!d) return null;
+  if (d.startsWith("234")) return d;
+  if (d.startsWith("0")) return "234" + d.slice(1);
+  if (d.length === 10) return "234" + d;
+  return d;
+};
+
+const vendorPhone = (v) =>
+  v?.phone ||
+  v?.phoneNumber ||
+  v?.businessPhone ||
+  v?.contact ||
+  v?.whatsapp ||
+  v?.mobile ||
+  "";
+
+const custKey = (o) =>
+  o.guestInfo?.phone || o.customerId?._id || o.customerId?.email || null;
+
+const buildBillMessage = (list, mode) => {
+  const count = list.length;
+  const amount = commissionForOrders(list);
+  const header =
+    mode === "pending"
+      ? "Here's all pending payment"
+      : "Here's today's summary :";
+  return `${greeting()} 😊
+${header}
+* Total Orders: ${count}
+* Total Amount: ₦${amount.toLocaleString()}
+Payment Details:
+ACC No: ${PAYOUT_ACCOUNT.number} (${PAYOUT_ACCOUNT.bank})
+— Chowspace`;
+};
 
 // ── Week helper (Sunday start) ─────────────────────────────────────────────
 const getWeekRange = (date = new Date()) => {
@@ -72,11 +165,29 @@ function CustomTooltip({ active, payload, label }) {
       {payload.map((p, i) => (
         <p key={i} style={{ color: p.color }} className="font-semibold">
           {p.name}:{" "}
-          {p.name.includes("Revenue")
+          {p.name.includes("Revenue") || p.name.includes("₦")
             ? `₦${Number(p.value).toLocaleString()}`
             : p.value}
         </p>
       ))}
+    </div>
+  );
+}
+
+// Small reusable stat tile for the snapshot grid
+function Tile({ icon: Icon, label, value, sub, accent }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+      <div
+        className={`w-8 h-8 rounded-lg flex items-center justify-center mb-3 ${
+          accent || "bg-gray-100 text-gray-500"
+        }`}
+      >
+        <Icon size={15} />
+      </div>
+      <p className="text-lg font-bold text-gray-900 leading-tight">{value}</p>
+      <p className="text-[11px] font-medium text-gray-400 mt-0.5">{label}</p>
+      {sub && <p className="text-[10px] text-gray-400 mt-1">{sub}</p>}
     </div>
   );
 }
@@ -94,6 +205,11 @@ export default function AdminAnalytics() {
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [filterType, setFilterType] = useState("daily");
   const [filterDate, setFilterDate] = useState("");
+
+  // billing + advanced analytics state
+  const [billMode, setBillMode] = useState("today"); // "today" | "pending"
+  const [copied, setCopied] = useState(false);
+  const [analyticsRange, setAnalyticsRange] = useState("week"); // today|week|month|all
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/Login");
@@ -155,14 +271,21 @@ export default function AdminAnalytics() {
   const totalOrders = analyticsData.reduce((s, d) => s + d.orders, 0);
   const totalRevenue = analyticsData.reduce((s, d) => s + d.revenue, 0);
   const avgDaily = (totalOrders / 7).toFixed(1);
-  const totalCommission = weekOrders.length * 60;
+  const totalCommission = commissionForOrders(weekOrders);
 
   const openVendorModal = (vendor) => {
     setSelectedVendor(vendor);
-    setFilteredOrders(orders.filter((o) => o.vendorId?._id === vendor._id));
+    const vAll = orders.filter((o) => o.vendorId?._id === vendor._id);
+    setFilteredOrders(vAll);
     setModalOpen(true);
     setFilterType("daily");
     setFilterDate("");
+    setCopied(false);
+    const weekCount = vAll.filter((o) => {
+      const d = new Date(o.createdAt);
+      return d >= wStart && d <= wEnd;
+    }).length;
+    setBillMode(weekCount >= HIGH_VOLUME_WEEKLY ? "today" : "pending");
   };
 
   const applyFilter = () => {
@@ -193,6 +316,210 @@ export default function AdminAnalytics() {
     setFilterDate("");
     setFilterType("daily");
   };
+
+  /* ── Billing derivations for the open vendor ── */
+  const vendorAll = selectedVendor
+    ? orders.filter((o) => o.vendorId?._id === selectedVendor._id)
+    : [];
+  const vendorToday = vendorAll.filter((o) =>
+    isSameDay(o.createdAt, new Date()),
+  );
+  const vendorWeekCount = vendorAll.filter((o) => {
+    const d = new Date(o.createdAt);
+    return d >= wStart && d <= wEnd;
+  }).length;
+  const isHighVolume = vendorWeekCount >= HIGH_VOLUME_WEEKLY;
+
+  const billOrders = billMode === "today" ? vendorToday : vendorAll;
+  const billMessage = buildBillMessage(billOrders, billMode);
+  const billSplit = rateSplit(billOrders);
+
+  const copyBill = async () => {
+    try {
+      await navigator.clipboard.writeText(billMessage);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* clipboard blocked — WhatsApp button still works */
+    }
+  };
+
+  const sendWhatsApp = () => {
+    const num = waNumber(vendorPhone(selectedVendor));
+    const text = encodeURIComponent(billMessage);
+    const url = num
+      ? `https://wa.me/${num}?text=${text}`
+      : `https://wa.me/?text=${text}`;
+    window.open(url, "_blank");
+  };
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     ADVANCED ANALYTICS — all derived from existing order data
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  // Lifetime / business snapshot ------------------------------------------------
+  const ordersByDate = [...orders].sort(
+    (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
+  );
+  const startDate = ordersByDate[0]
+    ? new Date(ordersByDate[0].createdAt)
+    : null;
+  const daysLive = startDate
+    ? Math.max(1, Math.round((Date.now() - startDate.getTime()) / 86400000))
+    : 0;
+  const lifetimeGross = orders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+  const lifetimeCommission = commissionForOrders(orders);
+  const lifetimeAOV = orders.length
+    ? Math.round(lifetimeGross / orders.length)
+    : 0;
+  const ordersPerDay = daysLive ? (orders.length / daysLive).toFixed(1) : "0";
+
+  // Customers (phone dedup) -----------------------------------------------------
+  const custMap = {};
+  orders.forEach((o) => {
+    const k = custKey(o);
+    if (!k) return;
+    custMap[k] = (custMap[k] || 0) + 1;
+  });
+  const uniqueCustomers = Object.keys(custMap).length;
+  const repeatCustomers = Object.values(custMap).filter((c) => c > 1).length;
+  const repeatRate = uniqueCustomers
+    ? Math.round((repeatCustomers / uniqueCustomers) * 100)
+    : 0;
+  const ordersPerCustomer = uniqueCustomers
+    ? (orders.length / uniqueCustomers).toFixed(1)
+    : "0";
+
+  // Busiest single day ever -----------------------------------------------------
+  const dayMap = {};
+  orders.forEach((o) => {
+    const k = new Date(o.createdAt).toDateString();
+    dayMap[k] = (dayMap[k] || 0) + 1;
+  });
+  const busiestDay = Object.entries(dayMap).sort((a, b) => b[1] - a[1])[0];
+
+  // Momentum: this week vs last week -------------------------------------------
+  const lw = getWeekRange(new Date(Date.now() - 7 * 86400000));
+  const lastWeekOrders = orders.filter((o) => {
+    const d = new Date(o.createdAt);
+    return d >= lw.start && d <= lw.end;
+  });
+  const wRev = weekOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+  const lwRev = lastWeekOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+  const wCom = commissionForOrders(weekOrders);
+  const lwCom = commissionForOrders(lastWeekOrders);
+  const momentum = [
+    {
+      label: "Orders",
+      value: weekOrders.length,
+      delta: pct(weekOrders.length, lastWeekOrders.length),
+      money: false,
+    },
+    { label: "Revenue", value: wRev, delta: pct(wRev, lwRev), money: true },
+    { label: "Commission", value: wCom, delta: pct(wCom, lwCom), money: true },
+  ];
+
+  // Monthly growth + cumulative -------------------------------------------------
+  const monthMap = {};
+  orders.forEach((o) => {
+    const d = new Date(o.createdAt);
+    const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`;
+    if (!monthMap[key])
+      monthMap[key] = {
+        label: d.toLocaleDateString("en-US", { month: "short" }),
+        orders: 0,
+        revenue: 0,
+        ts: new Date(d.getFullYear(), d.getMonth(), 1).getTime(),
+      };
+    monthMap[key].orders += 1;
+    monthMap[key].revenue += o.totalAmount || 0;
+  });
+  const monthly = Object.values(monthMap)
+    .sort((a, b) => a.ts - b.ts)
+    .slice(-6);
+  let run = 0;
+  const cumulative = monthly.map((m) => {
+    run += m.orders;
+    return { label: m.label, total: run };
+  });
+
+  // Run-rate projection (this month) -------------------------------------------
+  const now = new Date();
+  const daysInMonth = new Date(
+    now.getFullYear(),
+    now.getMonth() + 1,
+    0,
+  ).getDate();
+  const dayOfMonth = now.getDate();
+  const monthOrders = orders.filter((o) => {
+    const d = new Date(o.createdAt);
+    return (
+      d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+    );
+  });
+  const monthCommission = commissionForOrders(monthOrders);
+  const projOrders = Math.round(
+    (monthOrders.length / dayOfMonth) * daysInMonth,
+  );
+  const projCommission = Math.round(
+    (monthCommission / dayOfMonth) * daysInMonth,
+  );
+
+  // Range-based block -----------------------------------------------------------
+  const inRange = (o) => {
+    const d = new Date(o.createdAt);
+    if (analyticsRange === "today") return isSameDay(d, new Date());
+    if (analyticsRange === "week") return d >= wStart && d <= wEnd;
+    if (analyticsRange === "month")
+      return (
+        d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+      );
+    return true;
+  };
+  const rangeOrders = orders.filter(inRange);
+  const rangeGross = rangeOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+  const rangeOwed = commissionForOrders(rangeOrders);
+  const rangeSplit = rateSplit(rangeOrders);
+
+  const vendorLeaderboard = vendors
+    .map((v) => {
+      const vo = rangeOrders.filter((o) => o.vendorId?._id === v._id);
+      return {
+        vendor: v,
+        count: vo.length,
+        owed: commissionForOrders(vo),
+        gross: vo.reduce((s, o) => s + (o.totalAmount || 0), 0),
+      };
+    })
+    .filter((x) => x.count > 0)
+    .sort((a, b) => b.owed - a.owed);
+
+  const dowData = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+    (name, i) => ({
+      name,
+      orders: rangeOrders.filter((o) => new Date(o.createdAt).getDay() === i)
+        .length,
+    }),
+  );
+  const dowMax = Math.max(...dowData.map((d) => d.orders), 0);
+
+  const hours = Array.from({ length: 24 }).map((_, h) => ({
+    label: `${h % 12 || 12}${h < 12 ? "a" : "p"}`,
+    orders: rangeOrders.filter((o) => new Date(o.createdAt).getHours() === h)
+      .length,
+  }));
+  const hourMax = Math.max(...hours.map((h) => h.orders), 0);
+  const peakHour = hours.reduce(
+    (a, b) => (b.orders > a.orders ? b : a),
+    hours[0],
+  );
+
+  const rangeLabel = {
+    today: "Today",
+    week: "This Week",
+    month: "This Month",
+    all: "All Time",
+  }[analyticsRange];
 
   const statCards = [
     {
@@ -234,7 +561,6 @@ export default function AdminAnalytics() {
 
   return (
     <div className="h-screen flex overflow-hidden bg-gray-50">
-      {/* ── Sidebar overlay ── */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/30 z-20 md:hidden backdrop-blur-sm"
@@ -247,7 +573,6 @@ export default function AdminAnalytics() {
         className={`fixed z-30 inset-y-0 left-0 w-64 bg-white border-r border-gray-100 flex flex-col shadow-xl transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:relative md:translate-x-0 md:shadow-none`}
       >
-        {/* Brand */}
         <div className="flex items-center justify-between px-5 h-16 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-[#AE2108] flex items-center justify-center">
@@ -265,7 +590,6 @@ export default function AdminAnalytics() {
           </button>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
           {menuItems.map(({ name, icon: Icon, path }) => {
             const isActive = router.pathname === path;
@@ -296,7 +620,6 @@ export default function AdminAnalytics() {
           })}
         </nav>
 
-        {/* Logout */}
         <div className="px-3 py-3 border-t border-gray-100 flex-shrink-0">
           <button
             onClick={logout}
@@ -309,7 +632,6 @@ export default function AdminAnalytics() {
 
       {/* ── Main ── */}
       <main className="flex-1 overflow-y-auto">
-        {/* Topbar */}
         <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-gray-100 px-5 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
@@ -369,6 +691,23 @@ export default function AdminAnalytics() {
             </div>
           </div>
 
+          {/* ── pricing notice ── */}
+          <div className="flex items-center gap-2.5 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <TrendingUp size={15} className="text-amber-600" />
+            </div>
+            <p className="text-xs text-amber-800">
+              Commission is now{" "}
+              <span className="font-bold">₦{NEW_RATE}/order</span> from{" "}
+              {RATE_CHANGE_DATE.toLocaleDateString("en-NG", {
+                month: "long",
+                day: "numeric",
+              })}
+              . Orders before that still bill at ₦{OLD_RATE}, so mixed periods
+              are split automatically.
+            </p>
+          </div>
+
           {/* ── Stat cards ── */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             {statCards.map(
@@ -406,7 +745,7 @@ export default function AdminAnalytics() {
             )}
           </div>
 
-          {/* ── Chart ── */}
+          {/* ── Weekly chart ── */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-center justify-between mb-5">
               <div>
@@ -498,6 +837,557 @@ export default function AdminAnalytics() {
             </div>
           </div>
 
+          {/* ═════════════════════ BUSINESS SNAPSHOT (all-time) ═════════════════════ */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles size={15} className="text-[#AE2108]" />
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  Business Snapshot · All Time
+                </p>
+              </div>
+              {startDate && (
+                <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+                  Live since{" "}
+                  {startDate.toLocaleDateString("en-NG", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}{" "}
+                  · {daysLive} days
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Tile
+                icon={ShoppingBag}
+                label="Lifetime Orders"
+                value={orders.length.toLocaleString()}
+                sub={`${ordersPerDay} / day avg`}
+                accent="bg-[#AE2108]/8 text-[#AE2108]"
+              />
+              <Tile
+                icon={Wallet}
+                label="Lifetime Revenue"
+                value={`₦${lifetimeGross.toLocaleString()}`}
+                sub={`₦${lifetimeAOV.toLocaleString()} avg order`}
+                accent="bg-emerald-50 text-emerald-600"
+              />
+              <Tile
+                icon={ArrowUpRight}
+                label="Commission Earned"
+                value={`₦${lifetimeCommission.toLocaleString()}`}
+                sub="all vendors, all time"
+                accent="bg-purple-50 text-purple-500"
+              />
+              <Tile
+                icon={Users}
+                label="Unique Customers"
+                value={uniqueCustomers.toLocaleString()}
+                sub={`${ordersPerCustomer} orders each`}
+                accent="bg-blue-50 text-blue-500"
+              />
+              <Tile
+                icon={Repeat}
+                label="Repeat Rate"
+                value={`${repeatRate}%`}
+                sub={`${repeatCustomers} returning`}
+                accent="bg-amber-50 text-amber-500"
+              />
+              <Tile
+                icon={CalendarDays}
+                label="Business Start"
+                value={
+                  startDate
+                    ? startDate.toLocaleDateString("en-NG", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    : "—"
+                }
+                sub={`${daysLive} days operating`}
+                accent="bg-rose-50 text-rose-500"
+              />
+              <Tile
+                icon={Flame}
+                label="Busiest Day Ever"
+                value={busiestDay ? `${busiestDay[1]} orders` : "—"}
+                sub={
+                  busiestDay
+                    ? new Date(busiestDay[0]).toLocaleDateString("en-NG", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    : ""
+                }
+                accent="bg-orange-50 text-orange-500"
+              />
+              <Tile
+                icon={Activity}
+                label="Avg Order Value"
+                value={`₦${lifetimeAOV.toLocaleString()}`}
+                sub="across all orders"
+                accent="bg-teal-50 text-teal-600"
+              />
+            </div>
+          </div>
+
+          {/* ═════════════════════ MOMENTUM (WoW) ═════════════════════ */}
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">
+              Momentum · this week vs last
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {momentum.map((m) => {
+                const up = m.delta >= 0;
+                return (
+                  <div
+                    key={m.label}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center justify-between"
+                  >
+                    <div>
+                      <p className="text-[11px] text-gray-400 font-medium mb-1">
+                        {m.label} this week
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {m.money ? `₦${m.value.toLocaleString()}` : m.value}
+                      </p>
+                    </div>
+                    <div
+                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold ${
+                        up
+                          ? "bg-emerald-50 text-emerald-600"
+                          : "bg-red-50 text-red-500"
+                      }`}
+                    >
+                      {up ? (
+                        <ArrowUpRight size={14} />
+                      ) : (
+                        <ArrowDownRight size={14} />
+                      )}
+                      {Math.abs(m.delta)}%
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ═════════════════════ GROWTH OVER TIME ═════════════════════ */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Monthly orders + revenue */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h3 className="text-sm font-bold text-gray-900 mb-1">
+                Monthly Growth
+              </h3>
+              <p className="text-[11px] text-gray-400 mb-4">
+                Last {monthly.length} months
+              </p>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={monthly}
+                    margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="gMonth" x1="0" y1="0" x2="0" y2="1">
+                        <stop
+                          offset="5%"
+                          stopColor="#AE2108"
+                          stopOpacity={0.15}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#AE2108"
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: "#9ca3af" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: "#9ca3af" }}
+                      axisLine={false}
+                      tickLine={false}
+                      allowDecimals={false}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area
+                      type="monotone"
+                      dataKey="orders"
+                      stroke="#AE2108"
+                      strokeWidth={2}
+                      fill="url(#gMonth)"
+                      name="Orders"
+                      dot={{ r: 3, fill: "#AE2108" }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Cumulative curve */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h3 className="text-sm font-bold text-gray-900 mb-1">
+                Cumulative Orders
+              </h3>
+              <p className="text-[11px] text-gray-400 mb-4">
+                Total orders growing over time
+              </p>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={cumulative}
+                    margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="gCum" x1="0" y1="0" x2="0" y2="1">
+                        <stop
+                          offset="5%"
+                          stopColor="#10b981"
+                          stopOpacity={0.18}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#10b981"
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: "#9ca3af" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: "#9ca3af" }}
+                      axisLine={false}
+                      tickLine={false}
+                      allowDecimals={false}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area
+                      type="monotone"
+                      dataKey="total"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      fill="url(#gCum)"
+                      name="Total orders"
+                      dot={{ r: 3, fill: "#10b981" }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* ═════════════════════ PEAK HOURS + PROJECTION ═════════════════════ */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Peak hours */}
+            <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <Clock size={15} className="text-[#AE2108]" />
+                  <h3 className="text-sm font-bold text-gray-900">
+                    Peak Hours
+                  </h3>
+                </div>
+                {hourMax > 0 && (
+                  <span className="text-[11px] font-semibold text-[#AE2108] bg-[#AE2108]/8 px-2.5 py-1 rounded-full">
+                    Busiest: {peakHour.label} ({peakHour.orders})
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-gray-400 mb-4">
+                When orders come in ({rangeLabel.toLowerCase()})
+              </p>
+              <div className="h-52">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={hours}
+                    margin={{ top: 4, right: 4, left: -28, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#f0f0f0"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 9, fill: "#9ca3af" }}
+                      axisLine={false}
+                      tickLine={false}
+                      interval={1}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: "#9ca3af" }}
+                      axisLine={false}
+                      tickLine={false}
+                      allowDecimals={false}
+                    />
+                    <Tooltip
+                      content={<CustomTooltip />}
+                      cursor={{ fill: "#f9fafb" }}
+                    />
+                    <Bar dataKey="orders" name="Orders" radius={[4, 4, 0, 0]}>
+                      {hours.map((h, i) => (
+                        <Cell
+                          key={i}
+                          fill={
+                            h.orders === hourMax && hourMax > 0
+                              ? "#AE2108"
+                              : "#f0c4bc"
+                          }
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Run-rate projection */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col">
+              <div className="flex items-center gap-2 mb-1">
+                <Rocket size={15} className="text-[#AE2108]" />
+                <h3 className="text-sm font-bold text-gray-900">
+                  {now.toLocaleDateString("en-US", { month: "long" })}{" "}
+                  Projection
+                </h3>
+              </div>
+              <p className="text-[11px] text-gray-400 mb-4">
+                Day {dayOfMonth} of {daysInMonth} · current run-rate
+              </p>
+
+              <div className="space-y-3 flex-1">
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[11px] text-gray-400 font-medium">
+                      Orders
+                    </p>
+                    <p className="text-[11px] text-gray-400">
+                      {monthOrders.length} so far
+                    </p>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    ≈ {projOrders.toLocaleString()}
+                  </p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">
+                    projected month-end
+                  </p>
+                </div>
+
+                <div className="bg-[#AE2108]/5 border border-[#AE2108]/10 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[11px] text-[#AE2108]/70 font-medium">
+                      Commission
+                    </p>
+                    <p className="text-[11px] text-[#AE2108]/70">
+                      ₦{monthCommission.toLocaleString()} so far
+                    </p>
+                  </div>
+                  <p className="text-2xl font-bold text-[#AE2108]">
+                    ≈ ₦{projCommission.toLocaleString()}
+                  </p>
+                  <p className="text-[10px] text-[#AE2108]/60 mt-0.5">
+                    projected to earn this month
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ═════════════════════ RANGE-BASED BLOCK ═════════════════════ */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  Breakdown Explorer
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {rangeLabel} · {rangeOrders.length} orders
+                </p>
+              </div>
+              <div className="flex items-center gap-1 bg-white border border-gray-100 shadow-sm rounded-xl p-1">
+                {[
+                  { k: "today", l: "Today" },
+                  { k: "week", l: "Week" },
+                  { k: "month", l: "Month" },
+                  { k: "all", l: "All" },
+                ].map(({ k, l }) => (
+                  <button
+                    key={k}
+                    onClick={() => setAnalyticsRange(k)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      analyticsRange === k
+                        ? "bg-[#AE2108] text-white shadow-sm"
+                        : "text-gray-500 hover:bg-gray-50"
+                    }`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* range KPI row */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                <p className="text-[10px] text-gray-400 font-medium mb-1">
+                  Gross Revenue
+                </p>
+                <p className="text-xl font-bold text-gray-900">
+                  ₦{rangeGross.toLocaleString()}
+                </p>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                <p className="text-[10px] text-gray-400 font-medium mb-1">
+                  Commission Owed
+                </p>
+                <p className="text-xl font-bold text-[#AE2108]">
+                  ₦{rangeOwed.toLocaleString()}
+                </p>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 col-span-2 lg:col-span-1">
+                <p className="text-[10px] text-gray-400 font-medium mb-1">
+                  Rate Split
+                </p>
+                <p className="text-sm font-bold text-gray-900">
+                  {rangeSplit.old}{" "}
+                  <span className="text-gray-400 font-medium">
+                    @ ₦{OLD_RATE}
+                  </span>
+                  <span className="text-gray-300 mx-1.5">·</span>
+                  {rangeSplit.neu}{" "}
+                  <span className="text-gray-400 font-medium">
+                    @ ₦{NEW_RATE}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Leaderboard — who owes most */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <Crown size={15} className="text-[#AE2108]" />
+                    <h3 className="text-sm font-bold text-gray-900">
+                      Commission Owed — by vendor
+                    </h3>
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+                    Bill priority
+                  </span>
+                </div>
+                {vendorLeaderboard.length === 0 ? (
+                  <div className="py-10 text-center text-sm text-gray-400">
+                    No orders in this range
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-50 max-h-[360px] overflow-y-auto">
+                    {vendorLeaderboard.map((row, i) => (
+                      <div
+                        key={row.vendor._id}
+                        className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50/70 transition-colors"
+                      >
+                        <span
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-black flex-shrink-0 ${
+                            i === 0
+                              ? "bg-[#AE2108] text-white"
+                              : "bg-gray-100 text-gray-500"
+                          }`}
+                        >
+                          {i + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {row.vendor.businessName}
+                          </p>
+                          <p className="text-[11px] text-gray-400">
+                            {row.count} orders · ₦{row.gross.toLocaleString()}{" "}
+                            gross
+                          </p>
+                        </div>
+                        <p className="text-sm font-bold text-[#AE2108] flex-shrink-0">
+                          ₦{row.owed.toLocaleString()}
+                        </p>
+                        <button
+                          onClick={() => openVendorModal(row.vendor)}
+                          className="flex-shrink-0 text-[11px] font-semibold text-gray-600 bg-gray-100 hover:bg-[#AE2108] hover:text-white px-3 py-1.5 rounded-lg transition"
+                        >
+                          Bill
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Orders by day of week */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <h3 className="text-sm font-bold text-gray-900 mb-1">
+                  Orders by Day
+                </h3>
+                <p className="text-[11px] text-gray-400 mb-4">
+                  {rangeLabel} distribution
+                </p>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={dowData}
+                      margin={{ top: 4, right: 4, left: -24, bottom: 0 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="#f0f0f0"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="name"
+                        tick={{ fontSize: 11, fill: "#9ca3af" }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: "#9ca3af" }}
+                        axisLine={false}
+                        tickLine={false}
+                        allowDecimals={false}
+                      />
+                      <Tooltip
+                        content={<CustomTooltip />}
+                        cursor={{ fill: "#f9fafb" }}
+                      />
+                      <Bar dataKey="orders" name="Orders" radius={[6, 6, 0, 0]}>
+                        {dowData.map((d, i) => (
+                          <Cell
+                            key={i}
+                            fill={
+                              d.orders === dowMax && dowMax > 0
+                                ? "#AE2108"
+                                : "#f0c4bc"
+                            }
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* ── Vendor cards ── */}
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -517,7 +1407,7 @@ export default function AdminAnalytics() {
                   (s, o) => s + (o.totalAmount || 0),
                   0,
                 );
-                const commission = vOrders.length * 60;
+                const commission = commissionForOrders(vOrders);
                 const net = gross - commission;
 
                 return (
@@ -525,7 +1415,6 @@ export default function AdminAnalytics() {
                     key={vendor._id}
                     className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
                   >
-                    {/* header */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-2.5">
                         <div className="w-9 h-9 rounded-xl bg-[#AE2108]/10 flex items-center justify-center flex-shrink-0">
@@ -552,7 +1441,6 @@ export default function AdminAnalytics() {
                       </span>
                     </div>
 
-                    {/* stats row */}
                     <div className="grid grid-cols-3 gap-2 mb-4">
                       {[
                         {
@@ -591,7 +1479,7 @@ export default function AdminAnalytics() {
                       onClick={() => openVendorModal(vendor)}
                       className="w-full flex items-center justify-center gap-1.5 bg-gray-50 hover:bg-[#AE2108] hover:text-white text-gray-600 text-xs font-semibold px-3 py-2.5 rounded-xl transition-all duration-200 group"
                     >
-                      View Orders
+                      View & Bill
                       <ChevronRight
                         size={12}
                         className="group-hover:translate-x-0.5 transition-transform"
@@ -613,15 +1501,25 @@ export default function AdminAnalytics() {
             onClick={() => setModalOpen(false)}
           />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col z-10">
-            {/* Modal header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-              <div>
-                <h3 className="text-base font-bold text-gray-900">
-                  {selectedVendor.businessName}
-                </h3>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {filteredOrders.length} orders shown
-                </p>
+              <div className="flex items-center gap-2.5">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">
+                    {selectedVendor.businessName}
+                  </h3>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {filteredOrders.length} orders shown
+                  </p>
+                </div>
+                <span
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                    isHighVolume
+                      ? "bg-[#AE2108]/8 text-[#AE2108]"
+                      : "bg-amber-50 text-amber-600"
+                  }`}
+                >
+                  {isHighVolume ? "High volume" : "Accumulating"}
+                </span>
               </div>
               <button
                 onClick={() => setModalOpen(false)}
@@ -629,6 +1527,88 @@ export default function AdminAnalytics() {
               >
                 <X size={14} className="text-gray-500" />
               </button>
+            </div>
+
+            {/* Bill panel */}
+            <div className="px-6 py-4 border-b border-gray-100 flex-shrink-0 bg-gray-50/50">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  Generate Bill
+                </p>
+                <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-lg p-0.5">
+                  {[
+                    { k: "today", l: "Today's summary" },
+                    { k: "pending", l: "All pending" },
+                  ].map(({ k, l }) => (
+                    <button
+                      key={k}
+                      onClick={() => {
+                        setBillMode(k);
+                        setCopied(false);
+                      }}
+                      className={`px-3 py-1.5 rounded-md text-[11px] font-semibold transition ${
+                        billMode === k
+                          ? "bg-[#AE2108] text-white"
+                          : "text-gray-500 hover:bg-gray-50"
+                      }`}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+                <div className="sm:col-span-3 bg-white rounded-xl border border-gray-100 p-4">
+                  <pre className="text-[13px] leading-relaxed text-gray-800 whitespace-pre-wrap font-sans">
+                    {billMessage}
+                  </pre>
+                  {billSplit.old > 0 && billSplit.neu > 0 && (
+                    <p className="mt-3 pt-3 border-t border-gray-50 text-[11px] text-gray-400">
+                      Split: {billSplit.old} @ ₦{OLD_RATE} + {billSplit.neu} @ ₦
+                      {NEW_RATE}
+                    </p>
+                  )}
+                </div>
+
+                <div className="sm:col-span-2 flex flex-col gap-2">
+                  <div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
+                    <p className="text-2xl font-bold text-[#AE2108]">
+                      ₦{commissionForOrders(billOrders).toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-gray-400">
+                      {billOrders.length} orders ·{" "}
+                      {billMode === "today" ? "today" : "all pending"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={sendWhatsApp}
+                    className="flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#1eb955] text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition"
+                  >
+                    <MessageCircle size={15} /> WhatsApp
+                  </button>
+                  <button
+                    onClick={copyBill}
+                    className="flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition"
+                  >
+                    {copied ? (
+                      <>
+                        <Check size={15} className="text-emerald-600" /> Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={15} /> Copy
+                      </>
+                    )}
+                  </button>
+                  {!vendorPhone(selectedVendor) && (
+                    <p className="text-[10px] text-gray-400 text-center leading-tight">
+                      No phone on file — WhatsApp opens with the message ready
+                      to paste.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Filters */}
@@ -660,7 +1640,6 @@ export default function AdminAnalytics() {
                 Reset
               </button>
 
-              {/* quick summary */}
               {filteredOrders.length > 0 && (
                 <div className="ml-auto flex items-center gap-3">
                   <span className="text-xs text-gray-500">
@@ -675,7 +1654,7 @@ export default function AdminAnalytics() {
                   <span className="text-xs text-gray-500">
                     Commission:{" "}
                     <span className="font-bold text-[#AE2108]">
-                      ₦{(filteredOrders.length * 60).toLocaleString()}
+                      ₦{commissionForOrders(filteredOrders).toLocaleString()}
                     </span>
                   </span>
                 </div>
@@ -717,7 +1696,8 @@ export default function AdminAnalytics() {
                         </td>
                         <td className="py-3 pr-4 text-xs font-semibold text-gray-900">
                           {order.guestInfo?.name ||
-                            order.customerId?.email ||  order.guestInfo?.phone ||
+                            order.customerId?.email ||
+                            order.guestInfo?.phone ||
                             "Guest"}
                         </td>
                         <td className="py-3 pr-4 text-xs text-gray-500 max-w-[180px] truncate">
@@ -729,7 +1709,10 @@ export default function AdminAnalytics() {
                           ₦{order.totalAmount?.toLocaleString()}
                         </td>
                         <td className="py-3 pr-4 text-xs font-bold text-emerald-600">
-                          ₦{(order.totalAmount - 60).toLocaleString()}
+                          ₦
+                          {(
+                            order.totalAmount - commissionForOrder(order)
+                          ).toLocaleString()}
                         </td>
                         <td className="py-3 pr-4">
                           <span
