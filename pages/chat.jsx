@@ -16,13 +16,24 @@ import {
   User,
   Minus,
   Maximize2,
+  CreditCard,
+  Copy,
+  Check,
+  AlertCircle,
+  Landmark,
 } from "lucide-react";
 import axios from "axios";
 
-const BACKEND_URL = "http://localhost:2005";
+const BACKEND_URL = "https://chowspace-backend-1.onrender.com";
+const PENDING_ORDER_SESSION_KEY = "cs_pending_order";
 
 const isOrderCard = (text) =>
   typeof text === "string" && text.startsWith("🛒 NEW ORDER");
+
+// ⚠️ ASSUMPTION: adjust this prefix to match whatever VendorChat actually
+// sends when a vendor issues a payment request.
+const isPaymentRequest = (text) =>
+  typeof text === "string" && text.startsWith("💳 PAYMENT REQUEST");
 
 const parseOrderCard = (text) => {
   const lines = text.split("\n");
@@ -98,6 +109,19 @@ const parseOrderCard = (text) => {
     totals,
     totalLine,
   };
+};
+
+// Pulls a naira amount and an optional note line out of a payment
+// request message. Adjust the regex/format to match your real message.
+const parsePaymentRequest = (text) => {
+  const lines = text.split("\n");
+  const headerLine = lines[0] || "";
+  const amountMatch = headerLine.match(/₦\s?([\d,]+(?:\.\d{1,2})?)/);
+  const amount = amountMatch ? Number(amountMatch[1].replace(/,/g, "")) : null;
+
+  const note = lines.slice(1).join(" ").trim() || null;
+
+  return { amount, note };
 };
 
 function OrderCard({ text, isOwn }) {
@@ -207,6 +231,244 @@ function OrderCard({ text, isOwn }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   CopyField — small pill with a value + copy-to-clipboard button
+─────────────────────────────────────────────────────────────── */
+function CopyField({ label, value }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard API unavailable — fail silently, value is still visible
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-2 py-1.5">
+      <div className="min-w-0">
+        <p className="text-[10px] text-gray-400 uppercase tracking-wide">
+          {label}
+        </p>
+        <p className="text-sm font-semibold text-gray-900 truncate">{value}</p>
+      </div>
+      <button
+        type="button"
+        onClick={handleCopy}
+        className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center flex-shrink-0 transition"
+      >
+        {copied ? (
+          <Check size={13} className="text-green-600" />
+        ) : (
+          <Copy size={13} className="text-gray-500" />
+        )}
+      </button>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   PaymentRequestCard — renders a vendor's payment request and
+   drives the Monei initialize → show account → verify flow.
+─────────────────────────────────────────────────────────────── */
+function PaymentRequestCard({ text, orderId, vendorId, isOwn }) {
+  const { amount, note } = parsePaymentRequest(text);
+
+  // idle → initializing → awaiting_transfer → verifying → paid → error
+  const [status, setStatus] = useState("idle");
+  const [deposit, setDeposit] = useState(null);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleInitialize = async () => {
+    setStatus("initializing");
+    setErrorMsg("");
+    try {
+      // Pull the rest of the order payload the backend needs.
+      // ⚠️ Confirm this sessionStorage key/shape matches your checkout page.
+      const raw =
+        typeof window !== "undefined"
+          ? sessionStorage.getItem(PENDING_ORDER_SESSION_KEY)
+          : null;
+      const pendingOrder = raw ? JSON.parse(raw) : null;
+
+      if (!pendingOrder) {
+        setStatus("error");
+        setErrorMsg(
+          "Couldn't find your order details. Please go back to checkout and try again.",
+        );
+        return;
+      }
+
+      const { data } = await axios.post(
+        "http://localhost:2005/api/payment/monei/initialize",
+        {
+          amount: amount ?? pendingOrder.totalAmount,
+          email: pendingOrder.email,
+          vendorId,
+          tx_ref: orderId,
+          orderPayload: {
+            items: pendingOrder.items,
+            deliveryMethod: pendingOrder.deliveryMethod,
+            note: pendingOrder.note || "",
+          },
+          guestInfo: pendingOrder.guestInfo || undefined,
+          customerId: pendingOrder.customerId || undefined,
+        },
+      );
+
+      if (!data.success) {
+        setStatus("error");
+        setErrorMsg(data.message || "Could not start payment.");
+        return;
+      }
+
+      setDeposit(data.deposit);
+      setStatus("awaiting_transfer");
+    } catch (err) {
+      setStatus("error");
+      setErrorMsg(
+        err.response?.data?.message || "Something went wrong starting payment.",
+      );
+    }
+  };
+
+  const handleIveTransferred = async () => {
+    if (!deposit?.reference) return;
+    setStatus("verifying");
+    setErrorMsg("");
+    try {
+      const { data } = await axios.post(
+        `${BACKEND_URL}/api/payment/monei/verify`,
+        { reference: deposit.reference },
+      );
+
+      if (data.success) {
+        setStatus("paid");
+      } else {
+        // Not confirmed yet — bank transfers can take a minute or two.
+        setStatus("awaiting_transfer");
+        setErrorMsg(
+          "We haven't received your transfer yet. Give it a moment and try again.",
+        );
+      }
+    } catch (err) {
+      setStatus("awaiting_transfer");
+      setErrorMsg(
+        err.response?.data?.message || "Couldn't verify payment just yet.",
+      );
+    }
+  };
+
+  return (
+    <div
+      className={`rounded-2xl overflow-hidden shadow-sm border max-w-xs w-full ${
+        isOwn
+          ? "border-[#AE2108]/20 bg-[#AE2108]/5"
+          : "border-gray-200 bg-white"
+      }`}
+    >
+      <div className="bg-[#AE2108] px-4 py-3">
+        <div className="flex items-center gap-2">
+          <CreditCard size={16} className="text-white" />
+          <span className="text-white font-bold text-sm">
+            Payment Requested
+          </span>
+        </div>
+      </div>
+
+      <div className="px-4 py-3 space-y-2">
+        {amount != null && (
+          <p className="text-2xl font-extrabold text-gray-900">
+            ₦{amount.toLocaleString()}
+          </p>
+        )}
+        {note && <p className="text-xs text-gray-500">{note}</p>}
+
+        {status === "idle" && (
+          <button
+            type="button"
+            onClick={handleInitialize}
+            className="w-full mt-2 py-2.5 rounded-xl bg-[#AE2108] text-white text-sm font-semibold hover:bg-[#941B06] active:scale-[0.98] transition"
+          >
+            Pay via Bank Transfer
+          </button>
+        )}
+
+        {status === "initializing" && (
+          <div className="flex items-center gap-2 mt-2 text-xs text-gray-500 py-2">
+            <RefreshCw size={13} className="animate-spin" />
+            Setting up your payment…
+          </div>
+        )}
+
+        {(status === "awaiting_transfer" || status === "verifying") &&
+          deposit && (
+            <div className="mt-2 border border-gray-100 rounded-xl bg-gray-50 px-3 py-2 divide-y divide-gray-200">
+              <div className="flex items-center gap-2 pb-1.5 text-[11px] text-gray-500">
+                <Landmark size={12} />
+                Transfer to this account
+              </div>
+              <CopyField label="Account Number" value={deposit.accountNumber} />
+              <CopyField label="Bank Name" value={deposit.bankName} />
+              <CopyField label="Account Name" value={deposit.accountName} />
+              {deposit.amount && (
+                <CopyField
+                  label="Amount"
+                  value={`₦${(deposit.amount / 100).toLocaleString()}`}
+                />
+              )}
+            </div>
+          )}
+
+        {(status === "awaiting_transfer" || status === "verifying") && (
+          <button
+            type="button"
+            onClick={handleIveTransferred}
+            disabled={status === "verifying"}
+            className="w-full mt-2 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-black active:scale-[0.98] transition disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {status === "verifying" ? (
+              <>
+                <RefreshCw size={13} className="animate-spin" />
+                Checking…
+              </>
+            ) : (
+              "I've Made the Transfer"
+            )}
+          </button>
+        )}
+
+        {status === "paid" && (
+          <div className="flex items-center gap-2 mt-2 text-sm font-semibold text-green-600 py-2">
+            <CheckCircle2 size={16} />
+            Payment confirmed
+          </div>
+        )}
+
+        {status === "error" && errorMsg && (
+          <div className="flex items-start gap-2 mt-1 text-xs text-red-600">
+            <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        {status === "error" && (
+          <button
+            type="button"
+            onClick={handleInitialize}
+            className="w-full mt-1 py-2 rounded-xl border border-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-50 transition"
+          >
+            Try Again
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
    ImageLightbox — fullscreen image modal
 ─────────────────────────────────────────────────────────────── */
 function ImageLightbox({ src, alt, onClose }) {
@@ -248,8 +510,9 @@ function ImageLightbox({ src, alt, onClose }) {
   );
 }
 
-function MessageBubble({ msg }) {
+function MessageBubble({ msg, orderId, vendorId }) {
   const isCard = isOrderCard(msg.text);
+  const isPayment = isPaymentRequest(msg.text);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   // ✅ Detect image files
@@ -261,7 +524,7 @@ function MessageBubble({ msg }) {
   return (
     <div className={`flex ${msg.isOwn ? "justify-end" : "justify-start"}`}>
       <div className="max-w-[82%]">
-        {!msg.isOwn && !isCard && (
+        {!msg.isOwn && !isCard && !isPayment && (
           <p className="text-[10px] text-gray-400 mb-1 ml-2 font-medium">
             {msg.senderName}
             {msg.senderType && msg.senderType !== "customer" && (
@@ -273,6 +536,13 @@ function MessageBubble({ msg }) {
         )}
         {isCard ? (
           <OrderCard text={msg.text} isOwn={msg.isOwn} />
+        ) : isPayment ? (
+          <PaymentRequestCard
+            text={msg.text}
+            orderId={orderId}
+            vendorId={vendorId}
+            isOwn={msg.isOwn}
+          />
         ) : (
           <div
             className={`rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
@@ -336,7 +606,7 @@ function MessageBubble({ msg }) {
             </span>
           </div>
         )}
-        {isCard && (
+        {(isCard || isPayment) && (
           <p
             className={`text-[10px] mt-1 ${msg.isOwn ? "text-right text-gray-400" : "text-left text-gray-400 ml-1"}`}
           >
@@ -802,7 +1072,14 @@ function ChatInner({
             </p>
           </div>
         ) : (
-          messages.map((msg) => <MessageBubble key={msg.id} msg={msg} />)
+          messages.map((msg) => (
+            <MessageBubble
+              key={msg.id}
+              msg={msg}
+              orderId={orderId}
+              vendorId={vendorId}
+            />
+          ))
         )}
         <div ref={messagesEndRef} />
       </main>

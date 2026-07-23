@@ -34,8 +34,7 @@ import Notification from "@/components/Notification";
 const BACKENDURL =
   "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 const CHAT_URL = "http://localhost:2005";
-
-const NEW_VERSION_KEY = "cs_new_version";
+const CHAT_PROMPT_DISMISSED_KEY = "cs_chat_prompt_dismissed";
 
 function StatusDot({ status }) {
   return (
@@ -105,7 +104,7 @@ function StatCard({ label, value, icon: Icon, trend, primary }) {
 /* ── Where customers message you ──
    Written for a vendor, not for us: says what changes on their side, and
    lets them look at it before they choose. */
-function NewVersionCard({ enabled, onToggle }) {
+function NewVersionCard({ enabled, onToggle, saving }) {
   const [showPreview, setShowPreview] = useState(false);
 
   return (
@@ -148,9 +147,10 @@ function NewVersionCard({ enabled, onToggle }) {
             aria-checked={enabled}
             aria-label="Chat with customers inside ChowSpace"
             onClick={onToggle}
+            disabled={saving}
             className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#AE2108]/40 focus-visible:ring-offset-2 ${
               enabled ? "bg-[#AE2108]" : "bg-gray-200"
-            }`}
+            } ${saving ? "opacity-60 cursor-not-allowed" : ""}`}
           >
             <span
               className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
@@ -249,6 +249,8 @@ export default function VendorDashboard() {
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [unreadChats, setUnreadChats] = useState(0);
   const [newVersion, setNewVersion] = useState(false);
+  const [savingChatPref, setSavingChatPref] = useState(false);
+  const [promptDismissed, setPromptDismissed] = useState(false);
 
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -258,32 +260,79 @@ export default function VendorDashboard() {
     if (status === "unauthenticated") router.push("/Login");
   }, [status]);
 
-  // Read the preference after mount so SSR and client markup match.
+  // Read the dismissed flag after mount so SSR and client markup match.
   useEffect(() => {
     try {
-      setNewVersion(localStorage.getItem(NEW_VERSION_KEY) === "true");
+      setPromptDismissed(
+        localStorage.getItem(CHAT_PROMPT_DISMISSED_KEY) === "true",
+      );
     } catch {}
   }, []);
 
-  const toggleNewVersion = async () => {
-    const next = !newVersion;
-    setNewVersion(next);
+  const fetchInAppChatPref = async () => {
     try {
-      localStorage.setItem(NEW_VERSION_KEY, String(next));
-    } catch {}
+      const res = await axios.get(
+        `${BACKENDURL}/api/vendors/${vendorId}/in-app-chat`,
+      );
+      setNewVersion(Boolean(res.data?.inAppChat));
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-    // When the flag moves to the vendor record, swap the two lines above for:
-    // await axios.patch(
-    //   `${BACKENDURL}/api/vendor/preferences`,
-    //   { useInAppChat: next },
-    //   { headers: { Authorization: `Bearer ${session?.user?.accessToken}` } },
-    // );
+  const toggleNewVersion = async () => {
+    if (savingChatPref) return;
 
-    toast.success(
-      next
-        ? "Done — customers will message you here from now on"
-        : "Done — customers will message you on WhatsApp again",
+    const next = !newVersion;
+    const previous = newVersion;
+
+    // Optimistic update — UI flips immediately
+    setNewVersion(next);
+    setSavingChatPref(true);
+
+    const toastId = toast.loading(
+      next ? "Switching to in-app chat…" : "Switching back to WhatsApp…",
+      { style: { borderRadius: "12px", fontSize: "13px", fontWeight: 500 } },
     );
+
+    try {
+      await axios.patch(
+        `${BACKENDURL}/api/vendors/${vendorId}/in-app-chat`,
+        { inAppChat: next },
+        {
+          headers: { Authorization: `Bearer ${session?.user?.accessToken}` },
+        },
+      );
+
+      toast.success(
+        next
+          ? "Done — customers will message you here from now on"
+          : "Done — customers will message you on WhatsApp again",
+        {
+          id: toastId,
+          style: { borderRadius: "12px", fontSize: "13px", fontWeight: 500 },
+          iconTheme: { primary: "#AE2108", secondary: "#fff" },
+        },
+      );
+
+      // Once they've switched on, don't show the promo card again
+      if (next) {
+        try {
+          localStorage.setItem(CHAT_PROMPT_DISMISSED_KEY, "true");
+        } catch {}
+        setPromptDismissed(true);
+      }
+    } catch (err) {
+      console.error(err);
+      // Roll back on failure — the server is the source of truth
+      setNewVersion(previous);
+      toast.error("Couldn't update your chat preference. Try again.", {
+        id: toastId,
+        style: { borderRadius: "12px", fontSize: "13px", fontWeight: 500 },
+      });
+    } finally {
+      setSavingChatPref(false);
+    }
   };
 
   const fetchOrders = async () => {
@@ -330,10 +379,11 @@ export default function VendorDashboard() {
   };
 
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status === "authenticated" && vendorId) {
       fetchOrders();
       fetchStoreStatus();
       fetchUnreadChats();
+      fetchInAppChatPref();
     }
   }, [session, status]);
 
@@ -592,8 +642,14 @@ export default function VendorDashboard() {
               </div>
             </div>
 
-            {/* New version opt-in */}
-            <NewVersionCard enabled={newVersion} onToggle={toggleNewVersion} />
+            {/* New version opt-in — shown once, then dismissed for good via localStorage */}
+            {!promptDismissed && (
+              <NewVersionCard
+                enabled={newVersion}
+                onToggle={toggleNewVersion}
+                saving={savingChatPref}
+              />
+            )}
 
             {/* Stat cards */}
             <div

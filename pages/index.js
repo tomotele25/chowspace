@@ -254,7 +254,6 @@ const BACKENDURL =
         <Navbar />
         <Hero />
         <Categories />
-        <PromoBanner />
         <Carousel />
 
         {/* ── New Vendors Carousel ── */}
@@ -330,7 +329,6 @@ const BACKENDURL =
                     {/* Image */}
                     <div className="relative w-full h-48">
                       <Image
-
                         src={cloudinaryResize(vendor.logo, 300) || "/logo.jpg"}
                         alt={vendor.businessName}
                         fill
@@ -641,6 +639,8 @@ const BACKENDURL =
             </div>
           )}
         </section>
+
+        <PromoBanner />
 
         <Faq />
         <Footer />

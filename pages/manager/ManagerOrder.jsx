@@ -501,7 +501,7 @@ export default function ManagerOrder() {
               </div>
               <div>
                 <p className="font-black text-gray-900 text-sm leading-tight">
-                  ChowSpace
+                Chowspace
                 </p>
                 <p className="text-[10px] text-gray-400 font-semibold">
                   Manager

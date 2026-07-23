@@ -152,7 +152,7 @@ export default function IOSInstallNotice() {
                     Add to Home Screen
                   </p>
                   <p style={{ fontSize: 11, color: "#888", marginTop: 1 }}>
-                    ChowSpace
+                  Chowspace
                   </p>
                 </div>
               </div>

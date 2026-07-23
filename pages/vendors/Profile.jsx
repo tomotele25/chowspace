@@ -18,6 +18,7 @@ import {
   Building2,
   CreditCard,
   ChevronRight,
+  ChevronLeft,
   Shield,
   AlertCircle,
   Users,
@@ -29,9 +30,8 @@ import {
   Bell,
   BarChart,
   MessageCircle,
+  ImagePlus,
 } from "lucide-react";
-
-
 import Link from "next/link";
 import Image from "next/image";
 import axios from "axios";
@@ -92,6 +92,96 @@ const InfoRow = ({ icon: Icon, label, value }) => (
 const inputClass =
   "w-full px-3.5 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#AE2108]/20 focus:border-[#AE2108] transition-all";
 
+/* ── Cover image carousel — shows the default brand pattern when there
+     are no images, otherwise a swipeable-by-arrows carousel with dots ── */
+function CoverCarousel({ images }) {
+  const [index, setIndex] = useState(0);
+  const slides = images.filter(Boolean);
+
+  useEffect(() => {
+    if (index >= slides.length) setIndex(0);
+  }, [slides.length, index]);
+
+  if (slides.length === 0) {
+    return (
+      <div className="absolute inset-0">
+        <svg
+          className="absolute inset-0 w-full h-full opacity-10"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <pattern
+              id="dots"
+              x="0"
+              y="0"
+              width="20"
+              height="20"
+              patternUnits="userSpaceOnUse"
+            >
+              <circle cx="2" cy="2" r="1.5" fill="white" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#dots)" />
+        </svg>
+        <div className="absolute -right-8 -top-8 w-36 h-36 sm:w-40 sm:h-40 rounded-full bg-white/10" />
+        <div className="absolute -right-4 top-6 w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white/5" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      <div
+        className="flex h-full transition-transform duration-300 ease-out"
+        style={{ transform: `translateX(-${index * 100}%)` }}
+      >
+        {slides.map((src, i) => (
+          <div key={i} className="w-full h-full flex-shrink-0 relative">
+            <Image
+              src={src}
+              alt={`Cover photo ${i + 1}`}
+              fill
+              className="object-cover"
+            />
+            <div className="absolute inset-0 bg-black/10" />
+          </div>
+        ))}
+      </div>
+
+      {slides.length > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={() =>
+              setIndex((index - 1 + slides.length) % slides.length)
+            }
+            className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/25 hover:bg-black/40 flex items-center justify-center transition-colors"
+          >
+            <ChevronLeft size={13} className="text-white" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setIndex((index + 1) % slides.length)}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/25 hover:bg-black/40 flex items-center justify-center transition-colors"
+          >
+            <ChevronRight size={13} className="text-white" />
+          </button>
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+            {slides.map((_, i) => (
+              <span
+                key={i}
+                className={`h-1 rounded-full transition-all ${
+                  i === index ? "w-4 bg-white" : "w-1 bg-white/50"
+                }`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 const Profile = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -116,8 +206,14 @@ const Profile = () => {
   const [logoPreview, setLogoPreview] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
+  // Cover images — fixed-length array of 2 slots, each either null,
+  // { url, preview, isNew: false } for a saved image, or
+  // { url: null, preview: blobUrl, isNew: true, file } for a pending upload
+  const [coverSlots, setCoverSlots] = useState([null, null]);
+  const [activeCoverSlot, setActiveCoverSlot] = useState(null);
+
   const BACKENDURL =
-    "https://chowspace-backend.vercel.app" || "http://localhost:2005";
+    "https://chowspace-backend.vercel.app" ||  "http://localhost:2005";
 
   const isVerified =
     !!session?.user?.isVerified ||
@@ -144,6 +240,16 @@ const Profile = () => {
       setFormData(userData);
       setTempData(userData);
       setLogoPreview(user.logo || "");
+
+      const existing = Array.isArray(user.coverImages) ? user.coverImages : [];
+      setCoverSlots([
+        existing[0]
+          ? { url: existing[0], preview: existing[0], isNew: false }
+          : null,
+        existing[1]
+          ? { url: existing[1], preview: existing[1], isNew: false }
+          : null,
+      ]);
     }
   }, [session]);
 
@@ -153,6 +259,17 @@ const Profile = () => {
     setTempData(formData);
     setLogoPreview(session?.user?.logo || "");
     setNewPassword("");
+    const existing = Array.isArray(session?.user?.coverImages)
+      ? session.user.coverImages
+      : [];
+    setCoverSlots([
+      existing[0]
+        ? { url: existing[0], preview: existing[0], isNew: false }
+        : null,
+      existing[1]
+        ? { url: existing[1], preview: existing[1], isNew: false }
+        : null,
+    ]);
     setEditMode(false);
   };
 
@@ -165,6 +282,32 @@ const Profile = () => {
       setLogo(file);
       setLogoPreview(URL.createObjectURL(file));
     }
+  };
+
+  const triggerCoverInput = (slotIndex) => {
+    setActiveCoverSlot(slotIndex);
+    document.getElementById("coverInput").click();
+  };
+
+  const handleCoverFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file && activeCoverSlot !== null) {
+      const preview = URL.createObjectURL(file);
+      setCoverSlots((prev) => {
+        const next = [...prev];
+        next[activeCoverSlot] = { url: null, preview, isNew: true, file };
+        return next;
+      });
+    }
+    e.target.value = ""; // allow re-selecting the same file
+  };
+
+  const removeCoverSlot = (slotIndex) => {
+    setCoverSlots((prev) => {
+      const next = [...prev];
+      next[slotIndex] = null;
+      return next;
+    });
   };
 
   const handleSaveClick = async (e) => {
@@ -192,6 +335,16 @@ const Profile = () => {
 
     if (logo) form.append("logo", logo);
     if (newPassword) form.append("password", newPassword);
+
+    // Cover images — tell the backend which existing URLs to keep,
+    // and attach any newly-picked files. Backend merges + caps at 2.
+    const keptExisting = coverSlots
+      .filter((slot) => slot && !slot.isNew)
+      .map((slot) => slot.url);
+    form.append("existingCoverImages", JSON.stringify(keptExisting));
+    coverSlots.forEach((slot) => {
+      if (slot?.isNew) form.append("coverImages", slot.file);
+    });
 
     const toastId = toast.loading("Updating profile...");
     try {
@@ -308,28 +461,60 @@ const Profile = () => {
           <div className="max-w-2xl mx-auto px-3 sm:px-4 py-5 sm:py-7 space-y-3">
             {/* ── Hero card ── */}
             <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-              {/* Cover strip */}
-              <div className="h-20 sm:h-28 relative overflow-hidden bg-[#AE2108]">
-                <svg
-                  className="absolute inset-0 w-full h-full opacity-10"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <defs>
-                    <pattern
-                      id="dots"
-                      x="0"
-                      y="0"
-                      width="20"
-                      height="20"
-                      patternUnits="userSpaceOnUse"
-                    >
-                      <circle cx="2" cy="2" r="1.5" fill="white" />
-                    </pattern>
-                  </defs>
-                  <rect width="100%" height="100%" fill="url(#dots)" />
-                </svg>
-                <div className="absolute -right-8 -top-8 w-36 h-36 sm:w-40 sm:h-40 rounded-full bg-white/10" />
-                <div className="absolute -right-4 top-6 w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white/5" />
+              {/* Cover strip — carousel, with upload slots overlaid in edit mode */}
+              <div className="h-28 sm:h-36 relative overflow-hidden bg-[#AE2108]">
+                <CoverCarousel
+                  images={[coverSlots[0]?.preview, coverSlots[1]?.preview]}
+                />
+
+                {editMode && (
+                  <div className="absolute top-2 right-2 flex gap-1.5 z-10">
+                    {[0, 1].map((slotIndex) => {
+                      const slot = coverSlots[slotIndex];
+                      return (
+                        <div
+                          key={slotIndex}
+                          className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-lg overflow-hidden border-2 border-white shadow-sm"
+                        >
+                          {slot ? (
+                            <div className="relative w-full h-full group">
+                              <Image
+                                src={slot.preview}
+                                alt={`Cover slot ${slotIndex + 1}`}
+                                fill
+                                className="object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeCoverSlot(slotIndex)}
+                                className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                                title="Remove"
+                              >
+                                <X size={13} className="text-white" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => triggerCoverInput(slotIndex)}
+                              className="w-full h-full bg-white/20 hover:bg-white/30 backdrop-blur-sm flex items-center justify-center transition-colors"
+                              title="Add cover photo"
+                            >
+                              <ImagePlus size={15} className="text-white" />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <input
+                      type="file"
+                      id="coverInput"
+                      accept="image/*"
+                      onChange={handleCoverFileChange}
+                      className="hidden"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="px-4 sm:px-6 pb-5 sm:pb-6">

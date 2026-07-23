@@ -43,6 +43,26 @@ const VendorMenuPage = ({
   const [cartOpen, setCartOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
 
+  // Real cover images from the vendor record — 0, 1, or 2 of them
+  const coverImages = (vendor?.coverImages || []).filter(Boolean);
+  const hasCoverImages = coverImages.length > 0;
+  const [coverIndex, setCoverIndex] = useState(0);
+
+  // Reset to the first slide whenever we load a different vendor
+  useEffect(() => {
+    setCoverIndex(0);
+  }, [vendor?._id]);
+
+  // Auto-advance only when there's more than one real cover image
+  useEffect(() => {
+    if (coverImages.length < 2) return;
+    const interval = setInterval(() => {
+      setCoverIndex((prev) => (prev + 1) % coverImages.length);
+    }, 4000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vendor?._id, coverImages.length]);
+
   const BACKENDURL = "https://chowspace-backend.vercel.app";
 
   const {
@@ -73,27 +93,22 @@ const VendorMenuPage = ({
   useEffect(() => {
     if (!slug) return;
     let cancelled = false;
-
     const fetchData = async () => {
       try {
         const res = await axios.get(
           `${BACKENDURL}/api/product/vendor/slug/${slug}`,
         );
         if (cancelled) return;
-
         if (!res.data.success) {
           if (!vendorMeta) setError("Vendor or products not found");
           return;
         }
-
         const vendorData = res.data.vendor;
         setVendor(vendorData);
-
         if (vendorData?.status === "closed") {
           setProducts([]);
           return;
         }
-
         setProducts(res.data.products);
       } catch (err) {
         if (!cancelled && !vendorMeta) setError("Failed to load data");
@@ -101,7 +116,6 @@ const VendorMenuPage = ({
         if (!cancelled) setLoading(false);
       }
     };
-
     fetchData();
     return () => {
       cancelled = true;
@@ -172,7 +186,6 @@ const VendorMenuPage = ({
         {vendorMeta ? `${name} | Menu | ChowSpace` : "Menu | ChowSpace"}
       </title>
       <meta name="description" content={description} />
-
       <meta property="og:title" content={name} />
       <meta property="og:description" content={description} />
       <meta property="og:image" content={finalOgImage} />
@@ -184,7 +197,6 @@ const VendorMenuPage = ({
       <meta property="og:url" content={pageUrl} />
       <meta property="og:type" content="website" />
       <meta property="og:site_name" content="ChowSpace" />
-
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={name} />
       <meta name="twitter:description" content={description} />
@@ -268,7 +280,6 @@ const VendorMenuPage = ({
   return (
     <>
       {meta}
-
       <section className="px-6 py-8 bg-white min-h-screen">
         <div className="max-w-6xl mx-auto">
           <button
@@ -279,8 +290,93 @@ const VendorMenuPage = ({
           </button>
 
           {vendor && (
-            <div className="flex items-center gap-4 mb-10">
-              <div className="w-20 h-20 relative rounded-full overflow-hidden border-2 border-[#AE2108]">
+            <div className="relative mb-16">
+              {/* Cover — real vendor photos if set, otherwise a branded
+                  fallback built from their logo instead of generic stock art */}
+              <div className="w-full h-36 md:h-48 relative rounded-2xl overflow-hidden bg-gray-100">
+                {hasCoverImages ? (
+                  <>
+                    {coverImages.map((img, i) => (
+                      <div
+                        key={img}
+                        className={`absolute inset-0 transition-opacity duration-700 ${
+                          i === coverIndex ? "opacity-100" : "opacity-0"
+                        }`}
+                      >
+                        <Image
+                          src={cloudinaryResize(img, 800) || img}
+                          alt={`${vendor.businessName} cover ${i + 1}`}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                        />
+                      </div>
+                    ))}
+                    {coverImages.length > 1 && (
+                      <div className="absolute bottom-3 right-4 flex gap-1.5">
+                        {coverImages.map((_, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setCoverIndex(i)}
+                            className={`h-1.5 rounded-full transition-all ${
+                              i === coverIndex
+                                ? "bg-white w-4"
+                                : "bg-white/50 w-1.5"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="absolute inset-0">
+                    {vendor.logo ? (
+                      <>
+                        <Image
+                          src={
+                            cloudinaryResize(vendor.logo, 800) || vendor.logo
+                          }
+                          alt=""
+                          fill
+                          unoptimized
+                          aria-hidden="true"
+                          className="object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/15" />
+                      </>
+                    ) : (
+                      <>
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#AE2108]/90 to-[#7d1805]/90" />
+                        <svg
+                          className="absolute inset-0 w-full h-full opacity-10"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <defs>
+                            <pattern
+                              id="menuCoverDots"
+                              x="0"
+                              y="0"
+                              width="20"
+                              height="20"
+                              patternUnits="userSpaceOnUse"
+                            >
+                              <circle cx="2" cy="2" r="1.5" fill="white" />
+                            </pattern>
+                          </defs>
+                          <rect
+                            width="100%"
+                            height="100%"
+                            fill="url(#menuCoverDots)"
+                          />
+                        </svg>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Logo overlapping the cover */}
+              <div className="absolute -bottom-10 left-6 w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-md bg-white">
                 <Image
                   loading="lazy"
                   src={cloudinaryResize(vendor.logo, 80) || "/logo.jpg"}
@@ -290,13 +386,16 @@ const VendorMenuPage = ({
                   className="object-cover"
                 />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  {vendor.businessName}
-                </h1>
-                <p className="text-sm text-gray-500">{vendor.location}</p>
-                <p className="text-xs text-gray-400 mt-1">{vendor.category}</p>
-              </div>
+            </div>
+          )}
+
+          {vendor && (
+            <div className="mb-10 pl-1">
+              <h1 className="text-2xl font-bold text-gray-900">
+                {vendor.businessName}
+              </h1>
+              <p className="text-sm text-gray-500">{vendor.location}</p>
+              <p className="text-xs text-gray-400 mt-1">{vendor.category}</p>
             </div>
           )}
 
@@ -383,7 +482,6 @@ const VendorMenuPage = ({
               {sortedAndFilteredProducts.map((product, index) => {
                 const item = currentPack.find((p) => p._id === product._id);
                 const count = item ? item.quantity : 0;
-
                 return (
                   <div
                     key={product._id}
@@ -402,7 +500,6 @@ const VendorMenuPage = ({
                         className="object-cover transition-transform duration-300 hover:scale-105"
                       />
                     </div>
-
                     <div className="p-3 flex flex-col flex-grow">
                       <div
                         className="flex flex-col gap-0.5"
@@ -426,13 +523,11 @@ const VendorMenuPage = ({
                           ₦{product.price}
                         </p>
                       </div>
-
                       <span
                         className={`text-xs font-medium ${product.available ? "text-green-600" : "text-red-500"}`}
                       >
                         {product.available ? "Available" : "Unavailable"}
                       </span>
-
                       <div className="mt-auto pt-2">
                         {count > 0 ? (
                           <div className="flex items-center gap-2">
@@ -493,7 +588,6 @@ const VendorMenuPage = ({
                   <div className="flex justify-center mb-2">
                     <div className="w-8 h-1 rounded-full bg-gray-200" />
                   </div>
-
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {/* Animated bag */}
@@ -522,7 +616,6 @@ const VendorMenuPage = ({
                     </div>
                   </div>
                 </div>
-
                 {/* Expanded drawer */}
                 {cartOpen && (
                   <div className="bg-white border-t border-gray-100 max-h-[70vh] overflow-y-auto">
@@ -544,7 +637,6 @@ const VendorMenuPage = ({
                         <Copy size={13} /> Duplicate
                       </button>
                     </div>
-
                     {/* Pack tabs inside drawer */}
                     {cart.length > 1 && (
                       <div
@@ -576,7 +668,6 @@ const VendorMenuPage = ({
                         ))}
                       </div>
                     )}
-
                     {/* Current pack items */}
                     <div className="px-4 py-2">
                       {currentPack.length === 0 ? (
@@ -629,7 +720,6 @@ const VendorMenuPage = ({
                         </ul>
                       )}
                     </div>
-
                     {/* Pack total */}
                     <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
                       <div className="flex items-center justify-between mb-1">
@@ -651,7 +741,6 @@ const VendorMenuPage = ({
                         </div>
                       )}
                     </div>
-
                     {/* Actions */}
                     <div className="px-4 py-3 flex gap-3 border-t border-gray-100">
                       <button
@@ -671,7 +760,6 @@ const VendorMenuPage = ({
                   </div>
                 )}
               </div>
-
               {/* ── Desktop Cart Panel ── */}
               <div
                 className="hidden md:flex fixed right-6 bottom-6 bg-white rounded-2xl shadow-2xl shadow-black/10 border border-gray-100 flex-col z-50 overflow-hidden"
@@ -706,7 +794,6 @@ const VendorMenuPage = ({
                     )}
                   </div>
                 </div>
-
                 {cartOpen && (
                   <>
                     {/* Pack management */}
@@ -727,7 +814,6 @@ const VendorMenuPage = ({
                         <Copy size={12} /> Copy
                       </button>
                     </div>
-
                     {/* Pack switcher */}
                     {cart.length > 1 && (
                       <div
@@ -758,7 +844,6 @@ const VendorMenuPage = ({
                         ))}
                       </div>
                     )}
-
                     {/* Items */}
                     <div className="overflow-y-auto max-h-52 px-4 py-1">
                       {currentPack.length === 0 ? (
@@ -807,7 +892,6 @@ const VendorMenuPage = ({
                         </ul>
                       )}
                     </div>
-
                     {/* Totals */}
                     <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 space-y-1">
                       <div className="flex justify-between">
@@ -829,7 +913,6 @@ const VendorMenuPage = ({
                         </div>
                       )}
                     </div>
-
                     {/* Actions */}
                     <div className="px-4 py-3 flex gap-2 border-t border-gray-100">
                       <button
@@ -873,9 +956,7 @@ export async function getStaticPaths() {
     const paths = (data.vendors || [])
       .filter((v) => v.slug)
       .map((v) => ({ params: { slug: v.slug } }));
-
     console.log(`[getStaticPaths] building ${paths.length} vendor pages`);
-
     // "blocking" so vendors that sign up after the last build still resolve
     // instead of hard 404ing until the next deploy.
     return { paths, fallback: "blocking" };
@@ -892,15 +973,12 @@ export async function getStaticProps({ params }) {
     );
     const data = await res.json();
     const vendor = data.vendor || null;
-
     console.log(
       `[getStaticProps] ${params.slug} → vendor: ${vendor?.businessName || "NOT FOUND"}`,
     );
-
     if (!vendor) {
       return { notFound: true };
     }
-
     let ogImage = "https://chowspace.ng/logo.jpg";
     if (vendor.logo && vendor.logo.includes("/upload/")) {
       ogImage = vendor.logo.replace(
@@ -910,7 +988,6 @@ export async function getStaticProps({ params }) {
     } else if (vendor.logo) {
       ogImage = vendor.logo;
     }
-
     return {
       props: {
         vendorMeta: vendor,

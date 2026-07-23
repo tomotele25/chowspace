@@ -148,8 +148,10 @@ const buildOrderCardText = (order) => {
     .join("\n");
 
   const subtotal = cartTotal || 0;
-  const packing = packFee || 0;
-  const service = serviceCharge || 60;
+  // Temporarily disabled — force both fees to 0 regardless of what
+  // checkout passes in via packFee / serviceCharge.
+  const packing = 0;
+  const service = 0;
   const total = subtotal + packing + service;
   const divider = "─".repeat(32);
 
@@ -422,9 +424,12 @@ function MoneiPanel({
         setDepositData(data.deposit);
         setStage("ready");
       } catch (err) {
+        const backendError = err?.response?.data?.error;
+        const backendMessage = err?.response?.data?.message;
         setError(
-          err?.response?.data?.message ||
-            "Could not generate account. Please try again.",
+          backendError
+            ? `${backendMessage || "Payment setup failed"}: ${backendError}`
+            : backendMessage || "Could not generate account. Please try again.",
         );
         setStage("error");
       }
@@ -511,6 +516,10 @@ function MoneiPanel({
         </div>
       </div>
 
+      {/* NOTE: depositData.amount from the API comes back in naira, not
+          kobo — if it's ever displayed directly elsewhere, don't divide
+          by 100. This panel currently shows the pre-formatted `amount`
+          prop instead, so no conversion is needed here. */}
       {depositData.note && (
         <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-700">
           {depositData.note}
@@ -1075,8 +1084,6 @@ function MessageBubble({ msg, onPayRequest, paidOrders }) {
    Main — CustomerChat
 ─────────────────────────────────────────────────────────────── */
 export default function CustomerChat() {
-  const router = useRouter();
-
   const [order, setOrder] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -1088,7 +1095,6 @@ export default function CustomerChat() {
   const [paymentModal, setPaymentModal] = useState(null);
   const [paymentSuccess, setPaymentSuccess] = useState(null);
   const [paidOrders, setPaidOrders] = useState(new Set());
-
 
   const [vendorBankDetails, setVendorBankDetails] = useState({
     bankName: "",

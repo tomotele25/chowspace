@@ -22,7 +22,7 @@ const Footer = () => {
               height={35}
             />
             <span className="text-xl font-semibold text-[#AE2108]">
-              ChowSpace
+            Chowspace
             </span>
           </div>
           <p className="text-sm text-gray-600">
@@ -94,12 +94,12 @@ const Footer = () => {
         <div>
           <h4 className="font-semibold mb-3">Support</h4>
           <p className="text-sm text-gray-600">hello@chowspace.com</p>
-          <p className="text-sm text-gray-600 mt-1">+234 915 258 0773</p>
+          <p className="text-sm text-gray-600 mt-1">0915 258 0773</p>
         </div>
       </div>
 
       <div className="border-t text-center text-sm text-gray-500 py-4 px-4 relative z-10">
-        &copy; {new Date().getFullYear()} ChowSpace. All rights reserved.
+        &copy; {new Date().getFullYear()} Chowspace. All rights reserved.
       </div>
     </footer>
   );

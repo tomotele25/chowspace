@@ -503,11 +503,48 @@ function BulkMessageModal({ users, onClose }) {
                         {user.phone}
                       </p>
                     </div>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${badge.style}`}
-                    >
-                      {badge.label}
-                    </span>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.style}`}
+                      >
+                        {badge.label}
+                      </span>
+                      {(() => {
+                        const days = daysSince(user.lastOrderDate);
+                        if (days === null)
+                          return (
+                            <span className="text-[10px] text-gray-300">
+                              No orders
+                            </span>
+                          );
+                        const rel =
+                          days === 0
+                            ? "Today"
+                            : days === 1
+                              ? "Yesterday"
+                              : `${days}d ago`;
+                        const date = new Date(
+                          user.lastOrderDate,
+                        ).toLocaleDateString("en-NG", {
+                          month: "short",
+                          day: "numeric",
+                        });
+                        const tone =
+                          days === 0
+                            ? "text-emerald-600"
+                            : days > 14
+                              ? "text-amber-600"
+                              : "text-gray-400";
+                        return (
+                          <span
+                            className={`flex items-center gap-1 text-[10px] font-medium ${tone}`}
+                          >
+                            <Clock size={9} className="flex-shrink-0" />
+                            {date} · {rel}
+                          </span>
+                        );
+                      })()}
+                    </div>
                   </div>
                 );
               })}
