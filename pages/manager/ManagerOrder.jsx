@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useEffect, useState, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import axios from "axios";
@@ -27,6 +28,7 @@ import {
   ChevronDown,
   Flame,
   ChevronRight,
+  UploadCloud,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -333,7 +335,6 @@ export default function ManagerOrder() {
     new Date().toISOString().slice(0, 10),
   );
 
-  const BACKENDURL = "https://chowspace-backend.vercel.app";
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -461,6 +462,7 @@ export default function ManagerOrder() {
       active: true,
     },
     { href: "/vendors/ManageProducts", label: "Products", icon: PackageOpen },
+    { href: "/vendors/BulkUpload", label: "Bulk Upload", icon: UploadCloud },
     { href: "/manager/Profile", label: "Profile", icon: Settings },
   ];
 

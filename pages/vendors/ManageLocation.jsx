@@ -1,4 +1,5 @@
 "use client";
+import { BACKENDURL } from "@/lib/api";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Link from "next/link";
@@ -19,6 +20,7 @@ import {
   CheckCircle2,
   XCircle,
   Menu,
+  UploadCloud,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -36,8 +38,6 @@ export default function ManageLocation() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" 
   const { data: session } = useSession();
   const router = useRouter();
   const token = session?.user?.accessToken;
@@ -182,6 +182,7 @@ const handleSubmit = async (e) => {
     },
     { href: "/manager/ManagerOrder", label: "Orders", icon: UtensilsCrossed },
     { href: "/vendors/ManageProducts", label: "Products", icon: PackageOpen },
+    { href: "/vendors/BulkUpload", label: "Bulk Upload", icon: UploadCloud },
     { href: "/manager/Profile", label: "Profile", icon: Settings },
   ];
 

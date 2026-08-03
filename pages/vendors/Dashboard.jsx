@@ -23,6 +23,7 @@ import {
   ChevronRight,
   ChevronDown,
   Check,
+  UploadCloud,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/router";
@@ -30,10 +31,8 @@ import toast, { Toaster } from "react-hot-toast";
 import axios from "axios";
 import { io } from "socket.io-client";
 import Notification from "@/components/Notification";
+import { BACKENDURL, SOCKET_URL } from "@/lib/api";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
-const CHAT_URL = "http://localhost:2005";
 const CHAT_PROMPT_DISMISSED_KEY = "cs_chat_prompt_dismissed";
 
 function StatusDot({ status }) {
@@ -371,7 +370,7 @@ export default function VendorDashboard() {
   const fetchUnreadChats = async () => {
     if (!vendorId) return;
     try {
-      const res = await axios.get(`${CHAT_URL}/api/chat/vendor/${vendorId}`);
+      const res = await axios.get(`${BACKENDURL}/api/chat/vendor/${vendorId}`);
       setUnreadChats(
         (res.data.rooms || []).filter((r) => r.unreadCount > 0).length,
       );
@@ -389,7 +388,7 @@ export default function VendorDashboard() {
 
   useEffect(() => {
     if (!vendorId) return;
-    const socket = io(CHAT_URL, {
+    const socket = io(SOCKET_URL, {
       transports: ["websocket", "polling"],
       withCredentials: true,
     });
@@ -437,6 +436,7 @@ export default function VendorDashboard() {
       icon: UtensilsCrossed,
       path: "/vendors/ManageProducts",
     },
+    { name: "Bulk Upload", icon: UploadCloud, path: "/vendors/BulkUpload" },
     { name: "Analytics", icon: BarChart, path: "/vendors/Analytics" },
     { name: "Location", icon: MapPin, path: "/vendors/VendorLocation" },
     { name: "Wallet", icon: Wallet, path: "/vendors/Wallet" },
