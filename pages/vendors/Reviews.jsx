@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import axios from "axios";
@@ -7,9 +8,6 @@ import { toast } from "react-hot-toast";
 import { Star } from "lucide-react";
 
 import VendorLayout from "@/components/layouts/VendorLayout";
-
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
 const Reviews = () => {
   const { data: session } = useSession();

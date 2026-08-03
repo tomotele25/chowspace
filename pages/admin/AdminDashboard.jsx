@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
@@ -27,8 +28,6 @@ import axios from "axios";
 import AdminLayout from "@/components/layouts/AdminLayout";
 import { requireAdminPage } from "@/lib/requireAdminPage";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession();

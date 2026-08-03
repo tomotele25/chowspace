@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import React, { useState } from "react";
 import { Star, CheckCircle, Crown } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -41,8 +42,6 @@ const plans = [
     border: "border-yellow-500",
   },
 ];
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
 const Subscribe = () => {
   const { data: session } = useSession();

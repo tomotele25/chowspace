@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import Head from "next/head";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -50,8 +51,6 @@ export default function Home() {
   const { selectedCategory } = useCategory();
   const router = useRouter();
   const vendorsPerPage = 8;
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app"
 
   const {
     data: vendorsData,

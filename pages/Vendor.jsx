@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -24,8 +25,6 @@ const Vendor = () => {
 
   const vendorsPerPage = 8;
   const router = useRouter();
-  const BACKENDURL =
-    "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
   const {
     data: vendorsData,

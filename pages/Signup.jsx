@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import React, { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -15,8 +16,6 @@ const Signup = () => {
     password: "",
     confirmPassword: "",
   });
-  const BACKENDURL =
-    "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);

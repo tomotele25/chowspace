@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/router";
@@ -50,8 +51,6 @@ import {
 } from "recharts";
 import { requireAdminPage } from "@/lib/requireAdminPage";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
 /* ─────────────────────────────────────────────────────────────────────────
    ── Commission engine (date-aware)

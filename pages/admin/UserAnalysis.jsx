@@ -1,4 +1,5 @@
 "use client";
+import { BACKENDURL } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
@@ -36,7 +37,6 @@ import {
 import Link from "next/link";
 import { requireAdminPage } from "@/lib/requireAdminPage";
 
-const BACKENDURL = "https://chowspace-backend.vercel.app";
 const PAGE_SIZE = 30;
 
 /* ── helpers ── */

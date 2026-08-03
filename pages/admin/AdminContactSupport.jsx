@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import AdminLayout from "@/components/layouts/AdminLayout";
@@ -9,8 +10,6 @@ import { ArrowRightLeftIcon, Menu, X } from "lucide-react";
 import { useRouter } from "next/router";
 import { requireAdminPage } from "@/lib/requireAdminPage";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
 const AdminContactSupport = () => {
   const { data: session } = useSession();

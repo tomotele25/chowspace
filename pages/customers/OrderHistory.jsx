@@ -1,13 +1,12 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
 const OrderHistory = () => {
   const { data: session } = useSession();

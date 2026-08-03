@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { Plus, X, Trash2 } from "lucide-react";
@@ -10,8 +11,6 @@ import VendorLayout from "@/components/layouts/VendorLayout";
 
 export default function CreateManager() {
   const { data: session } = useSession();
-  const BACKENDURL =
-    "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
   const [managers, setManagers] = useState([]);
   const [vendorStatus, setVendorStatus] = useState("");

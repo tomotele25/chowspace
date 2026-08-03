@@ -1,3 +1,4 @@
+import { BACKENDURL } from "@/lib/api";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
@@ -66,7 +67,6 @@ const VendorMenuPage = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendor?._id, coverImages.length]);
 
-  const BACKENDURL = "https://chowspace-backend.vercel.app";
 
   const {
     cart,
@@ -964,7 +964,7 @@ const VendorMenuPage = ({
 export async function getStaticPaths() {
   try {
     const res = await fetch(
-      "https://chowspace-backend.vercel.app/api/vendor/getVendors",
+      `${BACKENDURL}/api/vendor/getVendors`,
     );
     const data = await res.json();
     const paths = (data.vendors || [])
@@ -983,7 +983,7 @@ export async function getStaticPaths() {
 export async function getStaticProps({ params }) {
   try {
     const res = await fetch(
-      `https://chowspace-backend.vercel.app/api/product/vendor/slug/${params.slug}`,
+      `${BACKENDURL}/api/product/vendor/slug/${params.slug}`,
     );
     const data = await res.json();
     const vendor = data.vendor || null;

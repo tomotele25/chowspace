@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import axios from "axios";
@@ -8,8 +9,6 @@ import { ArrowDown } from "lucide-react";
 
 import VendorLayout from "@/components/layouts/VendorLayout";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
 export default function VendorWalletPage() {
   const [orders, setOrders] = useState([]);

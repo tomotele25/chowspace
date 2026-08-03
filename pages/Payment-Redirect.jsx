@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import {
@@ -27,8 +28,6 @@ export default function OrderConfirmed() {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [disputeReasons, setDisputeReasons] = useState([]);
-  const BACKENDURL =
-    "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
   useEffect(() => {
     const verifyPayment = async () => {

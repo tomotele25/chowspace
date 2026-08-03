@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -9,8 +10,6 @@ import { ChevronLeft, ChevronRight, Clock, Crown } from "lucide-react";
 import "swiper/css";
 import "swiper/css/navigation";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
 const Carousel = () => {
   const [vendors, setVendors] = useState([]);

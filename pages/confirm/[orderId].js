@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
@@ -12,8 +13,6 @@ export default function OrderConfirmation() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const BACKENDURL =
-    "https://chowspace-backend.vercel.app" 
 
   useEffect(() => {
     if (orderId) {
