@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
+import Image from "next/image";
 import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import {
@@ -162,8 +163,15 @@ export default function VendorSignup() {
         <div className="min-h-screen bg-[#F7F5F2] flex items-center justify-center px-4">
           <Toaster position="top-right" />
           <div className="max-w-md w-full bg-white rounded-2xl border border-gray-100 p-8 text-center">
-            <span className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center mx-auto mb-4">
-              <Mail size={24} className="text-green-600" />
+            <Image
+              src="/logo.jpg"
+              alt="Chowspace"
+              width={56}
+              height={56}
+              className="w-14 h-14 rounded-2xl object-cover mx-auto mb-4 shadow-sm"
+            />
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-green-700 bg-green-50 px-2.5 py-1 rounded-full mb-3">
+              <Mail size={12} /> Confirmation sent
             </span>
             <h1 className="text-lg font-black text-gray-900">
               Check your email
@@ -229,9 +237,16 @@ export default function VendorSignup() {
 
         <div className="max-w-lg mx-auto">
           <div className="text-center mb-6">
-            <span className="w-12 h-12 rounded-2xl bg-[#AE2108] flex items-center justify-center mx-auto mb-3">
-              <Store size={20} className="text-white" />
-            </span>
+            <Link href="/" className="inline-block">
+              <Image
+                src="/logo.jpg"
+                alt="Chowspace"
+                width={64}
+                height={64}
+                priority
+                className="w-16 h-16 rounded-2xl object-cover mx-auto mb-3 shadow-sm"
+              />
+            </Link>
             <h1 className="text-xl font-black text-gray-900 tracking-tight">
               Sell on Chowspace
             </h1>
