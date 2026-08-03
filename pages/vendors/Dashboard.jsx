@@ -21,6 +21,7 @@ import { io } from "socket.io-client";
 import Notification from "@/components/Notification";
 import VendorLayout from "@/components/layouts/VendorLayout";
 import { BACKENDURL, SOCKET_URL } from "@/lib/api";
+
 const CHAT_PROMPT_DISMISSED_KEY = "cs_chat_prompt_dismissed";
 
 function StatCard({ label, value, icon: Icon, trend, primary }) {

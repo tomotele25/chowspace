@@ -1,5 +1,7 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
+import { PRODUCT_CATEGORIES } from "@/constants/productCategories";
 import { useState, useEffect } from "react";
 import { Toaster, toast } from "react-hot-toast";
 import {
@@ -12,14 +14,15 @@ import {
   AlertTriangle,
   ImagePlus,
   SlidersHorizontal,
+  UploadCloud,
 } from "lucide-react";
 import axios from "axios";
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 
 import VendorLayout from "@/components/layouts/VendorLayout";
 import ManagerLayout from "@/components/layouts/ManagerLayout";
-import { BACKENDURL } from "@/lib/api";
 
 const ProductDragGrid = dynamic(
   () => import("@/components/vendor/ProductDragGrid"),
@@ -51,26 +54,24 @@ export default function ManageProducts() {
   const [deleteId, setDeleteId] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
 
-  const categories = [
-    "African",
-    "Fast Food",
-    "Pastry",
-    "Rice Dishes",
-    "Swallows",
-    "Soups & Stews",
-    "Snacks",
-    "Grilled/Fried",
-    "Beverages",
-    "Smoothies",
-    "Small Chops",
-    "Shawarma & Sandwiches",
-    "Bakery",
-    "Drinks",
-    "Desserts",
-    "Breakfast",
-    "Lunch",
-    "Dinner",
-  ];
+  // Categories come from the backend so a new one can be added without a
+  // deploy. PRODUCT_CATEGORIES is only a fallback for a failed request —
+  // without it, a network blip would leave the dropdown empty and block the
+  // vendor from adding anything.
+  const [categories, setCategories] = useState(PRODUCT_CATEGORIES);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await axios.get(`${BACKENDURL}/api/product-categories`);
+        const names = (res.data.categories || []).map((c) => c.name);
+        if (names.length) setCategories(names);
+      } catch {
+        // Keep the bundled fallback list.
+      }
+    };
+    fetchCategories();
+  }, []);
 
   useEffect(() => {
     const fetch = async () => {
@@ -258,6 +259,16 @@ export default function ManageProducts() {
             <Save size={15} />
             <span className="hidden sm:inline">Save Order</span>
           </button>
+
+          {/* Bulk upload */}
+          <Link
+            href="/vendors/BulkUpload"
+            className="flex items-center gap-1.5 bg-white border-2 border-gray-200 text-gray-700 text-xs sm:text-sm font-bold px-2.5 sm:px-3 py-2 rounded-xl hover:border-[#AE2108] hover:text-[#AE2108] transition-all"
+            title="Upload many products from a spreadsheet"
+          >
+            <UploadCloud size={15} />
+            <span className="hidden sm:inline">Bulk Upload</span>
+          </Link>
 
           {/* Add product */}
           <button

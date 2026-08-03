@@ -166,7 +166,6 @@ export default function ManagerDashboard() {
     ["completed", "delivered"].includes(o.status),
   ).length;
 
-
   const recentOrders = [...orders]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 6);

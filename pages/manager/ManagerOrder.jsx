@@ -1,9 +1,9 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import ManagerLayout from "@/components/layouts/ManagerLayout";
-import { BACKENDURL } from "@/lib/api";
 import axios from "axios";
 import Link from "next/link";
 import {
@@ -445,7 +445,6 @@ export default function ManagerOrder() {
       .filter((o) => ["completed", "delivered"].includes(o.status))
       .reduce((s, o) => s + Number(o.totalAmount || 0), 0),
   };
-
 
   const filterTabs = [
     { key: "all", label: "All" },

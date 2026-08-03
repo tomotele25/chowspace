@@ -54,8 +54,6 @@ export const VENDOR_NAV = [
       { name: "Dashboard", path: "/vendors/Dashboard", icon: LayoutDashboard },
       { name: "Orders", path: "/vendors/Orders", icon: UtensilsCrossed },
       { name: "Products", path: "/vendors/ManageProducts", icon: PackageOpen },
-      // Lives on the bulk-product-upload branch. Harmless until that merges:
-      // the link 404s rather than breaking the build.
       { name: "Bulk Upload", path: "/vendors/BulkUpload", icon: UploadCloud },
     ],
   },
@@ -105,6 +103,7 @@ export const MANAGER_NAV = [
       },
       { name: "Orders", path: "/manager/ManagerOrder", icon: UtensilsCrossed },
       { name: "Products", path: "/vendors/ManageProducts", icon: PackageOpen },
+      { name: "Bulk Upload", path: "/vendors/BulkUpload", icon: UploadCloud },
       { name: "Locations", path: "/vendors/ManageLocation", icon: MapPin },
       { name: "Profile", path: "/manager/Profile", icon: User },
     ],
