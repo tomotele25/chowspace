@@ -160,16 +160,32 @@ export default function VendorSignup() {
           <title>Check your email | Chowspace</title>
           <meta name="robots" content="noindex, nofollow" />
         </Head>
-        <div className="min-h-screen bg-[#F7F5F2] flex items-center justify-center px-4">
+        {/* Same split as the wizard, so confirming doesn't visually drop the
+            vendor onto a different-looking site. */}
+        <div className="min-h-screen flex flex-col md:flex-row">
           <Toaster position="top-right" />
-          <div className="max-w-md w-full bg-white rounded-2xl border border-gray-100 p-8 text-center">
+
+          <div className="md:w-1/2 h-48 md:h-screen relative">
             <Image
               src="/logo.jpg"
               alt="Chowspace"
-              width={56}
-              height={56}
-              className="w-14 h-14 rounded-2xl object-cover mx-auto mb-4 shadow-sm"
+              fill
+              priority
+              className="object-cover"
             />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
+              <h2 className="text-white text-xl md:text-3xl font-black leading-tight">
+                Almost there
+              </h2>
+              <p className="text-white/80 text-xs md:text-sm mt-2 max-w-sm leading-relaxed">
+                One click in your inbox and you can start building your store.
+              </p>
+            </div>
+          </div>
+
+          <div className="md:w-1/2 flex items-center justify-center px-4 py-10 md:px-8 bg-[#F7F5F2]">
+            <div className="max-w-md w-full bg-white rounded-2xl border border-gray-100 p-8 text-center">
             <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-green-700 bg-green-50 px-2.5 py-1 rounded-full mb-3">
               <Mail size={12} /> Confirmation sent
             </span>
@@ -215,6 +231,7 @@ export default function VendorSignup() {
                 Log in
               </Link>
             </p>
+            </div>
           </div>
         </div>
       </>
@@ -232,48 +249,64 @@ export default function VendorSignup() {
         />
       </Head>
 
-      <div className="min-h-screen bg-[#F7F5F2] px-4 py-10">
+      {/* Two columns on desktop, stacked on mobile — same shape as Login and
+          the customer Signup, so the vendor path doesn't feel bolted on. */}
+      <div className="min-h-screen flex flex-col md:flex-row">
         <Toaster position="top-right" />
 
-        <div className="max-w-lg mx-auto">
-          <div className="text-center mb-6">
-            <Link href="/" className="inline-block">
-              <Image
-                src="/logo.jpg"
-                alt="Chowspace"
-                width={64}
-                height={64}
-                priority
-                className="w-16 h-16 rounded-2xl object-cover mx-auto mb-3 shadow-sm"
-              />
-            </Link>
-            <h1 className="text-xl font-black text-gray-900 tracking-tight">
+        {/* Left — brand */}
+        <div className="md:w-1/2 h-48 md:h-screen relative md:sticky md:top-0">
+          <Image
+            src="/logo.jpg"
+            alt="Chowspace"
+            fill
+            priority
+            className="object-cover"
+          />
+          {/* Scrim so the copy stays readable over the photo */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
+            <h2 className="text-white text-xl md:text-3xl font-black leading-tight">
               Sell on Chowspace
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Set up your store in a couple of minutes.
+            </h2>
+            <p className="text-white/80 text-xs md:text-sm mt-2 max-w-sm leading-relaxed">
+              Reach customers near you, take orders online, and get paid the way
+              that suits your business.
             </p>
           </div>
+        </div>
 
-          {/* Progress */}
-          <div className="flex items-center gap-1.5 mb-6">
-            {STEPS.map((label, i) => (
-              <div key={label} className="flex-1">
-                <div
-                  className={`h-1.5 rounded-full transition-all ${
-                    i <= step ? "bg-[#AE2108]" : "bg-gray-200"
-                  }`}
-                />
-                <p
-                  className={`mt-1.5 text-[10px] font-bold uppercase tracking-wider ${
-                    i <= step ? "text-[#AE2108]" : "text-gray-300"
-                  }`}
-                >
-                  {label}
-                </p>
-              </div>
-            ))}
-          </div>
+        {/* Right — form */}
+        <div className="md:w-1/2 flex items-start md:items-center justify-center px-4 py-10 md:px-8 bg-[#F7F5F2] md:min-h-screen md:overflow-y-auto">
+          <div className="w-full max-w-md">
+            <div className="mb-6">
+              <h1 className="text-xl font-black text-gray-900 tracking-tight">
+                Register your business
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Set up your store in a couple of minutes.
+              </p>
+            </div>
+
+            {/* Progress */}
+            <div className="flex items-center gap-1.5 mb-6">
+              {STEPS.map((label, i) => (
+                <div key={label} className="flex-1">
+                  <div
+                    className={`h-1.5 rounded-full transition-all ${
+                      i <= step ? "bg-[#AE2108]" : "bg-gray-200"
+                    }`}
+                  />
+                  <p
+                    className={`mt-1.5 text-[10px] font-bold uppercase tracking-wider ${
+                      i <= step ? "text-[#AE2108]" : "text-gray-300"
+                    }`}
+                  >
+                    {label}
+                  </p>
+                </div>
+              ))}
+            </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             {step === 0 && (
@@ -490,13 +523,14 @@ export default function VendorSignup() {
                 </button>
               )}
             </div>
-          </div>
+            </div>
 
-          <p className="text-[11px] text-gray-400 text-center mt-4 leading-relaxed">
-            You&apos;ll need your CAC certificate, a valid ID and proof of
-            address to go live. You can upload those from your dashboard after
-            signing up.
-          </p>
+            <p className="text-[11px] text-gray-400 text-center mt-4 leading-relaxed">
+              You&apos;ll need your CAC certificate, a valid ID and proof of
+              address to go live. You can upload those from your dashboard after
+              signing up.
+            </p>
+          </div>
         </div>
       </div>
     </>
