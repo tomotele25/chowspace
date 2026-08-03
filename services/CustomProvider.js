@@ -35,10 +35,19 @@ export const customProvider = CredentialsProvider({
           paymentPreference: user.paymentPreference,
         };
       }
-      console.log(user);
       return null;
     } catch (error) {
-      console.error("Auth error:", error.response?.data || error.message);
+      const data = error.response?.data;
+
+      // Throwing surfaces the reason to the client as `error` on the signIn
+      // result. Returning null would give a generic "invalid credentials",
+      // and a vendor who simply hasn't confirmed their email would have no
+      // idea why they can't get in.
+      if (data?.code === "EMAIL_NOT_VERIFIED") {
+        throw new Error("EMAIL_NOT_VERIFIED");
+      }
+
+      console.error("Auth error:", data || error.message);
       return null;
     }
   },

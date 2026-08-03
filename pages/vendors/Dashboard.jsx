@@ -23,6 +23,8 @@ import {
   ChevronRight,
   ChevronDown,
   Check,
+  AlertTriangle,
+  ShieldCheck,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/router";
@@ -261,6 +263,8 @@ function NewVersionCard({ enabled, onToggle, saving }) {
 export default function VendorDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [storeStatus, setStoreStatus] = useState("closed");
+  // null until loaded; drives the "not visible yet" banner below.
+  const [verification, setVerification] = useState(null);
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [unreadChats, setUnreadChats] = useState(0);
@@ -275,6 +279,20 @@ export default function VendorDashboard() {
   useEffect(() => {
     if (status === "unauthenticated") router.push("/Login");
   }, [status]);
+
+  // Whether customers can actually see this store, and what's outstanding.
+  useEffect(() => {
+    const token = session?.user?.accessToken;
+    if (!token) return;
+    axios
+      .get(`${BACKENDURL}/api/vendor/verification/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => setVerification(res.data))
+      .catch(() => {
+        // Non-fatal — the dashboard still works, the banner just won't show.
+      });
+  }, [session]);
 
   // Read the dismissed flag after mount so SSR and client markup match.
   useEffect(() => {
@@ -462,6 +480,7 @@ export default function VendorDashboard() {
       icon: UtensilsCrossed,
       path: "/vendors/ManageProducts",
     },
+    { name: "Verification", icon: ShieldCheck, path: "/vendors/Verification" },
     { name: "Analytics", icon: BarChart, path: "/vendors/Analytics" },
     { name: "Location", icon: MapPin, path: "/vendors/VendorLocation" },
     { name: "Wallet", icon: Wallet, path: "/vendors/Wallet" },
@@ -639,6 +658,38 @@ export default function VendorDashboard() {
 
           {/* Content */}
           <div className="px-5 py-6 max-w-6xl mx-auto space-y-6">
+            {/* Not visible to customers yet. Without this a vendor simply
+                vanishes from the site with no explanation — which is what the
+                storefront checklist does to anyone with too few products or
+                no logo. */}
+            {verification && !verification.live && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle
+                    size={18}
+                    className="text-amber-600 mt-0.5 flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-amber-900">
+                      Your store isn&apos;t visible to customers yet
+                    </p>
+                    <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                      {verification.items
+                        .filter((i) => !i.done)
+                        .map((i) => i.label)
+                        .join(" · ") || "Finishing up…"}
+                    </p>
+                    <Link
+                      href="/vendors/Verification"
+                      className="inline-flex items-center gap-1.5 mt-3 bg-[#AE2108] text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-[#941B06] transition"
+                    >
+                      Finish setup <ChevronRight size={13} />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Welcome banner */}
             <div className="relative overflow-hidden rounded-2xl bg-[#AE2108] px-6 py-5 shadow-lg shadow-[#AE2108]/15">
               <div className="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-white/5 pointer-events-none" />

@@ -20,6 +20,7 @@ import {
   Bike,
   ClipboardList,
   UserAnalysis,
+  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
@@ -27,6 +28,11 @@ import axios from "axios";
 const menuItems = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
   { name: "Manage Vendors", icon: Users, path: "/admin/ManageVendor" },
+  {
+    name: "Vendor Verification",
+    icon: ShieldCheck,
+    path: "/admin/VendorVerification",
+  },
   { name: "Manage Riders", icon: Bike, path: "/admin/ManageRiders" },
   {
     name: "Assigned Orders",
