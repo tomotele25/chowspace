@@ -36,6 +36,22 @@ const BACKENDURL =
 const CHAT_URL = "http://localhost:2005";
 const CHAT_PROMPT_DISMISSED_KEY = "cs_chat_prompt_dismissed";
 
+/**
+ * "9:00 AM" for today, "9:00 AM tomorrow" otherwise — so a vendor closing at
+ * 6pm reads "closed until 9:00 AM tomorrow" rather than a bare time.
+ */
+const formatReopenTime = (iso) => {
+  const when = new Date(iso);
+  const time = when.toLocaleTimeString("en-NG", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Africa/Lagos",
+  });
+  const day = (d) =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos" }).format(d);
+  return day(when) === day(new Date()) ? time : `${time} tomorrow`;
+};
+
 function StatusDot({ status }) {
   return (
     <span
@@ -409,8 +425,17 @@ export default function VendorDashboard() {
         { status: newStatus },
         { headers: { Authorization: `Bearer ${session?.user?.accessToken}` } },
       );
-      setStoreStatus(res.data.vendor?.status || newStatus);
-      toast.success(`Store is now ${res.data.vendor?.status || newStatus}`);
+      const applied = res.data.vendor?.status || newStatus;
+      setStoreStatus(applied);
+
+      // The store runs on a schedule, so this is a temporary override rather
+      // than a permanent flip. Say when it reverts, or the vendor will think
+      // it stuck — and be surprised either way.
+      toast.success(
+        res.data.overrideUntil
+          ? `Store ${applied} until ${formatReopenTime(res.data.overrideUntil)}`
+          : `Store is now ${applied}`,
+      );
     } catch {
       toast.error("Could not toggle store status");
     }

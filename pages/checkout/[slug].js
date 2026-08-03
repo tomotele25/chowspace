@@ -18,6 +18,7 @@ import {
   X,
   ChevronDown,
   RefreshCw,
+  Clock,
 } from "lucide-react";
 
 const formatCurrency = (n) =>
@@ -39,6 +40,23 @@ const BACKENDURL =
   "https://chowspace-backend-1.onrender.com" || "http://localhost:2005";
 
 const BIRTHDAY_KEY = "cs_birthday_saved";
+
+/**
+ * Live open/closed check, straight from the backend rather than the vendor
+ * object loaded when the page mounted. Fails open on a network error — a
+ * flaky connection shouldn't block a real order; the backend rejects with
+ * VENDOR_CLOSED as the real guard.
+ */
+const isVendorStillOpen = async (vendorId) => {
+  try {
+    const res = await axios.get(
+      `${BACKENDURL}/api/vendor/${vendorId}/live-status`,
+    );
+    return res.data?.status !== "closed";
+  } catch {
+    return true;
+  }
+};
 
 const MONTHS = [
   "January",
@@ -268,6 +286,8 @@ export default function CheckoutPage() {
 
   const [vendor, setVendor] = useState(null);
   const [vendorId, setVendorId] = useState(null);
+  // Set when the store closes while the customer is on this page.
+  const [vendorClosed, setVendorClosed] = useState(false);
   const [locations, setLocations] = useState([]);
   const [locationsLoading, setLocationsLoading] = useState(false);
   const [locationsFailed, setLocationsFailed] = useState(false);
@@ -346,6 +366,9 @@ export default function CheckoutPage() {
         const vd = vr.data.vendor;
         setVendor(vd);
         setVendorId(vd._id);
+        // Vendors now open and close on a schedule, so warn on arrival rather
+        // than letting the customer fill in the whole form first.
+        setVendorClosed(vd.status === "closed");
         if (typeof vd.packingFee === "number")
           setPackingFeePerPack(vd.packingFee);
         if (vd?.location?.toLowerCase().trim() === "abeokuta") {
@@ -445,6 +468,19 @@ export default function CheckoutPage() {
 
     const { name, phone, address, location } = deliveryDetails;
     if (!validateInputs({ name, phone, address, location })) {
+      setLoading(false);
+      isSubmitting.current = false;
+      return;
+    }
+
+    // Re-check the store before doing anything irreversible. Cart state
+    // survives navigation, so a customer can load a menu at 8:59pm and land
+    // here after closing time — and below this point WhatsApp opens before
+    // the order POST, so a late rejection would arrive too late to help.
+    const stillOpen = await isVendorStillOpen(vendor._id);
+    if (!stillOpen) {
+      toast.error(`${vendor.businessName} has closed and can't take orders.`);
+      setVendorClosed(true);
       setLoading(false);
       isSubmitting.current = false;
       return;
@@ -701,6 +737,25 @@ export default function CheckoutPage() {
                   ? "Pick your area and drop your address"
                   : "The vendor will reach out to arrange delivery"}
               </p>
+
+              {vendorClosed && (
+                <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+                  <Clock
+                    size={18}
+                    className="text-amber-600 mt-0.5 flex-shrink-0"
+                  />
+                  <div>
+                    <p className="text-sm font-bold text-amber-900">
+                      {vendor?.businessName || "This vendor"} is closed right
+                      now
+                    </p>
+                    <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">
+                      They aren&apos;t taking orders at the moment. Your cart is
+                      saved — come back when they reopen.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <form
                 onSubmit={(e) => {
