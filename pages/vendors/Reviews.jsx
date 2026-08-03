@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
@@ -19,8 +20,6 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
 const menuItems = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/vendors/Dashboard" },

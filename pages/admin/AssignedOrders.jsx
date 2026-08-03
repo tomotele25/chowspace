@@ -1,10 +1,9 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
 const AssignedOrders = () => {
   const [riders, setRiders] = useState([]);

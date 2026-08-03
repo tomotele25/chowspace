@@ -1,4 +1,5 @@
 "use client";
+import { BACKENDURL } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/router";
@@ -34,7 +35,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-const BACKENDURL = "https://chowspace-backend.vercel.app";
 const PAGE_SIZE = 30;
 
 const menuItems = [

@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/router";
@@ -25,8 +26,6 @@ const menuItems = [
 ];
 
 const locations = ["Lagos", "Abeokuta", "Ibadan"];
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
 const ManagerRider = () => {
   const { data: session, status } = useSession();

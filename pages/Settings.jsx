@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -37,8 +38,6 @@ import {
   Sparkles,
 } from "lucide-react";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" ||  "http://localhost:2005";
 
 const NOTIF_PREFS_KEY = "cs_notif_prefs";
 const DEFAULT_NOTIF_PREFS = { orders: true, chat: true, promos: false };

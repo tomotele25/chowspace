@@ -21,7 +21,7 @@ import {
   X,
   AlertCircle,
 } from "lucide-react";
-const BACKEND_URL = "https://chowspace-backend-1.onrender.com";
+import { BACKENDURL, SOCKET_URL } from "@/lib/api";
 const COMPLETED_ROOMS_KEY = "cs_vendor_completed_rooms";
 const loadCompletedRooms = () => {
   if (typeof window === "undefined") return new Set();
@@ -743,7 +743,7 @@ function RoomList({
       if (!silent) setRefreshing(true);
       try {
         const { data } = await axios.get(
-          `${BACKEND_URL}/api/chat/vendor/${vendorId}`,
+          `${BACKENDURL}/api/chat/vendor/${vendorId}`,
         );
         setRooms(data.rooms || []);
       } catch (err) {
@@ -760,7 +760,7 @@ function RoomList({
   }, [vendorId, fetchRooms]);
   useEffect(() => {
     if (!vendorId) return;
-    const socket = io(BACKEND_URL, {
+    const socket = io(SOCKET_URL, {
       transports: ["websocket", "polling"],
       withCredentials: true,
     });
@@ -1057,7 +1057,7 @@ function ChatWindow({
     setHistoryLoading(true);
     setMessages([]);
     axios
-      .get(`${BACKEND_URL}/api/chat/${roomId}`)
+      .get(`${BACKENDURL}/api/chat/${roomId}`)
       .then(({ data }) => {
         setMessages(
           (data.messages || []).map((m) => ({
@@ -1080,7 +1080,7 @@ function ChatWindow({
   }, [roomId]);
   useEffect(() => {
     if (socketRef.current) socketRef.current.disconnect();
-    const socket = io(BACKEND_URL, {
+    const socket = io(SOCKET_URL, {
       transports: ["websocket", "polling"],
       withCredentials: true,
     });
@@ -1176,7 +1176,7 @@ function ChatWindow({
     try {
       const form = new FormData();
       form.append("file", file);
-      const { data } = await axios.post(`${BACKEND_URL}/api/upload`, form);
+      const { data } = await axios.post(`${BACKENDURL}/api/upload`, form);
       sendMessage({ fileUrl: data.url, fileName: file.name });
     } catch {
       sendMessage({ text: `📎 ${file.name} (upload failed)` });

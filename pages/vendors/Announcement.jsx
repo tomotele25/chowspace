@@ -1,13 +1,12 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useSession } from "next-auth/react";
 import axios from "axios";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
 const Announcement = () => {
   const router = useRouter();

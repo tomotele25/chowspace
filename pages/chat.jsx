@@ -23,8 +23,8 @@ import {
   Landmark,
 } from "lucide-react";
 import axios from "axios";
+import { BACKENDURL, SOCKET_URL } from "@/lib/api";
 
-const BACKEND_URL = "https://chowspace-backend-1.onrender.com";
 const PENDING_ORDER_SESSION_KEY = "cs_pending_order";
 
 const isOrderCard = (text) =>
@@ -302,7 +302,7 @@ function PaymentRequestCard({ text, orderId, vendorId, isOwn }) {
       }
 
       const { data } = await axios.post(
-        "http://localhost:2005/api/payment/monei/initialize",
+        `${BACKENDURL}/api/payment/monei/initialize`,
         {
           amount: amount ?? pendingOrder.totalAmount,
           email: pendingOrder.email,
@@ -340,7 +340,7 @@ function PaymentRequestCard({ text, orderId, vendorId, isOwn }) {
     setErrorMsg("");
     try {
       const { data } = await axios.post(
-        `${BACKEND_URL}/api/payment/monei/verify`,
+        `${BACKENDURL}/api/payment/monei/verify`,
         { reference: deposit.reference },
       );
 
@@ -742,7 +742,7 @@ function ChatInner({
     const load = async () => {
       setHistoryLoading(true);
       try {
-        const { data } = await axios.get(`${BACKEND_URL}/api/chat/${roomId}`);
+        const { data } = await axios.get(`${BACKENDURL}/api/chat/${roomId}`);
         setMessages(
           (data.messages || []).map((m) => ({
             id: m._id,
@@ -771,7 +771,7 @@ function ChatInner({
   useEffect(() => {
     if (!nameConfirmed) return;
 
-    socketRef.current = io(BACKEND_URL, {
+    socketRef.current = io(SOCKET_URL, {
       transports: ["websocket", "polling"],
       withCredentials: true,
     });
@@ -888,7 +888,7 @@ function ChatInner({
     try {
       const form = new FormData();
       form.append("file", file);
-      const { data } = await axios.post(`${BACKEND_URL}/api/upload`, form);
+      const { data } = await axios.post(`${BACKENDURL}/api/upload`, form);
       sendMessage({ fileUrl: data.url, fileName: file.name });
     } catch {
       sendMessage({ text: `📎 ${file.name} (upload failed)` });

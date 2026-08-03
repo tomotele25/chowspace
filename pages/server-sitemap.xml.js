@@ -1,9 +1,10 @@
 import { getServerSideSitemapLegacy } from "next-sitemap";
+import { BACKENDURL } from "@/lib/api";
 
 export async function getServerSideProps(ctx) {
   try {
     const res = await fetch(
-      "https://chowspace-backend.vercel.app/api/vendor/getVendors"
+      `${BACKENDURL}/api/vendor/getVendors`
     );
     if (!res.ok) {
       throw new Error(`Failed to fetch vendors, status: ${res.status}`);

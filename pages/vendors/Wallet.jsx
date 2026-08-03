@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
@@ -30,8 +31,6 @@ const menuItems = [
   { name: "Settings", icon: Settings, path: "/vendor/settings" },
 ];
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
 export default function VendorWalletPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);

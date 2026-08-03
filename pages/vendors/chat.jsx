@@ -25,7 +25,7 @@ import {
   Smartphone,
 } from "lucide-react";
 
-const BACKEND_URL = "https://chowspace-backend-1.onrender.com";
+import { BACKENDURL, SOCKET_URL } from "@/lib/api";
 
 /* ─────────────────────────────────────────────────────────────
    Helpers
@@ -403,7 +403,7 @@ function MoneiPanel({
       try {
         const tx_ref = `DEP-${orderId}-${Date.now()}`;
         const { data } = await axios.post(
-          `${BACKEND_URL}/api/payment/monei/initialize`,
+          `${BACKENDURL}/api/payment/monei/initialize`,
           {
             amount: rawAmount,
             email: customerEmail || "guest@chowspace.ng",
@@ -1127,7 +1127,7 @@ export default function CustomerChat() {
     if (!roomId) return;
     setHistoryLoading(true);
     axios
-      .get(`${BACKEND_URL}/api/chat/${roomId}`)
+      .get(`${BACKENDURL}/api/chat/${roomId}`)
       .then(({ data }) => {
         const mapped = (data.messages || []).map((m) => ({
           id: m._id,
@@ -1168,7 +1168,7 @@ export default function CustomerChat() {
     if (!roomId || !vendorId) return;
     if (socketRef.current) socketRef.current.disconnect();
 
-    const socket = io(BACKEND_URL, {
+    const socket = io(SOCKET_URL, {
       transports: ["websocket", "polling"],
       withCredentials: true,
     });
@@ -1298,7 +1298,7 @@ export default function CustomerChat() {
     try {
       const form = new FormData();
       form.append("file", file);
-      const { data } = await axios.post(`${BACKEND_URL}/api/upload`, form);
+      const { data } = await axios.post(`${BACKENDURL}/api/upload`, form);
       sendMessage({ fileUrl: data.url, fileName: file.name });
     } catch {
       sendMessage({ text: `📎 ${file.name} (upload failed)` });

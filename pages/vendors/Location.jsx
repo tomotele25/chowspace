@@ -1,4 +1,5 @@
 "use client";
+import { BACKENDURL } from "@/lib/api";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import {
@@ -26,8 +27,6 @@ export default function ManageLocation() {
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({ location: "", price: "" });
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" 
 
   const { data: session } = useSession();
   const router = useRouter();

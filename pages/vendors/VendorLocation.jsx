@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
@@ -31,9 +32,6 @@ import { useRouter } from "next/router";
 import toast, { Toaster } from "react-hot-toast";
 import axios from "axios";
 
-const BACKENDURL =
-
-  "https://chowspace-backend.vercel.app" 
 
 function StatusDot({ status }) {
   return (

@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { toast } from "react-hot-toast";
@@ -7,8 +8,6 @@ import { useSession } from "next-auth/react";
 import { ArrowRightLeftIcon, Menu, X } from "lucide-react";
 import { useRouter } from "next/router";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
 const AdminContactSupport = () => {
   const { data: session } = useSession();

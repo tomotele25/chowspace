@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { Poppins } from "next/font/google";
 import Head from "next/head";
 import Navbar from "@/components/Navbar";
@@ -58,8 +59,6 @@ export default function Home() {
   const { selectedCategory } = useCategory();
   const router = useRouter();
   const vendorsPerPage = 8;
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" 
 
   useEffect(() => {
     const fetchData = async () => {

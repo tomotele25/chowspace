@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Toaster } from "react-hot-toast";
@@ -24,8 +25,6 @@ import {
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
 const Analytics = () => {
   const { data: session, status } = useSession();

@@ -6,6 +6,7 @@ import axios from "axios";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import { useCart } from "@/context/CartContext";
+import { BACKENDURL } from "@/lib/api";
 import toast, { Toaster } from "react-hot-toast";
 import {
   User,
@@ -34,9 +35,6 @@ const generateOrderId = () =>
 
 const isAbeokutaVendor = (v) =>
   v?.location?.toLowerCase().trim() === "abeokuta";
-
-const BACKENDURL =
-  "https://chowspace-backend-1.onrender.com" || "http://localhost:2005";
 
 const BIRTHDAY_KEY = "cs_birthday_saved";
 
@@ -140,7 +138,7 @@ function BirthdayNudge({ phone: prefillPhone, vendorId }) {
     setSaving(true);
     try {
       await axios.post(
-        `https://chowspace-backend.vercel.app/api/customers/birthday`,
+        `${BACKENDURL}/api/customers/birthday`,
         {
           phone: formatPhoneNumber(cleanPhone),
           month: dobMonth,
@@ -341,7 +339,7 @@ export default function CheckoutPage() {
     (async () => {
       try {
         const vr = await axios.get(
-          `https://chowspace-backend.vercel.app/api/vendor/${slug}`,
+          `${BACKENDURL}/api/vendor/${slug}`,
         );
         const vd = vr.data.vendor;
         setVendor(vd);

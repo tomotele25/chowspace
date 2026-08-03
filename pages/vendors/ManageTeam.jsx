@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
@@ -18,8 +19,6 @@ import Link from "next/link";
 export default function CreateManager() {
   const router = useRouter();
   const { data: session } = useSession();
-  const BACKENDURL =
-    "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
   const [managers, setManagers] = useState([]);
   const [vendorStatus, setVendorStatus] = useState("");

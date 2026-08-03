@@ -1,3 +1,4 @@
+import { BACKENDURL } from "@/lib/api";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { Poppins } from "next/font/google";
@@ -19,7 +20,6 @@ const poppins = Poppins({
   weight: ["400", "500", "600", "700"],
 });
 
-const BACKENDURL = "https://chowspace-backend.vercel.app";
 const POLL_MS = 30000;
 
 // Every ticket is a full docket — shadow, spine, per-item rows. Mounting a

@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/router";
@@ -17,8 +18,6 @@ import {
   MapPin as LocationEditIcon,
 } from "lucide-react";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
 const ManagerProfile = () => {
   const { data: session, status } = useSession();

@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { PackageOpen, Settings, LogOut, X, User, Wallet } from "lucide-react";
@@ -15,8 +16,6 @@ const menuItems = [
   { name: "Settings", icon: Settings, path: "riders/Setting" },
 ];
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
 export default function RiderDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);

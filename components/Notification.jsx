@@ -1,12 +1,11 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import axios from "axios";
 import { Bell } from "lucide-react";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
 const Notification = () => {
   const { data: session, status } = useSession();
