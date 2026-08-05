@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
+import AdminLayout from "@/components/layouts/AdminLayout";
 import {
   ChevronLeft,
   ShieldCheck,
@@ -106,29 +107,13 @@ export default function VendorVerification() {
         <meta name="robots" content="noindex, nofollow" />
       </Head>
 
-      <div className="min-h-screen bg-[#F7F5F2] px-4 py-8">
+      <AdminLayout
+        title="Vendor Verification"
+        subtitle="Check CAC, ID and proof of address before a store goes live"
+      >
         <Toaster position="top-right" />
 
-        <div className="max-w-4xl mx-auto">
-          <button
-            onClick={() => router.push("/admin/AdminDashboard")}
-            className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-gray-900 mb-5"
-          >
-            <ChevronLeft size={16} /> Admin
-          </button>
-
-          <div className="flex items-center gap-2.5 mb-1">
-            <span className="w-9 h-9 rounded-xl bg-[#AE2108] flex items-center justify-center">
-              <ShieldCheck size={17} className="text-white" />
-            </span>
-            <h1 className="text-xl font-black text-gray-900 tracking-tight">
-              Vendor verification
-            </h1>
-          </div>
-          <p className="text-sm text-gray-500 mb-5">
-            Check each vendor&apos;s CAC, ID and proof of address before their
-            store goes live.
-          </p>
+        <div className="max-w-4xl mx-auto px-4 py-8">
 
           {/* Tabs */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 mb-4">
@@ -306,7 +291,7 @@ export default function VendorVerification() {
             </div>
           )}
         </div>
-      </div>
+      </AdminLayout>
     </>
   );
 }

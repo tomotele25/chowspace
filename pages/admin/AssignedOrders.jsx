@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import AdminLayout from "@/components/layouts/AdminLayout";
 
 const BACKENDURL =
   "https://chowspace-backend.vercel.app" || "http://localhost:2006";
@@ -37,8 +38,8 @@ const AssignedOrders = () => {
   const todayStr = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Today's Assigned Orders</h1>
+    <AdminLayout title="Assigned Orders" subtitle="Today's rider assignments">
+      <div className="p-6">
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-[80vh] overflow-y-auto">
         {riders.map((rider) => {
           // Filter only today's assigned orders
@@ -86,7 +87,8 @@ const AssignedOrders = () => {
           );
         })}
       </div>
-    </div>
+      </div>
+    </AdminLayout>
   );
 };
 

@@ -15,14 +15,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
+import AdminLayout from "@/components/layouts/AdminLayout";
 import toast, { Toaster } from "react-hot-toast";
 
-const menuItems = [
-  { name: "Dashboard", icon: LayoutDashboard, path: "/admin/AdminDashboard" },
-  { name: "Manage Vendors", icon: Users, path: "/admin/ManageVendor" },
-  { name: "Manage Riders", icon: Users, path: "/admin/ManagerRider" },
-  { name: "Settings", icon: Settings, path: "/admin/settings" },
-];
 
 const locations = ["Lagos", "Abeokuta", "Ibadan"];
 const BACKENDURL =
@@ -32,7 +27,6 @@ const ManagerRider = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -54,7 +48,6 @@ const ManagerRider = () => {
   const handleChange = (e) =>
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -125,55 +118,7 @@ const ManagerRider = () => {
   }, []);
 
   return (
-    <div className="min-h-screen flex bg-gray-100">
-      <Toaster position="top-right" />
-
-      {/* Sidebar */}
-      <aside
-        className={`fixed z-30 inset-y-0 left-0 w-64 bg-white shadow-md transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0 flex flex-col justify-between ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div>
-          <div className="flex items-center justify-between px-4 py-4 border-b">
-            <h1 className="text-xl font-bold text-[#AE2108]">Admin Panel</h1>
-            <button onClick={toggleSidebar} className="md:hidden text-gray-600">
-              <X size={24} />
-            </button>
-          </div>
-          <nav className="mt-4 space-y-1 px-4">
-            {menuItems.map(({ name, icon: Icon, path }) => (
-              <Link
-                key={name}
-                href={path}
-                className="flex items-center gap-3 text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-md"
-              >
-                <Icon size={18} />
-                <span>{name}</span>
-              </Link>
-            ))}
-          </nav>
-        </div>
-        <div className="p-4 border-t">
-          <button
-            onClick={() => signOut({ callbackUrl: "/Login" })}
-            className="flex items-center gap-2 text-red-600 hover:bg-red-100 px-3 py-2 rounded w-full"
-          >
-            <LogOut size={18} />
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* Main */}
-      <main className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="flex items-center justify-between px-4 py-3 bg-white shadow-md sticky top-0 z-10">
-          <button className="md:hidden text-gray-700" onClick={toggleSidebar}>
-            <Menu size={24} />
-          </button>
-          <h2 className="text-lg font-semibold text-gray-800">Manage Riders</h2>
-        </header>
+    <AdminLayout title="Manage Riders">
 
         {/* Riders Cards (Responsive) */}
         <section className="flex-1 p-3 sm:p-4 lg:p-6 overflow-hidden">
@@ -386,8 +331,7 @@ const ManagerRider = () => {
             </div>
           </div>
         )}
-      </main>
-    </div>
+    </AdminLayout>
   );
 };
 

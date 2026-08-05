@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/router";
 import axios from "axios";
+import AdminLayout from "@/components/layouts/AdminLayout";
 import {
   LayoutDashboard,
   Users,
@@ -863,7 +864,6 @@ function Pagination({ page, totalPages, onChange }) {
 export default function UserAnalysisPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -939,100 +939,11 @@ export default function UserAnalysisPage() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-50">
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 z-20 md:hidden backdrop-blur-sm"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* ── Sidebar ── */}
-      <aside
-        className={`fixed z-30 inset-y-0 left-0 w-64 bg-white border-r border-gray-100 flex flex-col shadow-xl transform transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:relative md:translate-x-0 md:shadow-none`}
-      >
-        <div className="flex items-center justify-between px-5 h-16 border-b border-gray-100 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#AE2108] flex items-center justify-center">
-              <span className="text-white font-black text-xs">CS</span>
-            </div>
-            <span className="font-bold text-gray-900 text-sm tracking-tight">
-              <span className="text-[#AE2108]">Chowspace</span> Admin
-            </span>
-          </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="md:hidden w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center"
-          >
-            <X size={14} className="text-gray-500" />
-          </button>
-        </div>
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-          {menuItems.map(({ name, icon: Icon, path }) => {
-            const isActive = router.pathname === path;
-            return (
-              <Link
-                key={name}
-                href={path}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all group
-                  ${isActive ? "bg-[#AE2108] text-white shadow-sm" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"}`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon
-                    size={16}
-                    className={
-                      isActive
-                        ? "text-white"
-                        : "text-gray-400 group-hover:text-gray-600"
-                    }
-                  />
-                  <span>{name}</span>
-                </div>
-                {isActive && (
-                  <ChevronRight size={13} className="text-white/60" />
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="px-3 py-3 border-t border-gray-100 flex-shrink-0">
-          <button
-            onClick={logout}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 transition"
-          >
-            <LogOut size={16} /> Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* ── Main ── */}
-      <main className="flex-1 overflow-y-auto">
-        {/* Topbar */}
-        <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-gray-100 px-5 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              className="md:hidden w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu size={18} className="text-gray-600" />
-            </button>
-            <div>
-              <h1 className="text-sm font-bold text-gray-900 leading-tight">
-                User Analysis
-              </h1>
-              <p className="text-[11px] text-gray-400 hidden sm:block leading-tight">
-                {new Date().toLocaleDateString("en-NG", {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Bulk message button */}
+    <AdminLayout
+      title="User Analysis"
+      subtitle={new Date().toLocaleDateString('en-NG', { weekday: 'long', month: 'long', day: 'numeric' })}
+      actions={
+        <>
             {!loading && users.length > 0 && (
               <button
                 onClick={() => setBulkOpen(true)}
@@ -1048,8 +959,9 @@ export default function UserAnalysisPage() {
                 {filtered.length !== 1 ? "s" : ""}
               </span>
             )}
-          </div>
-        </header>
+        </>
+      }
+    >
 
         <div className="px-4 py-5 max-w-6xl mx-auto space-y-5">
           {/* ── Stat cards ── */}
@@ -1459,17 +1371,6 @@ export default function UserAnalysisPage() {
             )}
           </div>
         </div>
-      </main>
-
-      {/* ── User detail drawer ── */}
-      {selectedUser && (
-        <UserDrawer user={selectedUser} onClose={() => setSelectedUser(null)} />
-      )}
-
-      {/* ── Bulk message modal ── */}
-      {bulkOpen && (
-        <BulkMessageModal users={users} onClose={() => setBulkOpen(false)} />
-      )}
-    </div>
+    </AdminLayout>
   );
 }

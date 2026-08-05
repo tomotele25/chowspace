@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import AdminLayout from "@/components/layouts/AdminLayout";
 import { toast } from "react-hot-toast";
 import { useSession } from "next-auth/react";
 import { ArrowRightLeftIcon, Menu, X } from "lucide-react";
@@ -17,7 +18,6 @@ const AdminContactSupport = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadMap, setUnreadMap] = useState({});
   const router = useRouter();
   const chatRef = useRef(null);
@@ -127,30 +127,14 @@ const AdminContactSupport = () => {
   };
 
   return (
-    <div className="flex h-screen">
-      {/* Sidebar */}
-      <aside
-        className={`fixed z-40 md:static top-0 left-0 h-full w-72 bg-gray-100 border-r transform transition-transform duration-300 ease-in-out ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        }`}
-      >
-        <div className="p-4 border-b flex items-center justify-between bg-white">
-          <h2 className="text-lg font-semibold">Support Tickets</h2>
-          <button
-            onClick={router.back}
-            className="p-2 rounded-full hover:bg-gray-100"
-          >
-            <ArrowRightLeftIcon className="w-5 h-5 text-gray-700" />
-            <span className="sr-only">Delete</span>
-          </button>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="md:hidden text-gray-600"
-          >
-            <X />
-            <span className="sr-only">Delete</span>
-          </button>
-        </div>
+    <AdminLayout title="Support" subtitle="Customer tickets">
+      {/* Two panes inside the shell: the ticket list is page content,
+          not navigation, so it keeps its own column. */}
+      <div className="flex h-[calc(100vh-4rem)]">
+        <aside className="w-72 flex-shrink-0 bg-gray-100 border-r hidden sm:flex flex-col">
+          <div className="p-4 border-b bg-white flex items-center justify-between">
+            <h2 className="text-sm font-bold text-gray-900">Support Tickets</h2>
+          </div>
         <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100%-4rem)]">
           {tickets.length === 0 ? (
             <p className="text-gray-600">No tickets found</p>
@@ -176,25 +160,16 @@ const AdminContactSupport = () => {
             ))
           )}
         </nav>
-      </aside>
+        </aside>
 
-      {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col relative">
-        <header className="bg-[#AE2108] text-white p-4 flex items-center justify-between">
-          <h1 className="text-lg font-semibold">
-            {selectedTicket
-              ? `Ticket: ${selectedTicket.subject}`
-              : "Select a ticket"}
-          </h1>
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="md:hidden text-white"
-          >
-            <Menu />
-            <span className="sr-only">Delete</span>
-          </button>
-        </header>
-
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="px-4 py-3 border-b bg-white flex-shrink-0">
+            <p className="text-sm font-bold text-gray-900 truncate">
+              {selectedTicket
+                ? `Ticket: ${selectedTicket.subject}`
+                : "Select a ticket"}
+            </p>
+          </div>
         {/* Chat Body */}
         <div ref={chatRef} className="flex-1 overflow-y-auto p-4 bg-white">
           {!selectedTicket ? (
@@ -240,8 +215,9 @@ const AdminContactSupport = () => {
             </button>
           </footer>
         )}
-      </main>
-    </div>
+        </div>
+      </div>
+    </AdminLayout>
   );
 };
 
