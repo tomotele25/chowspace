@@ -28,6 +28,7 @@ import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
+import ManagerLayout from "@/components/layouts/ManagerLayout";
 
 const STATUS_COLORS = {
   completed: { bg: "#ECFDF5", text: "#065F46", border: "#6EE7B7" },
@@ -55,7 +56,6 @@ function StatusChip({ status }) {
 }
 
 export default function ManagerDashboard() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [orders, setOrders] = useState([]);
   const [vendorStatus, setVendorStatus] = useState("");
   const [toggling, setToggling] = useState(false);
@@ -156,10 +156,6 @@ const BACKENDURL =
     }
   };
 
-  const handleLogout = async () => {
-    await signOut({ redirect: false });
-    router.push("/Login");
-  };
 
   const revenue = orders
     .filter((o) => ["completed", "delivered"].includes(o.status))
@@ -169,147 +165,19 @@ const BACKENDURL =
     ["completed", "delivered"].includes(o.status),
   ).length;
 
-  const navItems = [
-    {
-      href: "/vendors/ManagerDashboard",
-      icon: LayoutDashboard,
-      label: "Dashboard",
-      active: true,
-    },
-    { href: "/vendors/ManageLocation", icon: MapPin, label: "Locations" },
-    {
-      href: "/manager/ManagerOrder",
-      icon: UtensilsCrossed,
-      label: "Orders",
-      badge: pendingCount || null,
-      badgeColor: "#F59E0B",
-    },
-    { href: "/vendors/ManageProducts", icon: PackageOpen, label: "Products" },
-    // {
-    //   href: "/vendors/chat",
-    //   icon: MessageCircle,
-    //   label: "Chat",
-    //   badge: unreadChats || null,
-    //   badgeColor: "#AE2108",
-    // },
-    { href: "/manager/Profile", icon: Settings, label: "Profile" },
-  ];
 
   const recentOrders = [...orders]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 6);
 
   return (
-    <div
-      className="flex h-screen overflow-hidden"
-      style={{ background: "#FBF8F4" }}
-    >
+    <>
       <Toaster position="top-right" />
-
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/30 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* ── Sidebar ── */}
-      <aside
-        className={`fixed top-0 left-0 z-40 h-full w-64 bg-white border-r border-[#F0E8E0] flex flex-col justify-between transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
-      >
-        <div>
-          {/* Brand */}
-          <div className="px-6 py-5 border-b border-[#F0E8E0] flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div>
-                <p className="font-black text-[#AE2108] text-sm leading-tight">
-                  ChowSpace
-                </p>
-                <p className="text-[10px] text-gray-400 font-semibold">
-                  Manager
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="md:hidden text-gray-400 hover:text-gray-600"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          {/* Nav */}
-          <div className="px-3 py-5">
-            <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest px-3 mb-2">
-              Menu
-            </p>
-            <nav className="space-y-0.5">
-              {navItems.map(
-                ({ href, icon: Icon, label, active, badge, badgeColor }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    onClick={() => setSidebarOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-bold transition-colors"
-                    style={
-                      active
-                        ? { background: "#AE2108", color: "white" }
-                        : { color: "#6B7280" }
-                    }
-                  >
-                    <Icon size={16} />
-                    <span className="flex-1">{label}</span>
-                    {badge && (
-                      <span
-                        className="min-w-[20px] h-5 flex items-center justify-center rounded-full text-white text-[9px] font-black px-1.5"
-                        style={{ background: badgeColor }}
-                      >
-                        {badge > 99 ? "99+" : badge}
-                      </span>
-                    )}
-                    {active && (
-                      <ChevronRight size={14} className="opacity-60" />
-                    )}
-                  </Link>
-                ),
-              )}
-            </nav>
-          </div>
-        </div>
-
-        <div className="px-3 py-4 border-t border-[#F0E8E0]">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-bold text-red-500 hover:bg-red-50 w-full transition-colors"
-          >
-            <LogOut size={16} /> Sign Out
-          </button>
-        </div>
-      </aside>
-
-      {/* ── Main ── */}
-      <div className="flex-1 md:ml-64 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="flex-shrink-0 bg-white border-b border-[#F0E8E0] px-4 sm:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500"
-            >
-              <Menu size={18} />
-            </button>
-            <div>
-              <h1 className="text-lg sm:text-2xl font-black text-gray-900 tracking-tight">
-                Dashboard
-              </h1>
-              <p className="text-xs text-gray-400 font-semibold">
-                Today's overview
-              </p>
-            </div>
-          </div>
-
-          {/* Store toggle */}
-          {vendorStatus && (
+      <ManagerLayout
+        title="Dashboard"
+        subtitle="Today's overview"
+        actions={
+          vendorStatus && (
             <button
               onClick={toggleStoreStatus}
               disabled={toggling}
@@ -339,9 +207,9 @@ const BACKENDURL =
                 </>
               )}
             </button>
-          )}
-        </header>
-
+          )
+        }
+      >
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-6">
           {/* ── Stats grid ── */}
@@ -588,7 +456,7 @@ const BACKENDURL =
           {/* Bottom padding */}
           <div className="h-2" />
         </div>
-      </div>
-    </div>
+      </ManagerLayout>
+    </>
   );
 }
