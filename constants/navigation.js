@@ -33,7 +33,20 @@ import {
  * which is what the shorter menus want.
  */
 
-/** Vendor — the union of what existed, grouped so fifteen items stay scannable. */
+/**
+ * Vendor.
+ *
+ * Trimmed from the fifteen that existed across the old sidebars. Dropped from
+ * the sidebar — still reachable by URL, better surfaced as dashboard cards:
+ *
+ *   Subscribe    — a promotion upsell, not daily navigation
+ *   Announcement — posted occasionally, not navigated to
+ *
+ * Verification is conditional, not listed here: it only applies until the
+ * store goes live, so VendorLayout inserts it and drops it once verified.
+ *
+ * Chat stays — customers message vendors there, so it carries real traffic.
+ */
 export const VENDOR_NAV = [
   {
     label: "Selling",
@@ -42,33 +55,38 @@ export const VENDOR_NAV = [
       { name: "Orders", path: "/vendors/Orders", icon: UtensilsCrossed },
       { name: "Products", path: "/vendors/ManageProducts", icon: PackageOpen },
       // Lives on the bulk-product-upload branch. Harmless until that merges:
-      // the link 404s rather than breaking the build. Remove if that work is
-      // dropped.
+      // the link 404s rather than breaking the build.
       { name: "Bulk Upload", path: "/vendors/BulkUpload", icon: UploadCloud },
     ],
   },
   {
     label: "Store",
     items: [
-      { name: "Reviews", path: "/vendors/Reviews", icon: Star },
       { name: "Analytics", path: "/vendors/Analytics", icon: BarChart },
+      { name: "Reviews", path: "/vendors/Reviews", icon: Star },
       { name: "Location", path: "/vendors/VendorLocation", icon: MapPin },
       { name: "Wallet", path: "/vendors/Wallet", icon: Wallet },
-      { name: "Verification", path: "/vendors/Verification", icon: ShieldCheck },
-      { name: "Subscribe", path: "/vendors/Subscribe", icon: Rocket },
     ],
   },
   {
     label: "Account",
     items: [
-      { name: "Manage Team", path: "/vendors/ManageTeam", icon: Users },
-      { name: "Announcement", path: "/vendors/Announcement", icon: Megaphone },
+      // "Business Profile" rather than "Profile", so it reads differently from
+      // Settings — the two overlap and the old names didn't say which was which.
+      { name: "Business Profile", path: "/vendors/Profile", icon: User },
+      { name: "Team", path: "/vendors/ManageTeam", icon: Users },
       { name: "Chat", path: "/vendors/vendorchat", icon: MessageCircle },
-      { name: "Profile", path: "/vendors/Profile", icon: User },
       { name: "Settings", path: "/Settings", icon: Settings },
     ],
   },
 ];
+
+/** Shown only while a vendor still has steps left to go live. */
+export const VENDOR_VERIFICATION_ITEM = {
+  name: "Verification",
+  path: "/vendors/Verification",
+  icon: ShieldCheck,
+};
 
 /**
  * Manager — a restricted view of the vendor's store.

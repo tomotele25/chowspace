@@ -8,7 +8,10 @@ import axios from "axios";
 import { User, AlertTriangle, ChevronRight } from "lucide-react";
 
 import DashboardShell from "./DashboardShell";
-import { VENDOR_NAV } from "@/constants/navigation";
+import {
+  VENDOR_NAV,
+  VENDOR_VERIFICATION_ITEM,
+} from "@/constants/navigation";
 
 const BACKENDURL = "https://chowspace-backend.vercel.app";
 
@@ -124,9 +127,21 @@ export default function VendorLayout({ title, subtitle, actions, children }) {
       </div>
     ) : null;
 
+  // Verification only matters until the store is live, so it appears in the
+  // sidebar while there's still something to do and drops away afterwards.
+  // Absent while verification is still loading, to avoid it flashing in and out.
+  const nav =
+    verification && !verification.live
+      ? VENDOR_NAV.map((group) =>
+          group.label === "Store"
+            ? { ...group, items: [...group.items, VENDOR_VERIFICATION_ITEM] }
+            : group,
+        )
+      : VENDOR_NAV;
+
   return (
     <DashboardShell
-      nav={VENDOR_NAV}
+      nav={nav}
       title={title}
       subtitle={subtitle}
       actions={actions}
