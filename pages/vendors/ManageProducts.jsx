@@ -5,29 +5,23 @@ import { Toaster, toast } from "react-hot-toast";
 import {
   Plus,
   X,
-  LayoutDashboard,
   PackageOpen,
-  LogOut,
   Pencil,
   Save,
   GripVertical,
   Search,
-  ChevronLeft,
   Trash2,
   AlertTriangle,
   ImagePlus,
   ToggleLeft,
   ToggleRight,
-  Menu,
-  MapPin,
-  UtensilsCrossed,
-  Settings,
   SlidersHorizontal,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import axios from "axios";
-import { useSession, signOut } from "next-auth/react";
-import Link from "next/link";
+import { useSession } from "next-auth/react";
+
+import VendorLayout from "@/components/layouts/VendorLayout";
+import ManagerLayout from "@/components/layouts/ManagerLayout";
 import {
   DndContext,
   closestCenter,
@@ -194,8 +188,8 @@ function SortableProduct({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ManageProducts() {
-  const router = useRouter();
   const { data: session } = useSession();
+  const role = session?.user?.role;
   const BACKENDURL = "https://chowspace-backend.vercel.app";
 
   const [products, setProducts] = useState([]);
@@ -216,7 +210,6 @@ export default function ManageProducts() {
   const [filterCat, setFilterCat] = useState("All");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
   const categories = [
@@ -422,25 +415,46 @@ export default function ManageProducts() {
   );
   const availableCount = products.filter((p) => p.available).length;
 
-  const navLinks = [
-    {
-      href: "/vendors/Dashboard",
-      label: "Dashboard",
-      icon: LayoutDashboard,
-    },
-    { href: "/vendors/ManageLocation", label: "Locations", icon: MapPin },
-    { href: "/manager/ManagerOrder", label: "Orders", icon: UtensilsCrossed },
-    {
-      href: "/vendors/ManageProducts",
-      label: "Products",
-      icon: PackageOpen,
-      active: true,
-    },
-    { href: "/manager/Profile", label: "Profile", icon: Settings },
-  ];
+  // This page is reachable by vendors and by their managers, so the sidebar
+  // has to match who is looking at it — a manager seeing the vendor's full
+  // menu (Wallet, Team, Verification) would be shown routes they can't open.
+  const Layout = role === "manager" ? ManagerLayout : VendorLayout;
 
   return (
-    <div className="flex h-screen bg-[#F7F5F2] overflow-hidden">
+    <Layout
+      title="Products"
+      subtitle={`${availableCount} of ${products.length} live`}
+      actions={
+        <>
+          {/* Filter toggle — mobile only */}
+          <button
+            onClick={() => setShowFilters((v) => !v)}
+            className={`sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border-2 transition-all ${showFilters ? "border-[#AE2108] text-[#AE2108] bg-red-50" : "border-gray-200 text-gray-600 bg-white"}`}
+          >
+            <SlidersHorizontal size={16} />
+          </button>
+
+          {/* Save order */}
+          <button
+            onClick={saveReorder}
+            className="flex items-center gap-1.5 bg-white border-2 border-gray-200 text-gray-700 text-xs sm:text-sm font-bold px-2.5 sm:px-3 py-2 rounded-xl hover:border-green-400 hover:text-green-600 transition-all"
+          >
+            <Save size={15} />
+            <span className="hidden sm:inline">Save Order</span>
+          </button>
+
+          {/* Add product */}
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-1.5 bg-[#AE2108] text-white text-xs sm:text-sm font-bold px-3 sm:px-4 py-2 rounded-xl hover:bg-[#941B06] transition-all shadow-md shadow-red-200"
+          >
+            <Plus size={15} />
+            <span className="hidden xs:inline">Add</span>
+            <span className="hidden sm:inline"> Product</span>
+          </button>
+        </>
+      }
+    >
       <Toaster
         position="top-right"
         toastOptions={{
@@ -448,234 +462,108 @@ export default function ManageProducts() {
         }}
       />
 
-      {/* Sidebar backdrop */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* ── Sidebar ── */}
-      <aside
-        className={`fixed top-0 left-0 z-40 h-full w-64 bg-white flex flex-col justify-between border-r border-gray-100 transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
+      {/* Filters — collapsible on mobile, always on desktop */}
+      <div
+        className={`bg-white border-b border-gray-100 flex-shrink-0 overflow-hidden transition-all duration-300 ease-in-out ${showFilters ? "max-h-52" : "max-h-0"} sm:max-h-none sm:overflow-visible`}
       >
-        <div>
-          <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-lg bg-[#AE2108] flex items-center justify-center">
-                <PackageOpen size={15} className="text-white" />
-              </span>
-              <span className="text-lg font-black text-gray-900 tracking-tight">
-                ChowSpace
-              </span>
-            </div>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="md:hidden text-gray-400"
-            >
-              <X size={18} />
-            </button>
+        <div className="px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+          {/* Search */}
+          <div className="relative w-full sm:w-52 flex-shrink-0">
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              type="text"
+              placeholder="Search products…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 pr-4 py-2 text-sm border-2 border-gray-200 rounded-xl focus:border-[#AE2108] focus:outline-none w-full font-medium"
+            />
           </div>
-          <div className="px-3 py-4">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-2">
-              Menu
-            </p>
-            <nav className="space-y-0.5">
-              {navLinks.map(({ href, label, icon: Icon, active }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                    active
-                      ? "bg-[#AE2108]/10 text-[#AE2108]"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
-                >
-                  <Icon size={17} />
-                  {label}
-                  {active && (
-                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#AE2108]" />
-                  )}
-                </Link>
-              ))}
-            </nav>
-          </div>
-        </div>
-        <div className="px-3 py-4 border-t border-gray-100">
-          <button
-            onClick={() => signOut({ callbackUrl: "/Login" })}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 w-full transition-all"
+          {/* Category pills */}
+          <div
+            className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto"
+            style={{ scrollbarWidth: "none" }}
           >
-            <LogOut size={17} /> Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* ── Main ── */}
-      <div className="flex-1 md:ml-64 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="sticky top-0 z-20 bg-[#F7F5F2]/90 backdrop-blur-md border-b border-gray-200/60 px-4 sm:px-6 py-3 flex items-center justify-between flex-shrink-0 gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="md:hidden w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-600"
-            >
-              <Menu size={18} />
-            </button>
-            <div className="min-w-0">
-              <h1 className="text-base sm:text-xl font-black text-gray-900 tracking-tight leading-tight">
-                Products
-              </h1>
-              <p className="text-[11px] sm:text-xs text-gray-400">
-                {availableCount} of {products.length} live
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {/* Back — desktop only */}
-            <button
-              onClick={() => router.back()}
-              className="hidden sm:flex items-center gap-1.5 text-sm font-semibold text-gray-600 hover:text-gray-900 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition"
-            >
-              <ChevronLeft size={16} /> Back
-            </button>
-
-            {/* Filter toggle — mobile only */}
-            <button
-              onClick={() => setShowFilters((v) => !v)}
-              className={`sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border-2 transition-all ${showFilters ? "border-[#AE2108] text-[#AE2108] bg-red-50" : "border-gray-200 text-gray-600 bg-white"}`}
-            >
-              <SlidersHorizontal size={16} />
-            </button>
-
-            {/* Save order */}
-            <button
-              onClick={saveReorder}
-              className="flex items-center gap-1.5 bg-white border-2 border-gray-200 text-gray-700 text-xs sm:text-sm font-bold px-2.5 sm:px-3 py-2 rounded-xl hover:border-green-400 hover:text-green-600 transition-all"
-            >
-              <Save size={15} />
-              <span className="hidden sm:inline">Save Order</span>
-            </button>
-
-            {/* Add product */}
-            <button
-              onClick={openAdd}
-              className="flex items-center gap-1.5 bg-[#AE2108] text-white text-xs sm:text-sm font-bold px-3 sm:px-4 py-2 rounded-xl hover:bg-[#941B06] transition-all shadow-md shadow-red-200"
-            >
-              <Plus size={15} />
-              <span className="hidden xs:inline">Add</span>
-              <span className="hidden sm:inline"> Product</span>
-            </button>
-          </div>
-        </header>
-
-        {/* Filters — collapsible on mobile, always on desktop */}
-        <div
-          className={`bg-white border-b border-gray-100 flex-shrink-0 overflow-hidden transition-all duration-300 ease-in-out ${showFilters ? "max-h-52" : "max-h-0"} sm:max-h-none sm:overflow-visible`}
-        >
-          <div className="px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-            {/* Search */}
-            <div className="relative w-full sm:w-52 flex-shrink-0">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                type="text"
-                placeholder="Search products…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-8 pr-4 py-2 text-sm border-2 border-gray-200 rounded-xl focus:border-[#AE2108] focus:outline-none w-full font-medium"
-              />
-            </div>
-            {/* Category pills */}
-            <div
-              className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto"
-              style={{ scrollbarWidth: "none" }}
-            >
-              {["All", ...categories].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setFilterCat(cat)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex-shrink-0 transition-all ${
-                    filterCat === cat
-                      ? "bg-[#AE2108] text-white shadow-sm"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* FIX 2: Drag hint banner — now visible on ALL screen sizes */}
-        <div className="px-4 py-2 bg-amber-50 border-b border-amber-100 flex items-center gap-2 flex-shrink-0">
-          <GripVertical size={13} className="text-amber-500 flex-shrink-0" />
-          <p className="text-[11px] text-amber-700 font-semibold">
-            Hover a card and drag the <span className="font-black">⠿</span>{" "}
-            handle to reorder, then hit{" "}
-            <span className="font-black">Save Order</span>
-          </p>
-        </div>
-
-        {/* Grid */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6">
-          {pageLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-              {[...Array(10)].map((_, i) => (
-                <div
-                  key={i}
-                  className="bg-white rounded-2xl overflow-hidden animate-pulse"
-                >
-                  <div className="h-36 sm:h-40 bg-gray-200" />
-                  <div className="p-3 space-y-2">
-                    <div className="h-3 bg-gray-200 rounded w-3/4" />
-                    <div className="h-3 bg-gray-200 rounded w-1/2" />
-                    <div className="h-7 bg-gray-100 rounded-lg" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-              <PackageOpen size={48} className="mb-3 opacity-30" />
-              <p className="font-semibold text-sm">No products found</p>
-              <p className="text-xs mt-1">
-                Try a different search or add a new product
-              </p>
-            </div>
-          ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={filteredProducts.map((p) => p._id)}
-                strategy={rectSortingStrategy}
+            {["All", ...categories].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setFilterCat(cat)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex-shrink-0 transition-all ${
+                  filterCat === cat
+                    ? "bg-[#AE2108] text-white shadow-sm"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
               >
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-                  {filteredProducts.map((prod) => (
-                    <SortableProduct
-                      key={prod._id}
-                      product={prod}
-                      handleEdit={handleEdit}
-                      handleToggle={handleToggle}
-                      handleDelete={handleDelete}
-                      BACKENDURL={BACKENDURL}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
-          )}
-          <div className="h-4" />
+                {cat}
+              </button>
+            ))}
+          </div>
         </div>
+      </div>
+
+      {/* FIX 2: Drag hint banner — now visible on ALL screen sizes */}
+      <div className="px-4 py-2 bg-amber-50 border-b border-amber-100 flex items-center gap-2 flex-shrink-0">
+        <GripVertical size={13} className="text-amber-500 flex-shrink-0" />
+        <p className="text-[11px] text-amber-700 font-semibold">
+          Hover a card and drag the <span className="font-black">⠿</span> handle
+          to reorder, then hit <span className="font-black">Save Order</span>
+        </p>
+      </div>
+
+      {/* Grid */}
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6">
+        {pageLoading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+            {[...Array(10)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-white rounded-2xl overflow-hidden animate-pulse"
+              >
+                <div className="h-36 sm:h-40 bg-gray-200" />
+                <div className="p-3 space-y-2">
+                  <div className="h-3 bg-gray-200 rounded w-3/4" />
+                  <div className="h-3 bg-gray-200 rounded w-1/2" />
+                  <div className="h-7 bg-gray-100 rounded-lg" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+            <PackageOpen size={48} className="mb-3 opacity-30" />
+            <p className="font-semibold text-sm">No products found</p>
+            <p className="text-xs mt-1">
+              Try a different search or add a new product
+            </p>
+          </div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={filteredProducts.map((p) => p._id)}
+              strategy={rectSortingStrategy}
+            >
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+                {filteredProducts.map((prod) => (
+                  <SortableProduct
+                    key={prod._id}
+                    product={prod}
+                    handleEdit={handleEdit}
+                    handleToggle={handleToggle}
+                    handleDelete={handleDelete}
+                    BACKENDURL={BACKENDURL}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+        <div className="h-4" />
       </div>
 
       {/* ── Add / Edit Modal ── */}
@@ -893,6 +781,6 @@ export default function ManageProducts() {
           </div>
         </div>
       )}
-    </div>
+    </Layout>
   );
 }

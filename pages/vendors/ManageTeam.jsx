@@ -1,22 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
-import {
-  ArrowLeftCircle,
-  Plus,
-  X,
-  Trash2,
-  LayoutDashboard,
-  Users,
-} from "lucide-react";
+import { Plus, X, Trash2 } from "lucide-react";
 import axios from "axios";
-import { useSession, signOut } from "next-auth/react";
-import Link from "next/link";
+import { useSession } from "next-auth/react";
+
+import VendorLayout from "@/components/layouts/VendorLayout";
 
 export default function CreateManager() {
-  const router = useRouter();
   const { data: session } = useSession();
   const BACKENDURL =
     "https://chowspace-backend.vercel.app" || "http://localhost:2006";
@@ -73,11 +65,11 @@ export default function CreateManager() {
           headers: {
             Authorization: `Bearer ${session?.user?.accessToken}`,
           },
-        }
+        },
       );
 
       toast.success(
-        `Manager added successfully. Store is currently ${res.data.vendorStatus}`
+        `Manager added successfully. Store is currently ${res.data.vendorStatus}`,
       );
 
       setManagers((prev) => [res.data.manager, ...prev]);
@@ -109,54 +101,25 @@ export default function CreateManager() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <VendorLayout
+      title="Team"
+      subtitle={
+        managers.length
+          ? `${managers.length} manager${managers.length === 1 ? "" : "s"}`
+          : undefined
+      }
+      actions={
+        <button
+          onClick={() => setShowModal(true)}
+          className="inline-flex items-center gap-1.5 bg-[#AE2108] hover:bg-[#941B06] text-white text-xs font-bold px-3 py-2 rounded-xl transition"
+        >
+          <Plus size={14} /> Add manager
+        </button>
+      }
+    >
       <Toaster position="top-right" />
 
-      {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-md p-4 hidden md:flex flex-col justify-between sticky top-0 h-screen">
-        <div>
-          <h2 className="text-xl font-bold text-[#AE2108] mb-6">
-            Vendor Panel
-          </h2>
-          <nav className="space-y-3">
-            <Link
-              href="/vendors/Dashboard"
-              className="flex items-center gap-2 text-gray-700 hover:text-[#AE2108]"
-            >
-              <LayoutDashboard size={18} /> Dashboard
-            </Link>
-            <Link
-              href="/vendor/managers"
-              className="flex items-center gap-2 text-gray-700 hover:text-[#AE2108]"
-            >
-              <Users size={18} /> Team
-            </Link>
-          </nav>
-        </div>
-        <button
-          onClick={() => signOut({ callbackUrl: "/Login" })}
-          className="flex items-center gap-2 text-red-600 hover:bg-red-100 px-3 py-2 rounded-md"
-        >
-          Logout
-        </button>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 p-6">
-        <div className="mb-6">
-          <button
-            onClick={() => router.back()}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md shadow-sm hover:bg-gray-100"
-          >
-            <ArrowLeftCircle size={18} />
-            <span>Back</span>
-          </button>
-        </div>
-
-        <h2 className="text-2xl font-semibold text-[#AE2108] mb-6">
-          Team Members
-        </h2>
-
+      <div className="p-4 md:p-6">
         {vendorStatus && (
           <p className="text-sm mb-4 text-gray-600">
             Store is currently:{" "}
@@ -199,15 +162,7 @@ export default function CreateManager() {
             ))}
           </div>
         )}
-
-        {/* Floating Button */}
-        <button
-          onClick={() => setShowModal(true)}
-          className="fixed bottom-6 right-6 bg-[#AE2108] hover:bg-[#941B06] text-white p-4 rounded-full shadow-lg z-50"
-        >
-          <Plus size={24} />
-        </button>
-      </main>
+      </div>
 
       {/* Modal */}
       {showModal && (
@@ -265,6 +220,6 @@ export default function CreateManager() {
           </div>
         </div>
       )}
-    </div>
+    </VendorLayout>
   );
 }

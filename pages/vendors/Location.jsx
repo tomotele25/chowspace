@@ -1,23 +1,12 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import {
-  X,
-  LayoutDashboard,
-  LocationEditIcon,
-  UtensilsCrossed,
-  PackageOpen,
-  Settings,
-  LogOut,
-  Pencil,
-  Save,
-} from "lucide-react";
-import { useSession, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { Pencil, Save } from "lucide-react";
+import { useSession } from "next-auth/react";
+
+import VendorLayout from "@/components/layouts/VendorLayout";
 
 export default function ManageLocation() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [location, setLocation] = useState("");
   const [price, setPrice] = useState("");
   const [message, setMessage] = useState(null);
@@ -26,15 +15,11 @@ export default function ManageLocation() {
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({ location: "", price: "" });
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" 
+  const BACKENDURL = "https://chowspace-backend.vercel.app";
 
   const { data: session } = useSession();
-  const router = useRouter();
   const token = session?.user?.accessToken;
   const vendorId = session?.user?.vendorId;
-
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   // Fetch vendor locations
   // Fetch vendor locations
@@ -47,7 +32,7 @@ const BACKENDURL =
           `${BACKENDURL}/api/vendor/locations/${session.user.vendorId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
-          }
+          },
         );
         setLocations(res.data.locations || []);
       } catch (err) {
@@ -96,11 +81,11 @@ const BACKENDURL =
       const res = await axios.put(
         `${BACKENDURL}/api/vendor/locations/${id}`,
         { location: editValues.location, price: editValues.price },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       setLocations((prev) =>
-        prev.map((loc) => (loc._id === id ? res.data : loc))
+        prev.map((loc) => (loc._id === id ? res.data : loc)),
       );
       setEditingId(null);
       setMessage({ type: "success", text: "Location updated successfully!" });
@@ -112,81 +97,17 @@ const BACKENDURL =
     }
   };
 
-  const handleLogout = () => {
-    signOut({ callbackUrl: "/Login" });
-  };
-
   return (
-    <div className="flex h-screen">
-      {/* Sidebar */}
-      <aside
-        className={`fixed top-0 left-0 z-40 h-full w-64 bg-white shadow-lg flex flex-col justify-between transition-transform duration-300 ease-in-out ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0`}
-      >
-        <div>
-          <div className="flex items-center justify-between p-4 border-b">
-            <h2 className="text-xl font-bold text-[#AE2108]">Vendor Panel</h2>
-            <button onClick={toggleSidebar} className="md:hidden">
-              <X />
-            </button>
-          </div>
-
-          <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
-            <Link
-              href="/vendor/Dashboard"
-              className="flex items-center gap-2 text-gray-700 font-semibold"
-            >
-              <LayoutDashboard size={18} />
-              Dashboard
-            </Link>
-            <Link
-              href="/vendor/ManageLocation"
-              className="flex items-center gap-2 text-[#AE2108] hover:text-[#AE2108] font-semibold"
-            >
-              <LocationEditIcon size={18} />
-              Locations
-            </Link>
-            <Link
-              href="/vendor/ManageProducts"
-              className="flex items-center gap-2 text-gray-700 hover:text-[#AE2108] font-semibold"
-            >
-              <PackageOpen size={18} />
-              Products
-            </Link>
-            <Link
-              href="/vendor/Profile"
-              className="flex items-center gap-2 text-gray-700 hover:text-[#AE2108] font-semibold"
-            >
-              <Settings size={18} />
-              Profile
-            </Link>
-          </nav>
-        </div>
-
-        <div className="p-4 border-t">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-red-600 hover:bg-red-100 px-3 py-2 rounded-md w-full"
-          >
-            <LogOut size={18} />
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1 p-6  overflow-y-auto bg-gray-50">
-        <div className="mb-4">
-          <button
-            onClick={() => router.back()}
-            className="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300"
-          >
-            ← Back
-          </button>
-        </div>
-
-        <div className="max-w-3xl mx-auto mt-4">
+    <VendorLayout
+      title="Delivery Locations"
+      subtitle={
+        locations.length
+          ? `${locations.length} location${locations.length === 1 ? "" : "s"}`
+          : undefined
+      }
+    >
+      <div className="p-4 md:p-6">
+        <div className="max-w-3xl mx-auto">
           <div className="bg-white rounded-xl shadow-md p-6 mb-6">
             <h1 className="text-2xl font-bold text-gray-800 mb-6">
               Add Delivery Location
@@ -320,6 +241,6 @@ const BACKENDURL =
           </div>
         </div>
       </div>
-    </div>
+    </VendorLayout>
   );
 }

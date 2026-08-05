@@ -5,15 +5,30 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import axios from "axios";
+import toast from "react-hot-toast";
 import { User, AlertTriangle, ChevronRight } from "lucide-react";
 
 import DashboardShell from "./DashboardShell";
-import {
-  VENDOR_NAV,
-  VENDOR_VERIFICATION_ITEM,
-} from "@/constants/navigation";
+import { VENDOR_NAV, VENDOR_VERIFICATION_ITEM } from "@/constants/navigation";
 
 const BACKENDURL = "https://chowspace-backend.vercel.app";
+
+/**
+ * A toggle is a temporary override on top of the store's schedule, so the
+ * confirmation has to say when it reverts — otherwise the vendor assumes it
+ * stuck and is surprised whichever way it goes.
+ */
+function formatReopenTime(iso) {
+  const when = new Date(iso);
+  const time = when.toLocaleTimeString("en-NG", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Africa/Lagos",
+  });
+  const day = (d) =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos" }).format(d);
+  return day(when) === day(new Date()) ? time : `${time} tomorrow`;
+}
 
 function StatusDot({ status }) {
   const open = status === "opened";
@@ -76,6 +91,29 @@ export default function VendorLayout({ title, subtitle, actions, children }) {
         // Non-fatal — the page still works, the banner just won't render.
       });
   }, [session]);
+
+  // Closing up for the night is the one control a vendor reaches for away from
+  // the dashboard — mid-service, on whichever page they happen to be. It lives
+  // here so it's always one tap away, and so the pill above it can't go stale.
+  const toggleStoreStatus = async () => {
+    const next = storeStatus === "opened" ? "closed" : "opened";
+    try {
+      const res = await axios.put(
+        `${BACKENDURL}/api/vendor/toggleStatus`,
+        { status: next },
+        { headers: { Authorization: `Bearer ${session?.user?.accessToken}` } },
+      );
+      const applied = res.data.vendor?.status || next;
+      setStoreStatus(applied);
+      toast.success(
+        res.data.overrideUntil
+          ? `Store ${applied} until ${formatReopenTime(res.data.overrideUntil)}`
+          : `Store is now ${applied}`,
+      );
+    } catch {
+      toast.error("Could not toggle store status");
+    }
+  };
 
   const identity = (
     <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#AE2108]/5 border border-[#AE2108]/10">
@@ -144,7 +182,24 @@ export default function VendorLayout({ title, subtitle, actions, children }) {
       nav={nav}
       title={title}
       subtitle={subtitle}
-      actions={actions}
+      actions={
+        <>
+          {storeStatus && (
+            <button
+              onClick={toggleStoreStatus}
+              className={`flex items-center gap-2 pl-3 pr-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                storeStatus === "opened"
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                  : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+              }`}
+            >
+              <StatusDot status={storeStatus} />
+              <span className="hidden sm:inline capitalize">{storeStatus}</span>
+            </button>
+          )}
+          {actions}
+        </>
+      }
       identity={identity}
       banner={banner}
     >
