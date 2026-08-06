@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import {
   LayoutDashboard,
@@ -40,8 +40,6 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (status === "unauthenticated") router.push("/Login");
   }, [status]);
-
-  const logout = async () => await signOut({ callbackUrl: "/Login" });
 
   useEffect(() => {
     axios

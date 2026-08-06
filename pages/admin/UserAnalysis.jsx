@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import axios from "axios";
 import AdminLayout from "@/components/layouts/AdminLayout";
@@ -866,8 +866,6 @@ export default function UserAnalysisPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [session]);
-
-  const logout = async () => await signOut({ callbackUrl: "/Login" });
 
   const users = buildUsers(orders);
   const topItems = buildTopItems(users);

@@ -198,6 +198,15 @@ export default function AdminAnalytics() {
   const [copied, setCopied] = useState(false);
   const [analyticsRange, setAnalyticsRange] = useState("week"); // today|week|month|all
 
+  // Vendors with no orders in any of the three weeks are hidden by default —
+  // on a platform with a long tail of signed-up-but-dormant stores they would
+  // otherwise be most of the table.
+  const [showInactiveVendors, setShowInactiveVendors] = useState(false);
+
+  // How many weeks back the per-vendor table reaches. Four covers "is this
+  // vendor slipping"; twelve is for spotting a season.
+  const [weeksShown, setWeeksShown] = useState(4);
+
   useEffect(() => {
     if (status === "unauthenticated") router.push("/Login");
   }, [status]);
@@ -405,6 +414,87 @@ export default function AdminAnalytics() {
     { label: "Revenue", value: wRev, delta: pct(wRev, lwRev), money: true },
     { label: "Commission", value: wCom, delta: pct(wCom, lwCom), money: true },
   ];
+
+  // Four-week order counts, per vendor ------------------------------------------
+  // Counting orders only — not revenue, and not restricted to paid — so the
+  // numbers answer "who is busy" rather than "who earned".
+  //
+  // Weeks are held as a list rather than named fields so the count is one
+  // number to change, and so the table header and the row cells can never
+  // drift out of step with the buckets they describe.
+  const weekBuckets = Array.from({ length: weeksShown }, (_, i) => {
+    const { start, end } = getWeekRange(
+      new Date(Date.now() - i * 7 * 86400000),
+    );
+    return {
+      start,
+      end,
+      label: i === 0 ? "This week" : i === 1 ? "Last week" : `${i} weeks ago`,
+      // Beyond a couple of weeks "5 weeks ago" stops locating anything, so the
+      // date the week began goes underneath it.
+      sub:
+        i < 2
+          ? null
+          : start.toLocaleDateString("en-NG", {
+              day: "numeric",
+              month: "short",
+            }),
+    };
+  });
+
+  const zeroes = () => Array(weeksShown).fill(0);
+  const weeklyByVendor = new Map();
+  const weeklyTotals = zeroes();
+  // An order whose vendor has since been deleted still happened, and still
+  // belongs in the platform total — but it has no row to sit in. Counted
+  // separately so the column adds up instead of quietly losing orders.
+  const weeklyUnattributed = zeroes();
+
+  // One pass over orders rather than a filter per vendor per week: that would
+  // be 4N scans of a list holding every order the platform has ever taken.
+  orders.forEach((o) => {
+    const d = new Date(o.createdAt);
+    const i = weekBuckets.findIndex((b) => d >= b.start && d <= b.end);
+    if (i === -1) return;
+
+    weeklyTotals[i] += 1;
+
+    const id = o.vendorId?._id;
+    if (!id) {
+      weeklyUnattributed[i] += 1;
+      return;
+    }
+
+    if (!weeklyByVendor.has(id)) weeklyByVendor.set(id, zeroes());
+    weeklyByVendor.get(id)[i] += 1;
+  });
+
+  // A vendor can also be gone from the vendors list while its orders remain,
+  // which would drop them from the rows below without dropping them from the
+  // total. Fold those in with the genuinely vendorless ones.
+  const knownVendorIds = new Set(vendors.map((v) => v._id));
+  weeklyByVendor.forEach((counts, id) => {
+    if (knownVendorIds.has(id)) return;
+    counts.forEach((n, i) => (weeklyUnattributed[i] += n));
+  });
+
+  const unattributedTotal = weeklyUnattributed.reduce((s, n) => s + n, 0);
+
+  const weeklyRows = vendors
+    .map((v) => {
+      const counts = weeklyByVendor.get(v._id) || zeroes();
+      return {
+        id: v._id,
+        name: v.businessName || v.fullname || "Unnamed vendor",
+        counts,
+        total: counts.reduce((s, n) => s + n, 0),
+      };
+    })
+    .sort((a, b) => b.counts[0] - a.counts[0] || b.total - a.total);
+
+  const activeWeeklyRows = weeklyRows.filter((r) => r.total > 0);
+  const inactiveWeeklyCount = weeklyRows.length - activeWeeklyRows.length;
+  const visibleWeeklyRows = showInactiveVendors ? weeklyRows : activeWeeklyRows;
 
   // Monthly growth + cumulative -------------------------------------------------
   const monthMap = {};
@@ -1247,6 +1337,167 @@ export default function AdminAnalytics() {
           </div>
         </div>
 
+        {/* ── Weekly order counts, per vendor ── */}
+        <div>
+          <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+              Orders by week
+            </p>
+            <div className="flex items-center gap-3">
+              {inactiveWeeklyCount > 0 && (
+                <button
+                  onClick={() => setShowInactiveVendors((v) => !v)}
+                  className="text-[10px] font-bold text-[#AE2108] hover:underline"
+                >
+                  {showInactiveVendors
+                    ? "Hide inactive"
+                    : `Show ${inactiveWeeklyCount} inactive`}
+                </button>
+              )}
+              <select
+                value={weeksShown}
+                onChange={(e) => setWeeksShown(Number(e.target.value))}
+                className="border border-gray-200 bg-white rounded-lg px-2.5 py-1 text-[11px] font-semibold text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#AE2108]/20"
+                aria-label="Number of weeks to show"
+              >
+                {[4, 6, 8, 12].map((n) => (
+                  <option key={n} value={n}>
+                    {n} weeks
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="px-5 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      Vendor
+                    </th>
+                    {weekBuckets.map((b, i) => (
+                      <th
+                        key={b.label}
+                        className={`py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right whitespace-nowrap ${
+                          i === weekBuckets.length - 1 ? "px-5" : "px-4"
+                        }`}
+                      >
+                        {b.label}
+                        {/* Two days measured against full weeks reads as a
+                            collapse in orders unless it says so. */}
+                        {(i === 0 || b.sub) && (
+                          <span className="block font-medium normal-case tracking-normal text-gray-300">
+                            {i === 0 ? "so far" : b.sub}
+                          </span>
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleWeeklyRows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={weekBuckets.length + 1}
+                        className="px-5 py-8 text-center text-xs text-gray-400"
+                      >
+                        No orders in the last {weeksShown} weeks.
+                      </td>
+                    </tr>
+                  ) : (
+                    visibleWeeklyRows.map((row) => (
+                      <tr
+                        key={row.id}
+                        className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors"
+                      >
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-[#AE2108]/10 flex items-center justify-center flex-shrink-0">
+                              <span className="text-[#AE2108] font-black text-[10px]">
+                                {row.name.slice(0, 2).toUpperCase()}
+                              </span>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-800 truncate max-w-[180px]">
+                              {row.name}
+                            </span>
+                          </div>
+                        </td>
+                        {row.counts.map((n, i) => (
+                          <td
+                            key={i}
+                            className={`py-3 text-right text-sm tabular-nums ${
+                              i === 0
+                                ? "font-bold text-gray-900"
+                                : "text-gray-500"
+                            } ${i === row.counts.length - 1 ? "px-5" : "px-4"}`}
+                          >
+                            {n}
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  )}
+
+                  {unattributedTotal > 0 && (
+                    <tr className="border-b border-gray-50 last:border-0 bg-amber-50/40">
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0">
+                            <span className="text-gray-500 font-black text-[10px]">
+                              ?
+                            </span>
+                          </div>
+                          <span className="text-sm font-semibold text-gray-500 italic">
+                            Deleted or unknown vendor
+                          </span>
+                        </div>
+                      </td>
+                      {weeklyUnattributed.map((n, i) => (
+                        <td
+                          key={i}
+                          className={`py-3 text-right text-sm text-gray-500 tabular-nums ${
+                            i === weeklyUnattributed.length - 1
+                              ? "px-5"
+                              : "px-4"
+                          }`}
+                        >
+                          {n}
+                        </td>
+                      ))}
+                    </tr>
+                  )}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-gray-50 border-t border-gray-100">
+                    <td className="px-5 py-3 text-xs font-black text-gray-700 uppercase tracking-wide">
+                      Platform total
+                    </td>
+                    {weeklyTotals.map((n, i) => (
+                      <td
+                        key={i}
+                        className={`py-3 text-right text-sm tabular-nums ${
+                          i === 0
+                            ? "font-black text-[#AE2108]"
+                            : "font-bold text-gray-700"
+                        } ${i === weeklyTotals.length - 1 ? "px-5" : "px-4"}`}
+                      >
+                        {n}
+                      </td>
+                    ))}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <p className="text-[10px] text-gray-400 mt-2">
+            Weeks run Sunday to Saturday. This week is still in progress, so it
+            counts fewer days than the ones beside it.
+          </p>
+        </div>
+
         {/* ── Vendor cards ── */}
         <div>
           <div className="flex items-center justify-between mb-3">
@@ -1350,6 +1601,273 @@ export default function AdminAnalytics() {
           </div>
         </div>
       </div>
+
+      {/* ── Vendor orders modal ── */}
+      {modalOpen && selectedVendor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setModalOpen(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col z-10">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">
+                    {selectedVendor.businessName}
+                  </h3>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {filteredOrders.length} orders shown
+                  </p>
+                </div>
+                <span
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                    isHighVolume
+                      ? "bg-[#AE2108]/8 text-[#AE2108]"
+                      : "bg-amber-50 text-amber-600"
+                  }`}
+                >
+                  {isHighVolume ? "High volume" : "Accumulating"}
+                </span>
+              </div>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition"
+              >
+                <X size={14} className="text-gray-500" />
+              </button>
+            </div>
+
+            {/* Bill panel */}
+            <div className="px-6 py-4 border-b border-gray-100 flex-shrink-0 bg-gray-50/50">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  Generate Bill
+                </p>
+                <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-lg p-0.5">
+                  {[
+                    { k: "today", l: "Today's summary" },
+                    { k: "pending", l: "All pending" },
+                  ].map(({ k, l }) => (
+                    <button
+                      key={k}
+                      onClick={() => {
+                        setBillMode(k);
+                        setCopied(false);
+                      }}
+                      className={`px-3 py-1.5 rounded-md text-[11px] font-semibold transition ${
+                        billMode === k
+                          ? "bg-[#AE2108] text-white"
+                          : "text-gray-500 hover:bg-gray-50"
+                      }`}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+                <div className="sm:col-span-3 bg-white rounded-xl border border-gray-100 p-4">
+                  <pre className="text-[13px] leading-relaxed text-gray-800 whitespace-pre-wrap font-sans">
+                    {billMessage}
+                  </pre>
+                  {billSplit.old > 0 && billSplit.neu > 0 && (
+                    <p className="mt-3 pt-3 border-t border-gray-50 text-[11px] text-gray-400">
+                      Split: {billSplit.old} @ ₦{OLD_RATE} + {billSplit.neu} @ ₦
+                      {NEW_RATE}
+                    </p>
+                  )}
+                </div>
+
+                <div className="sm:col-span-2 flex flex-col gap-2">
+                  <div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
+                    <p className="text-2xl font-bold text-[#AE2108]">
+                      ₦{commissionForOrders(billOrders).toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-gray-400">
+                      {billOrders.length} orders ·{" "}
+                      {billMode === "today" ? "today" : "all pending"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={sendWhatsApp}
+                    className="flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#1eb955] text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition"
+                  >
+                    <MessageCircle size={15} /> WhatsApp
+                  </button>
+                  <button
+                    onClick={copyBill}
+                    className="flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition"
+                  >
+                    {copied ? (
+                      <>
+                        <Check size={15} className="text-emerald-600" /> Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={15} /> Copy
+                      </>
+                    )}
+                  </button>
+                  {!vendorPhone(selectedVendor) && (
+                    <p className="text-[10px] text-gray-400 text-center leading-tight">
+                      No phone on file — WhatsApp opens with the message ready
+                      to paste.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="px-6 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2 flex-shrink-0">
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="border border-gray-200 text-sm px-3 py-1.5 rounded-xl text-gray-700 focus:outline-none focus:border-[#AE2108] bg-gray-50"
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly (Sun–Sat)</option>
+              </select>
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="border border-gray-200 text-sm px-3 py-1.5 rounded-xl text-gray-700 focus:outline-none focus:border-[#AE2108] bg-gray-50"
+              />
+              <button
+                onClick={applyFilter}
+                className="px-4 py-1.5 bg-[#AE2108] text-white text-xs font-semibold rounded-xl hover:bg-[#941B06] transition"
+              >
+                Filter
+              </button>
+              <button
+                onClick={resetFilter}
+                className="px-4 py-1.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-xl hover:bg-gray-200 transition"
+              >
+                Reset
+              </button>
+
+              {filteredOrders.length > 0 && (
+                <div className="ml-auto flex items-center gap-3">
+                  <span className="text-xs text-gray-500">
+                    Total:{" "}
+                    <span className="font-bold text-gray-900">
+                      ₦
+                      {filteredOrders
+                        .reduce((s, o) => s + (o.totalAmount || 0), 0)
+                        .toLocaleString()}
+                    </span>
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    Commission:{" "}
+                    <span className="font-bold text-[#AE2108]">
+                      ₦{commissionForOrders(filteredOrders).toLocaleString()}
+                    </span>
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Table */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {filteredOrders.length > 0 ? (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr>
+                      {[
+                        "#",
+                        "Customer",
+                        "Items",
+                        "Gross",
+                        "Net",
+                        "Status",
+                        "Payment",
+                      ].map((h) => (
+                        <th
+                          key={h}
+                          className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest pb-3 pr-4"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {filteredOrders.map((order, idx) => (
+                      <tr
+                        key={order._id}
+                        className="hover:bg-gray-50/70 transition-colors"
+                      >
+                        <td className="py-3 pr-4 text-xs text-gray-400 font-mono">
+                          {idx + 1}
+                        </td>
+                        <td className="py-3 pr-4 text-xs font-semibold text-gray-900">
+                          {order.guestInfo?.name ||
+                            order.customerId?.email ||
+                            order.guestInfo?.phone ||
+                            "Guest"}
+                        </td>
+                        <td className="py-3 pr-4 text-xs text-gray-500 max-w-[180px] truncate">
+                          {order.items
+                            ?.map((i) => `${i.name} ×${i.quantity}`)
+                            .join(", ")}
+                        </td>
+                        <td className="py-3 pr-4 text-xs font-bold text-gray-900">
+                          ₦{order.totalAmount?.toLocaleString()}
+                        </td>
+                        <td className="py-3 pr-4 text-xs font-bold text-emerald-600">
+                          ₦
+                          {(
+                            order.totalAmount - commissionForOrder(order)
+                          ).toLocaleString()}
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span
+                            className={`text-[10px] font-bold px-2 py-1 rounded-full ${
+                              order.status === "completed"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : order.status === "cancelled"
+                                  ? "bg-red-50 text-red-600"
+                                  : "bg-amber-50 text-amber-700"
+                            }`}
+                          >
+                            {order.status}
+                          </span>
+                        </td>
+                        <td className="py-3">
+                          <span
+                            className={`text-[10px] font-bold px-2 py-1 rounded-full ${
+                              order.paymentStatus === "paid"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-gray-100 text-gray-500"
+                            }`}
+                          >
+                            {order.paymentStatus}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-14 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-[#AE2108]/5 border border-[#AE2108]/10 flex items-center justify-center mb-3">
+                    <ShoppingBag size={22} className="text-[#AE2108]/40" />
+                  </div>
+                  <p className="text-sm font-semibold text-gray-500">
+                    No orders found
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Try adjusting the filter or reset to see all orders
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
