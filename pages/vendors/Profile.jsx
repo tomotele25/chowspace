@@ -22,23 +22,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 
 import VendorLayout from "@/components/layouts/VendorLayout";
-
-const BANK_OPTIONS = [
-  { name: "Access Bank", code: "044" },
-  { name: "EcoBank", code: "050" },
-  { name: "Fidelity Bank", code: "070" },
-  { name: "First Bank", code: "011" },
-  { name: "Guaranty Trust Bank", code: "058" },
-  { name: "Kuda Microfinance Bank", code: "50211" },
-  { name: "Moniepoint MFB", code: "50515" },
-  { name: "Opay Digital Services Limited (OPay)", code: "999991" },
-  { name: "Paycom", code: "999991" },
-  { name: "Palmpay", code: "999992" },
-  { name: "Stanbic IBTC Bank", code: "221" },
-  { name: "UBA", code: "033" },
-  { name: "Union Bank", code: "032" },
-  { name: "Zenith Bank", code: "057" },
-];
+import PayoutAccount from "@/components/vendor/PayoutAccount";
 
 const InfoRow = ({ icon: Icon, label, value }) => (
   <div className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
@@ -285,15 +269,10 @@ const Profile = () => {
     form.append("address", tempData.address);
     form.append("deliveryDuration", tempData.deliveryDuration);
 
-    if (
-      session?.user?.paymentPreference !== "direct" &&
-      !formData.accountNumber &&
-      tempData.accountNumber &&
-      tempData.bankName
-    ) {
-      form.append("accountNumber", tempData.accountNumber);
-      form.append("bankName", tempData.bankName);
-    }
+    // Bank details are deliberately not sent from here. They belong to the
+    // payout-account card, which confirms the account name with the bank
+    // before saving — this form had no way to do that, and could only ever
+    // set them once.
 
     if (logo) form.append("logo", logo);
     if (newPassword) form.append("password", newPassword);
@@ -554,20 +533,6 @@ const Profile = () => {
                     : null
                 }
               />
-              {session?.user?.paymentPreference !== "direct" && (
-                <>
-                  <InfoRow
-                    icon={CreditCard}
-                    label="Account number"
-                    value={formData.accountNumber}
-                  />
-                  <InfoRow
-                    icon={Building2}
-                    label="Bank"
-                    value={formData.bankName}
-                  />
-                </>
-              )}
             </div>
           ) : (
             <form
@@ -617,32 +582,6 @@ const Profile = () => {
                 className={inputClass}
               />
 
-              {session?.user?.paymentPreference !== "direct" &&
-                !formData.accountNumber && (
-                  <>
-                    <input
-                      name="accountNumber"
-                      value={tempData.accountNumber}
-                      onChange={handleChange}
-                      placeholder="Account number"
-                      className={inputClass}
-                    />
-                    <select
-                      name="bankName"
-                      value={tempData.bankName}
-                      onChange={handleChange}
-                      className={inputClass}
-                    >
-                      <option value="">Select bank</option>
-                      {BANK_OPTIONS.map((bank) => (
-                        <option key={bank.code} value={bank.name}>
-                          {bank.name}
-                        </option>
-                      ))}
-                    </select>
-                  </>
-                )}
-
               <div className="pt-2 border-t border-gray-100">
                 <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-2.5">
                   Change password
@@ -676,6 +615,9 @@ const Profile = () => {
             </form>
           )}
         </div>
+
+        {/* ── Payout account ── */}
+        <PayoutAccount />
 
         {/* ── Verification status card ── */}
         {isVerified ? (
