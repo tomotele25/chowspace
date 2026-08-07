@@ -43,14 +43,27 @@ export default function VendorWalletPage() {
       )
     : paidOrders;
 
+  // What the vendor is actually owed: the order total minus Chowspace's flat
+  // service fee. This used to take 95% of the total, a 5% cut that exists
+  // nowhere else in the platform — the fee is a flat ₦100 (₦60 before 19 July
+  // 2026), charged to the customer on top of the food.
+  //
+  // `vendorShare` is computed server-side at checkout; the fallback covers
+  // orders placed before that existed.
   const totalRevenue = filteredOrders.reduce((sum, o) => {
-    const vendorAmount = o.totalAmount * 0.95;
-    return sum + vendorAmount;
+    const share =
+      typeof o.vendorShare === "number"
+        ? o.vendorShare
+        : Math.max(0, (o.totalAmount || 0) - (o.serviceFee || 0));
+    return sum + share;
   }, 0);
 
   const recentTransactions = filteredOrders.slice(0, 5).map((order) => ({
     id: order._id,
-    amount: order.totalAmount,
+    amount:
+      typeof order.vendorShare === "number"
+        ? order.vendorShare
+        : Math.max(0, (order.totalAmount || 0) - (order.serviceFee || 0)),
     customer: order.guestInfo?.name || "Unknown customer",
     description: `Payment from ${order.guestInfo?.name || "someone"} for ${
       order.items?.length || 0

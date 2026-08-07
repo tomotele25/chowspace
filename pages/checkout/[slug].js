@@ -570,9 +570,13 @@ export default function CheckoutPage() {
             }
           : { guestInfo: { name, phone } }),
         deliveryMethod: isLocalVendor ? "whatsapp" : "chat",
+        // The server prices the order itself from Product.price, the vendor's
+        // delivery zones and their packing fee. These two tell it which zone
+        // and how many packs; totalAmount is only what we think it comes to,
+        // and the order is refused if the server's figure is higher.
+        deliveryLocation: deliveryDetails.location || null,
+        packCount: cart.length,
         totalAmount: finalTotal,
-        deliveryFee,
-        packFees: packFee,
       });
       setPlacedOrderId(orderId);
       if (clearCart) clearCart();
