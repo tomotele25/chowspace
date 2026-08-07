@@ -308,9 +308,9 @@ export default function VendorDashboard() {
 
   const fetchOrders = async () => {
     try {
-      const res = await axios.get(
-        `${BACKENDURL}/api/getAllOrders?vendorId=${vendorId}`,
-      );
+      const res = await axios.get(`${BACKENDURL}/api/getAllOrders`, {
+        headers: { Authorization: `Bearer ${session?.user?.accessToken}` },
+      });
       const allOrders = res.data.orders || [];
       const today = new Date();
       const start = new Date(today.setHours(0, 0, 0, 0));

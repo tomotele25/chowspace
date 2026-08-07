@@ -19,9 +19,9 @@ export default function VendorWalletPage() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const res = await axios.get(
-          `${BACKENDURL}/api/getAllOrders?vendorId=${session?.user?.vendorId}`,
-        );
+        const res = await axios.get(`${BACKENDURL}/api/getAllOrders`, {
+          headers: { Authorization: `Bearer ${session?.user?.accessToken}` },
+        });
         setOrders(res.data.orders || []);
       } catch (err) {
         console.error("Failed to fetch orders:", err);

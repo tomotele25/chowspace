@@ -290,9 +290,9 @@ export default function OrderTracking() {
       if (!vendorId) return;
       if (silent) setRefreshing(true);
       try {
-        const res = await axios.get(
-          `${BACKENDURL}/api/getAllOrders?vendorId=${vendorId}`,
-        );
+        const res = await axios.get(`${BACKENDURL}/api/getAllOrders`, {
+          headers: { Authorization: `Bearer ${session?.user?.accessToken}` },
+        });
         setOrders(res.data.orders || []);
         setError("");
       } catch (err) {

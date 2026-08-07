@@ -46,9 +46,9 @@ const Analytics = () => {
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(
-        `${BACKENDURL}/api/getAllOrders?vendorId=${session?.user?.vendorId}`,
-      );
+      const res = await axios.get(`${BACKENDURL}/api/getAllOrders`, {
+        headers: { Authorization: `Bearer ${session?.user?.accessToken}` },
+      });
 
       const allOrders = res.data.orders || [];
       const today = new Date();
