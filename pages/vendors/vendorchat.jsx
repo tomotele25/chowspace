@@ -733,6 +733,9 @@ function RoomList({
   completedIds,
   onToggleComplete,
 }) {
+  // Needed for the socket handshake — the server uses it to decide whether
+  // this connection may join the vendor room.
+  const { data: session } = useSession();
   const [rooms, setRooms] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -763,6 +766,9 @@ function RoomList({
     const socket = io(BACKEND_URL, {
       transports: ["websocket", "polling"],
       withCredentials: true,
+      // The server derives senderType and vendor-room access from this, so
+      // without it the dashboard is treated as an anonymous customer.
+      auth: { token: session?.user?.accessToken },
     });
     socket.on("connect", () => socket.emit("joinVendorRoom", vendorId));
     socket.on("newChatNotification", () => fetchRooms(true));
@@ -980,6 +986,9 @@ function ChatWindow({
   onBack,
   onComplete,
 }) {
+  // Needed for the socket handshake — the server derives senderType from it,
+  // so without it this vendor's messages would be recorded as a customer's.
+  const { data: session } = useSession();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -1083,6 +1092,9 @@ function ChatWindow({
     const socket = io(BACKEND_URL, {
       transports: ["websocket", "polling"],
       withCredentials: true,
+      // The server derives senderType and vendor-room access from this, so
+      // without it the dashboard is treated as an anonymous customer.
+      auth: { token: session?.user?.accessToken },
     });
     socketRef.current = socket;
     socket.on("connect", () => {

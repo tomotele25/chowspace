@@ -351,6 +351,9 @@ export default function VendorDashboard() {
     const socket = io(CHAT_URL, {
       transports: ["websocket", "polling"],
       withCredentials: true,
+      // The server derives senderType and vendor-room access from this, so
+      // without it the dashboard is treated as an anonymous customer.
+      auth: { token: session?.user?.accessToken },
     });
     socket.on("connect", () => socket.emit("joinVendorRoom", vendorId));
     socket.on("newChatNotification", () => setUnreadChats((p) => p + 1));
