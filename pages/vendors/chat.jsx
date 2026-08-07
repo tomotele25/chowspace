@@ -267,7 +267,7 @@ function OrderCard({ text }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   PaymentMethodPicker — 3 options shown when customer taps Pay
+   PaymentMethodPicker — options shown when customer taps Pay
 ─────────────────────────────────────────────────────────────── */
 function PaymentMethodPicker({ amount, onSelect, onClose }) {
   const methods = [
@@ -284,12 +284,6 @@ function PaymentMethodPicker({ amount, onSelect, onClose }) {
       title: "Vendor's Bank Account",
       icon: Building2,
       sub: "Transfer directly to the vendor's saved account",
-    },
-    {
-      key: "card",
-      icon: CreditCard,
-      title: "Debit / Credit Card",
-      sub: "Pay securely with your card",
     },
   ];
 
@@ -662,112 +656,6 @@ function BankPanel({
 }
 
 /* ─────────────────────────────────────────────────────────────
-   CardPanel — debit/credit card form
-─────────────────────────────────────────────────────────────── */
-function CardPanel({ amount, orderId, customerName, onSuccess, onBack }) {
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [nameOnCard, setNameOnCard] = useState(customerName || "");
-  const [paying, setPaying] = useState(false);
-
-  const formatCard = (v) =>
-    v
-      .replace(/\D/g, "")
-      .slice(0, 16)
-      .replace(/(.{4})/g, "$1 ")
-      .trim();
-  const formatExpiry = (v) => {
-    const d = v.replace(/\D/g, "").slice(0, 4);
-    return d.length > 2 ? `${d.slice(0, 2)} / ${d.slice(2)}` : d;
-  };
-
-  const handlePay = async () => {
-    setPaying(true);
-    // TODO: integrate with your card payment provider here
-    // For now simulate a 1.5s processing then success
-    await new Promise((r) => setTimeout(r, 1500));
-    onSuccess({ orderId, amount, reference: `CARD-${Date.now()}` });
-    setPaying(false);
-  };
-
-  return (
-    <div className="p-5 space-y-3">
-      <div>
-        <p className="text-xs font-semibold text-gray-500 mb-1.5">
-          Card number
-        </p>
-        <input
-          type="text"
-          value={cardNumber}
-          onChange={(e) => setCardNumber(formatCard(e.target.value))}
-          placeholder="0000  0000  0000  0000"
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#AE2108]/20 focus:border-[#AE2108] bg-gray-50 focus:bg-white transition tracking-widest font-mono"
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <p className="text-xs font-semibold text-gray-500 mb-1.5">Expiry</p>
-          <input
-            type="text"
-            value={expiry}
-            onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-            placeholder="MM / YY"
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#AE2108]/20 focus:border-[#AE2108] bg-gray-50 focus:bg-white transition font-mono"
-          />
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-gray-500 mb-1.5">CVV</p>
-          <input
-            type="password"
-            value={cvv}
-            onChange={(e) => setCvv(e.target.value.slice(0, 4))}
-            placeholder="•••"
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#AE2108]/20 focus:border-[#AE2108] bg-gray-50 focus:bg-white transition font-mono"
-          />
-        </div>
-      </div>
-      <div>
-        <p className="text-xs font-semibold text-gray-500 mb-1.5">
-          Name on card
-        </p>
-        <input
-          type="text"
-          value={nameOnCard}
-          onChange={(e) => setNameOnCard(e.target.value)}
-          placeholder="Adewale Johnson"
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#AE2108]/20 focus:border-[#AE2108] bg-gray-50 focus:bg-white transition"
-        />
-      </div>
-      <button
-        onClick={handlePay}
-        disabled={paying || !cardNumber || !expiry || !cvv}
-        className="w-full py-3.5 bg-[#AE2108] text-white font-bold text-sm rounded-xl hover:bg-[#941B06] transition disabled:opacity-40 flex items-center justify-center gap-2 mt-1"
-      >
-        {paying ? (
-          <RefreshCw size={15} className="animate-spin" />
-        ) : (
-          <CreditCard size={15} />
-        )}
-        {paying ? "Processing…" : `Pay ${amount}`}
-      </button>
-      <div className="flex items-center justify-center gap-1.5">
-        <ShieldCheck size={12} className="text-gray-300" />
-        <p className="text-[10px] text-gray-300">
-          Your card details are encrypted
-        </p>
-      </div>
-      <button
-        onClick={onBack}
-        className="w-full py-2 text-xs text-gray-400 hover:text-gray-600 transition"
-      >
-        ← Choose a different method
-      </button>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
    PaymentModal — wraps method picker + panels
 ─────────────────────────────────────────────────────────────── */
 function PaymentModal({
@@ -786,7 +674,7 @@ function PaymentModal({
   onSuccess,
   onClose,
 }) {
-  const [method, setMethod] = useState(null); // null | monei | bank | card
+  const [method, setMethod] = useState(null); // null | monei | bank
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 pb-0 sm:pb-4">
@@ -842,12 +730,6 @@ function PaymentModal({
                 icon: Building2,
                 title: "Vendor's Bank Account",
                 sub: "Transfer to the vendor's saved bank account",
-              },
-              {
-                key: "card",
-                icon: CreditCard,
-                title: "Debit / Credit Card",
-                sub: "Pay securely with your Visa, Mastercard or Verve",
               },
             ].map(({ key, icon: Icon, title, sub, badge }) => (
               <button
@@ -912,16 +794,6 @@ function PaymentModal({
             accountNumber={vendorAccountNumber}
             accountName={vendorAccountName}
             orderId={orderId}
-            onSuccess={onSuccess}
-            onBack={() => setMethod(null)}
-          />
-        )}
-
-        {method === "card" && (
-          <CardPanel
-            amount={amount}
-            orderId={orderId}
-            customerName={customerName}
             onSuccess={onSuccess}
             onBack={() => setMethod(null)}
           />
