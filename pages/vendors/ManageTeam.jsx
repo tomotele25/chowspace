@@ -59,7 +59,9 @@ export default function CreateManager() {
           email: formData.email,
           phoneNumber: formData.phone,
           role: "manager",
-          password: "manager123",
+          // No password here on purpose. This literal shipped in the public JS
+          // bundle, so every manager account shared a password anyone could
+          // read. The server generates one and emails it to the manager.
         },
         {
           headers: {
@@ -69,7 +71,7 @@ export default function CreateManager() {
       );
 
       toast.success(
-        `Manager added successfully. Store is currently ${res.data.vendorStatus}`,
+        `Manager added — sign-in details emailed to them. Store is currently ${res.data.vendorStatus}`,
       );
 
       setManagers((prev) => [res.data.manager, ...prev]);

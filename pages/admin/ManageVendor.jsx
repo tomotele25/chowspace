@@ -55,7 +55,9 @@ const ManageVendor = () => {
       const payload = {
         fullname: form.fullname,
         email: form.email,
-        password: "vendor123",
+        // No password here on purpose. This literal shipped in the public JS
+        // bundle, so every admin-created vendor shared a password anyone could
+        // read. The server now generates one and emails it to the vendor.
         businessName: form.businessName,
         contact: form.phoneNumber,
         location: form.location,
@@ -67,7 +69,7 @@ const ManageVendor = () => {
       const res = await axios.post(`${BACKENDURL}/api/vendor/create`, payload);
 
       if (res.status === 200 || res.status === 201) {
-        toast.success("Vendor created successfully!");
+        toast.success("Vendor created — sign-in details emailed to them.");
         setForm({
           fullname: "",
           email: "",
