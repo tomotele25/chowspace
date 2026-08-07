@@ -25,6 +25,7 @@ import {
 import Link from "next/link";
 import axios from "axios";
 import AdminLayout from "@/components/layouts/AdminLayout";
+import { requireAdminPage } from "@/lib/requireAdminPage";
 
 const BACKENDURL =
   "https://chowspace-backend.vercel.app" || "http://localhost:2005";
@@ -434,3 +435,7 @@ export default function AdminDashboard() {
     </AdminLayout>
   );
 }
+
+// Gated before any HTML is sent — the client-side check alone let a
+// non-admin render the page and fire its data requests first.
+export const getServerSideProps = requireAdminPage();

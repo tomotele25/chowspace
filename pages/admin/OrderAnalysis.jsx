@@ -48,6 +48,7 @@ import {
   Bar,
   Cell,
 } from "recharts";
+import { requireAdminPage } from "@/lib/requireAdminPage";
 
 const BACKENDURL =
   "https://chowspace-backend.vercel.app" || "http://localhost:2005";
@@ -1871,3 +1872,7 @@ export default function AdminAnalytics() {
     </AdminLayout>
   );
 }
+
+// Gated before any HTML is sent — the client-side check alone let a
+// non-admin render the page and fire its data requests first.
+export const getServerSideProps = requireAdminPage();

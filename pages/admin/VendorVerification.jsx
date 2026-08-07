@@ -18,6 +18,7 @@ import {
   Package,
   ImageIcon,
 } from "lucide-react";
+import { requireAdminPage } from "@/lib/requireAdminPage";
 
 const BACKENDURL = "https://chowspace-backend.vercel.app";
 
@@ -114,7 +115,6 @@ export default function VendorVerification() {
         <Toaster position="top-right" />
 
         <div className="max-w-4xl mx-auto px-4 py-8">
-
           {/* Tabs */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 mb-4">
             {TABS.map((t) => (
@@ -181,7 +181,9 @@ export default function VendorVerification() {
                     </span>
                     <span
                       className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full ${
-                        v.logo ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"
+                        v.logo
+                          ? "bg-green-50 text-green-700"
+                          : "bg-gray-100 text-gray-500"
                       }`}
                     >
                       <ImageIcon size={11} /> {v.logo ? "Logo" : "No logo"}
@@ -196,39 +198,46 @@ export default function VendorVerification() {
 
                   {/* Documents */}
                   <div className="grid sm:grid-cols-3 gap-2 mb-4">
-                    {["cac", "identification", "proof_of_address"].map((kind) => {
-                      const doc = (v.verificationDocuments || []).find(
-                        (d) => d.kind === kind,
-                      );
-                      return (
-                        <a
-                          key={kind}
-                          href={doc?.url || undefined}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={`flex items-center gap-2 rounded-xl border-2 p-2.5 transition ${
-                            doc
-                              ? "border-gray-200 hover:border-[#AE2108]"
-                              : "border-dashed border-gray-200 cursor-not-allowed"
-                          }`}
-                        >
-                          <FileText
-                            size={14}
-                            className={doc ? "text-[#AE2108]" : "text-gray-300"}
-                          />
-                          <span className="flex-1 min-w-0 text-[11px] font-bold text-gray-700 truncate">
-                            {DOC_LABELS[kind]}
-                          </span>
-                          {doc ? (
-                            <ExternalLink size={12} className="text-gray-400" />
-                          ) : (
-                            <span className="text-[10px] text-gray-400">
-                              missing
+                    {["cac", "identification", "proof_of_address"].map(
+                      (kind) => {
+                        const doc = (v.verificationDocuments || []).find(
+                          (d) => d.kind === kind,
+                        );
+                        return (
+                          <a
+                            key={kind}
+                            href={doc?.url || undefined}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`flex items-center gap-2 rounded-xl border-2 p-2.5 transition ${
+                              doc
+                                ? "border-gray-200 hover:border-[#AE2108]"
+                                : "border-dashed border-gray-200 cursor-not-allowed"
+                            }`}
+                          >
+                            <FileText
+                              size={14}
+                              className={
+                                doc ? "text-[#AE2108]" : "text-gray-300"
+                              }
+                            />
+                            <span className="flex-1 min-w-0 text-[11px] font-bold text-gray-700 truncate">
+                              {DOC_LABELS[kind]}
                             </span>
-                          )}
-                        </a>
-                      );
-                    })}
+                            {doc ? (
+                              <ExternalLink
+                                size={12}
+                                className="text-gray-400"
+                              />
+                            ) : (
+                              <span className="text-[10px] text-gray-400">
+                                missing
+                              </span>
+                            )}
+                          </a>
+                        );
+                      },
+                    )}
                   </div>
 
                   {v.reviewNote && (
@@ -295,3 +304,7 @@ export default function VendorVerification() {
     </>
   );
 }
+
+// Gated before any HTML is sent — the client-side check alone let a
+// non-admin render the page and fire its data requests first.
+export const getServerSideProps = requireAdminPage();

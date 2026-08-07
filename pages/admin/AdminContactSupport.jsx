@@ -7,6 +7,7 @@ import { toast } from "react-hot-toast";
 import { useSession } from "next-auth/react";
 import { ArrowRightLeftIcon, Menu, X } from "lucide-react";
 import { useRouter } from "next/router";
+import { requireAdminPage } from "@/lib/requireAdminPage";
 
 const BACKENDURL =
   "https://chowspace-backend.vercel.app" || "http://localhost:2005";
@@ -77,7 +78,7 @@ const AdminContactSupport = () => {
           headers: {
             Authorization: `Bearer ${getToken()}`,
           },
-        }
+        },
       );
       setMessages(res.data.messages || []);
       scrollToBottom();
@@ -113,7 +114,7 @@ const AdminContactSupport = () => {
           headers: {
             Authorization: `Bearer ${getToken()}`,
           },
-        }
+        },
       );
       setMessages((prev) => [...prev, res.data.supportMessage]);
       setNewMessage("");
@@ -135,31 +136,33 @@ const AdminContactSupport = () => {
           <div className="p-4 border-b bg-white flex items-center justify-between">
             <h2 className="text-sm font-bold text-gray-900">Support Tickets</h2>
           </div>
-        <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100%-4rem)]">
-          {tickets.length === 0 ? (
-            <p className="text-gray-600">No tickets found</p>
-          ) : (
-            tickets.map((ticket) => (
-              <button
-                key={ticket._id}
-                onClick={() => handleSelectTicket(ticket)}
-                className={`relative block w-full text-left px-3 py-2 rounded ${
-                  selectedTicket?._id === ticket._id
-                    ? "bg-[#AE2108] text-white"
-                    : "hover:bg-gray-200"
-                }`}
-              >
-                <p className="font-medium">{ticket.subject}</p>
-                <p className="text-xs text-gray-600">Status: {ticket.status}</p>
-                {unreadMap[ticket._id] && (
-                  <span className="absolute top-2 right-2 text-xs bg-red-500 text-white rounded-full px-1.5 py-0.5">
-                    New
-                  </span>
-                )}
-              </button>
-            ))
-          )}
-        </nav>
+          <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100%-4rem)]">
+            {tickets.length === 0 ? (
+              <p className="text-gray-600">No tickets found</p>
+            ) : (
+              tickets.map((ticket) => (
+                <button
+                  key={ticket._id}
+                  onClick={() => handleSelectTicket(ticket)}
+                  className={`relative block w-full text-left px-3 py-2 rounded ${
+                    selectedTicket?._id === ticket._id
+                      ? "bg-[#AE2108] text-white"
+                      : "hover:bg-gray-200"
+                  }`}
+                >
+                  <p className="font-medium">{ticket.subject}</p>
+                  <p className="text-xs text-gray-600">
+                    Status: {ticket.status}
+                  </p>
+                  {unreadMap[ticket._id] && (
+                    <span className="absolute top-2 right-2 text-xs bg-red-500 text-white rounded-full px-1.5 py-0.5">
+                      New
+                    </span>
+                  )}
+                </button>
+              ))
+            )}
+          </nav>
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0">
@@ -170,51 +173,51 @@ const AdminContactSupport = () => {
                 : "Select a ticket"}
             </p>
           </div>
-        {/* Chat Body */}
-        <div ref={chatRef} className="flex-1 overflow-y-auto p-4 bg-white">
-          {!selectedTicket ? (
-            <p className="text-gray-500">Please select a ticket</p>
-          ) : messages.length === 0 ? (
-            <p className="text-gray-500">No messages yet</p>
-          ) : (
-            messages.map((msg) => (
-              <div
-                key={msg._id}
-                className={`max-w-[70%] mb-3 p-2 rounded text-sm ${
-                  msg.senderModel === "Admin"
-                    ? "bg-[#AE2108] text-white ml-auto"
-                    : "bg-gray-200 text-gray-900"
-                }`}
-              >
-                <p>{msg.message}</p>
-                <small className="text-xs text-gray-400 block mt-1">
-                  {new Date(msg.createdAt).toLocaleString()}
-                </small>
-              </div>
-            ))
-          )}
-        </div>
+          {/* Chat Body */}
+          <div ref={chatRef} className="flex-1 overflow-y-auto p-4 bg-white">
+            {!selectedTicket ? (
+              <p className="text-gray-500">Please select a ticket</p>
+            ) : messages.length === 0 ? (
+              <p className="text-gray-500">No messages yet</p>
+            ) : (
+              messages.map((msg) => (
+                <div
+                  key={msg._id}
+                  className={`max-w-[70%] mb-3 p-2 rounded text-sm ${
+                    msg.senderModel === "Admin"
+                      ? "bg-[#AE2108] text-white ml-auto"
+                      : "bg-gray-200 text-gray-900"
+                  }`}
+                >
+                  <p>{msg.message}</p>
+                  <small className="text-xs text-gray-400 block mt-1">
+                    {new Date(msg.createdAt).toLocaleString()}
+                  </small>
+                </div>
+              ))
+            )}
+          </div>
 
-        {/* Chat Input */}
-        {selectedTicket && (
-          <footer className="p-4 bg-gray-100 border-t flex gap-2">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type your reply..."
-              className="flex-1 border px-3 py-2 rounded outline-none"
-              disabled={loading}
-            />
-            <button
-              onClick={sendMessage}
-              disabled={loading}
-              className="bg-[#AE2108] text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50"
-            >
-              Send
-            </button>
-          </footer>
-        )}
+          {/* Chat Input */}
+          {selectedTicket && (
+            <footer className="p-4 bg-gray-100 border-t flex gap-2">
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Type your reply..."
+                className="flex-1 border px-3 py-2 rounded outline-none"
+                disabled={loading}
+              />
+              <button
+                onClick={sendMessage}
+                disabled={loading}
+                className="bg-[#AE2108] text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50"
+              >
+                Send
+              </button>
+            </footer>
+          )}
         </div>
       </div>
     </AdminLayout>
@@ -222,3 +225,7 @@ const AdminContactSupport = () => {
 };
 
 export default AdminContactSupport;
+
+// Gated before any HTML is sent — the client-side check alone let a
+// non-admin render the page and fire its data requests first.
+export const getServerSideProps = requireAdminPage();

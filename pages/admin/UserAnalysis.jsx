@@ -34,6 +34,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import Link from "next/link";
+import { requireAdminPage } from "@/lib/requireAdminPage";
 
 const BACKENDURL = "https://chowspace-backend.vercel.app";
 const PAGE_SIZE = 30;
@@ -1354,3 +1355,7 @@ export default function UserAnalysisPage() {
     </AdminLayout>
   );
 }
+
+// Gated before any HTML is sent — the client-side check alone let a
+// non-admin render the page and fire its data requests first.
+export const getServerSideProps = requireAdminPage();
