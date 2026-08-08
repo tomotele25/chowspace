@@ -323,6 +323,7 @@ export default function VendorDashboard() {
       );
     } catch (err) {
       console.error(err);
+      toast.error("Couldn't load today's orders");
     } finally {
       setLoadingOrders(false);
     }

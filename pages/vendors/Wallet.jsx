@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import axios from "axios";
+import { toast } from "react-hot-toast";
 import { ArrowDown } from "lucide-react";
 
 import VendorLayout from "@/components/layouts/VendorLayout";
@@ -25,6 +26,7 @@ export default function VendorWalletPage() {
         setOrders(res.data.orders || []);
       } catch (err) {
         console.error("Failed to fetch orders:", err);
+        toast.error("Failed to load wallet transactions");
       } finally {
         setLoading(false);
       }

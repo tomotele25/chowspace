@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import axios from "axios";
+import { toast } from "react-hot-toast";
 
 import VendorLayout from "@/components/layouts/VendorLayout";
 
@@ -34,6 +35,7 @@ const Announcement = () => {
         }
       } catch (error) {
         console.error("Failed to fetch announcements", error);
+        toast.error("Failed to load announcements");
       }
     };
 

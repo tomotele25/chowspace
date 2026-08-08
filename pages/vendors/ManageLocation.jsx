@@ -86,6 +86,10 @@ const BACKENDURL =
         setLocations(res.data.locations || []);
       } catch (err) {
         console.error("Failed to fetch locations:", err);
+        setMessage({
+          type: "error",
+          text: "Couldn't load delivery locations. Please refresh.",
+        });
       }
     };
     fetchLocations();

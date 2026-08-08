@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import axios from "axios";
+import { toast } from "react-hot-toast";
 import { Star } from "lucide-react";
 
 import VendorLayout from "@/components/layouts/VendorLayout";
@@ -23,6 +24,7 @@ const Reviews = () => {
         setReviews(response.data.reviews);
       } catch (error) {
         console.error("Failed to fetch reviews:", error);
+        toast.error("Failed to load reviews");
       }
     };
 
