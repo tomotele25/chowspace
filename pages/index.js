@@ -1,6 +1,5 @@
 "use client";
 
-import { Poppins } from "next/font/google";
 import Head from "next/head";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -12,11 +11,13 @@ import Faq from "@/components/Faq";
 import ContactSupport from "@/components/ContactSupport";
 import Categories from "@/components/Categories";
 import VendorSkeletonCard from "@/components/VendorSkeletonCard";
+import ErrorState from "@/components/ErrorState";
 import IOSInstallNotice from "@/components/IOSInstallNotice";
 import { cloudinaryResize } from "@/utils/captcha";
 import Image from "next/image";
 import Link from "next/link";
-import axios from "axios";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 import {
   Heart,
   Clock,
@@ -31,16 +32,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useCategory } from "@/context/CategoryContext";
 
-const poppins = Poppins({
-  variable: "--font-poppins",
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
-});
-
 export default function Home() {
-  const [vendors, setVendors] = useState([]);
-  const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
@@ -59,25 +51,21 @@ export default function Home() {
   const router = useRouter();
   const vendorsPerPage = 8;
 const BACKENDURL =
-  "https://chowspace-backend.vercel.app" 
+  "https://chowspace-backend.vercel.app"
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [vendorsRes, locationsRes] = await Promise.all([
-          axios.get(`${BACKENDURL}/api/vendor/getVendors`),
-          axios.get(`${BACKENDURL}/api/getLocations`),
-        ]);
-        setVendors(vendorsRes.data.vendors);
-        setLocations(locationsRes.data.locations);
-      } catch (err) {
-        console.error("Error fetching vendors:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+  const {
+    data: vendorsData,
+    error: vendorsError,
+    isLoading: vendorsLoading,
+    mutate: retryVendors,
+  } = useSWR(`${BACKENDURL}/api/vendor/getVendors`, fetcher);
+  const { data: locationsData } = useSWR(
+    `${BACKENDURL}/api/getLocations`,
+    fetcher,
+  );
+  const vendors = vendorsData?.vendors || [];
+  const locations = locationsData?.locations || [];
+  const loading = vendorsLoading;
 
   // New vendors sorted by createdAt (latest 10)
   const newVendors = [...vendors]
@@ -188,7 +176,7 @@ const BACKENDURL =
 
   return (
     <div
-      className={`${poppins.variable} font-sans relative overflow-hidden bg-gradient-to-br from-red-50 via-white to-green-50`}
+      className="font-sans relative overflow-hidden bg-gradient-to-br from-red-50 via-white to-green-50"
     >
       <Head>
         <title>ChowSpace | Order Meals from Trusted Vendors</title>
@@ -455,7 +443,13 @@ const BACKENDURL =
           </div>
 
           {/* Vendor Grid */}
-          {loading ? (
+          {vendorsError ? (
+            <ErrorState
+              title="Couldn't load vendors"
+              message="Something went wrong fetching vendors. Please try again."
+              onRetry={() => retryVendors()}
+            />
+          ) : loading ? (
             <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 animate-pulse">
               {[...Array(8)].map((_, i) => (
                 <VendorSkeletonCard key={i} />

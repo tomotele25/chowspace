@@ -1,20 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import axios from "axios";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 import { Heart, Clock, Star, StarHalf } from "lucide-react";
 import { useRouter } from "next/router";
 import VendorSkeletonCard from "@/components/VendorSkeletonCard";
+import ErrorState from "@/components/ErrorState";
 import { useSession } from "next-auth/react";
 import Head from "next/head";
 import { useCategory } from "@/context/CategoryContext"; // import your context hook
 
 const Vendor = () => {
-  const [vendors, setVendors] = useState([]);
-  const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
@@ -28,23 +27,19 @@ const Vendor = () => {
   const BACKENDURL =
     "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [vendorsRes, locationsRes] = await Promise.all([
-          axios.get(`${BACKENDURL}/api/vendor/getVendors`),
-          axios.get(`${BACKENDURL}/api/getLocations`),
-        ]);
-        setVendors(vendorsRes.data.vendors || []);
-        setLocations(locationsRes.data.locations || []);
-      } catch (err) {
-        console.error("Error fetching vendors:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+  const {
+    data: vendorsData,
+    error: vendorsError,
+    isLoading: vendorsLoading,
+    mutate: retryVendors,
+  } = useSWR(`${BACKENDURL}/api/vendor/getVendors`, fetcher);
+  const { data: locationsData } = useSWR(
+    `${BACKENDURL}/api/getLocations`,
+    fetcher,
+  );
+  const vendors = vendorsData?.vendors || [];
+  const locations = locationsData?.locations || [];
+  const loading = vendorsLoading;
 
   const filteredAndSortedVendors = vendors
     .filter((vendor) => {
@@ -162,7 +157,13 @@ const Vendor = () => {
             </select>
           </div>
 
-          {loading ? (
+          {vendorsError ? (
+            <ErrorState
+              title="Couldn't load vendors"
+              message="Something went wrong fetching vendors. Please try again."
+              onRetry={() => retryVendors()}
+            />
+          ) : loading ? (
             <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {[...Array(5)].map((_, i) => (
                 <VendorSkeletonCard key={i} />

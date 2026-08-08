@@ -21,6 +21,7 @@ import {
   X,
   AlertCircle,
 } from "lucide-react";
+import { cloudinaryResize } from "@/utils/captcha";
 const BACKEND_URL = "https://chowspace-backend-1.onrender.com";
 const COMPLETED_ROOMS_KEY = "cs_vendor_completed_rooms";
 const loadCompletedRooms = () => {
@@ -459,7 +460,7 @@ function ImageLightbox({ src, alt, onClose }) {
         ✕
       </button>
       <img
-        src={src}
+        src={cloudinaryResize(src, 1200)}
         alt={alt || "Image"}
         className="max-w-[92vw] max-h-[88vh] rounded-2xl shadow-2xl object-contain"
         onClick={(e) => e.stopPropagation()}
@@ -503,7 +504,7 @@ function MessageBubble({ msg }) {
                   className="mt-2 block focus:outline-none"
                 >
                   <img
-                    src={msg.fileUrl}
+                    src={cloudinaryResize(msg.fileUrl, 300)}
                     alt={msg.fileName || "Image"}
                     className="rounded-xl max-w-[220px] max-h-[220px] w-full object-cover cursor-pointer hover:opacity-90 transition"
                   />
@@ -1249,7 +1250,7 @@ function ChatWindow({
               type="button"
               onClick={() => setShowPaymentModal(true)}
               aria-label="Request payment"
-              className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#AE2108] text-white text-xs font-semibold hover:bg-[#8E1A06] active:scale-95 transition flex-shrink-0"
+              className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#AE2108] text-white text-xs font-semibold hover:bg-[#941B06] active:scale-95 transition flex-shrink-0"
             >
               <CreditCard size={13} />
               <span className="hidden sm:inline">Request payment</span>
@@ -1476,7 +1477,7 @@ function ChatWindow({
             onClick={() => sendMessage({ text: input.trim() })}
             disabled={!input.trim() || uploading || !connected}
             aria-label="Send"
-            className="w-10 h-10 rounded-full bg-[#AE2108] text-white flex items-center justify-center hover:bg-[#8E1A06] active:scale-95 transition disabled:opacity-40 flex-shrink-0"
+            className="w-10 h-10 rounded-full bg-[#AE2108] text-white flex items-center justify-center hover:bg-[#941B06] active:scale-95 transition disabled:opacity-40 flex-shrink-0"
           >
             <Send size={15} />
           </button>

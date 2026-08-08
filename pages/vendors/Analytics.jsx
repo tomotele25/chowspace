@@ -10,18 +10,15 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 
 import VendorLayout from "@/components/layouts/VendorLayout";
+
+const OrdersRevenueChart = dynamic(
+  () => import("@/components/vendor/OrdersRevenueChart"),
+  { ssr: false, loading: () => <Loader2 className="animate-spin text-gray-500" /> },
+);
 
 const BACKENDURL =
   "https://chowspace-backend.vercel.app" || "http://localhost:2005";
@@ -159,30 +156,7 @@ const Analytics = () => {
             </div>
           ) : (
             <div className="w-full h-[260px] sm:h-[320px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={weeklyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" fontSize={12} />
-                  <YAxis fontSize={12} />
-                  <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="orders"
-                    stroke="#AE2108"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    name="Orders"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#16a34a"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    name="Revenue (₦)"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <OrdersRevenueChart data={weeklyData} />
             </div>
           )}
         </div>

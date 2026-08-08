@@ -49,7 +49,7 @@ export default function App({ Component, pageProps }) {
 
       <CategoryProvider>
         <CartProvider>
-          <SessionProvider session={pageProps.session}>
+          <SessionProvider session={pageProps.session} refetchOnWindowFocus={false}>
             <NetworkStatus />
             {loading ? <Loader /> : <Component {...pageProps} />}
             {/* <PWAInstallPrompt /> */}
