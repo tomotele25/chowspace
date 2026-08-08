@@ -22,39 +22,17 @@ import {
   Clock,
 } from "lucide-react";
 
-const formatCurrency = (n) =>
-  typeof n === "number" ? n.toLocaleString() : "0";
-
-const formatPhoneNumber = (number) => {
-  let d = String(number).replace(/\D/g, "");
-  if (d.startsWith("0")) d = "234" + d.slice(1);
-  return d;
-};
-
-const generateOrderId = () =>
-  `CS-${Math.floor(100000 + Math.random() * 900000)}`;
-
-const isAbeokutaVendor = (v) =>
-  v?.location?.toLowerCase().trim() === "abeokuta";
+import {
+  formatCurrency,
+  formatPhoneNumber,
+  generateOrderId,
+  isAbeokutaVendor,
+  isVendorStillOpen,
+  validatePhone,
+  validateName,
+} from "@/lib/checkout";
 
 const BIRTHDAY_KEY = "cs_birthday_saved";
-
-/**
- * Live open/closed check, straight from the backend rather than the vendor
- * object loaded when the page mounted. Fails open on a network error — a
- * flaky connection shouldn't block a real order; the backend rejects with
- * VENDOR_CLOSED as the real guard.
- */
-const isVendorStillOpen = async (vendorId) => {
-  try {
-    const res = await axios.get(
-      `${BACKENDURL}/api/vendor/${vendorId}/live-status`,
-    );
-    return res.data?.status !== "closed";
-  } catch {
-    return true;
-  }
-};
 
 const MONTHS = [
   "January",
@@ -76,19 +54,6 @@ const inputCls =
 
 const inputErrCls =
   "w-full pl-10 pr-4 py-3.5 rounded-2xl border border-red-400 bg-white text-sm text-gray-800 placeholder-gray-400 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-400/15";
-
-const validatePhone = (raw) => {
-  const d = raw.replace(/\D/g, "");
-  return d.length >= 7 && d.length <= 15;
-};
-
-const validateName = (name) => {
-  const trimmed = name.trim();
-  if (trimmed.length < 2) return false;
-  if (!/^[a-zA-Z\s'-]+$/.test(trimmed)) return false;
-  if (/^(.)\1+$/.test(trimmed.replace(/\s/g, ""))) return false;
-  return true;
-};
 
 function BirthdayNudge({ phone: prefillPhone, vendorId }) {
   const [phone, setPhone] = useState(prefillPhone || "");
