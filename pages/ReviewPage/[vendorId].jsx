@@ -101,7 +101,7 @@ const ReviewSection = ({ vendorId }) => {
           className={`w-full py-2 px-4 rounded-md text-sm text-white transition ${
             submitting
               ? "bg-gray-400 cursor-not-allowed"
-              : "bg-[#AE2108] hover:bg-[#911c06]"
+              : "bg-[#AE2108] hover:bg-[#941B06]"
           }`}
         >
           {submitting ? "Submitting..." : "Submit Review"}
@@ -116,7 +116,7 @@ const ReviewSection = ({ vendorId }) => {
             <p className="mb-6">You must be logged in to submit a review.</p>
             <button
               onClick={handleLogin}
-              className="bg-[#AE2108] hover:bg-[#911c06] text-white py-2 px-4 rounded-md w-full mb-3"
+              className="bg-[#AE2108] hover:bg-[#941B06] text-white py-2 px-4 rounded-md w-full mb-3"
             >
               Login
             </button>

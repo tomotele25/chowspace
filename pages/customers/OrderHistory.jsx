@@ -149,7 +149,7 @@ const OrderHistory = () => {
 
               <button
                 onClick={() => handleReorder(order)}
-                className="mt-3 px-4 py-2 text-sm bg-[#AE2108] text-white rounded hover:bg-[#951b06] transition"
+                className="mt-3 px-4 py-2 text-sm bg-[#AE2108] text-white rounded hover:bg-[#941B06] transition"
               >
                 Reorder
               </button>

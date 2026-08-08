@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { Poppins } from "next/font/google";
 import {
   Search,
   Phone,
@@ -13,12 +12,6 @@ import {
 import axios from "axios";
 
 import VendorLayout from "@/components/layouts/VendorLayout";
-
-const poppins = Poppins({
-  variable: "--font-poppins",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
 
 const BACKENDURL = "https://chowspace-backend.vercel.app";
 const POLL_MS = 30000;
@@ -404,7 +397,7 @@ export default function OrderTracking() {
         </button>
       }
     >
-      <div className={`${poppins.variable} order-page`}>
+      <div className="order-page">
         {/* ── Search ── */}
         <div className="order-head">
           <div className="mx-auto max-w-5xl px-4 pb-3 pt-4">
@@ -529,7 +522,7 @@ export default function OrderTracking() {
             --line: #e5e4e0;
             min-height: 100vh;
             background: var(--surface);
-            font-family: var(--font-poppins), system-ui, sans-serif;
+            font-family: inherit;
             color: #171512;
           }
 

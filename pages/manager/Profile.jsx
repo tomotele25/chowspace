@@ -122,7 +122,7 @@ const ManagerProfile = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 bg-[#AE2108] text-white rounded-md hover:bg-[#8c1a06] transition disabled:opacity-50"
+              className="w-full py-2 bg-[#AE2108] text-white rounded-md hover:bg-[#941B06] transition disabled:opacity-50"
             >
               {loading ? "Updating..." : "Save Changes"}
             </button>

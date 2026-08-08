@@ -298,7 +298,7 @@ function BulkMessageModal({ users, onClose }) {
             </p>
             <button
               onClick={onClose}
-              className="mt-2 px-6 py-2.5 bg-[#AE2108] text-white text-sm font-semibold rounded-xl hover:bg-[#921b06] transition"
+              className="mt-2 px-6 py-2.5 bg-[#AE2108] text-white text-sm font-semibold rounded-xl hover:bg-[#941B06] transition"
             >
               Close
             </button>

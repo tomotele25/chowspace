@@ -60,7 +60,7 @@ const PromotionVerification = () => {
             </p>
             <button
               onClick={() => router.push("/vendor/dashboard")}
-              className="mt-6 bg-[#AE2108] text-white px-6 py-2 rounded-full hover:bg-[#901a06] transition"
+              className="mt-6 bg-[#AE2108] text-white px-6 py-2 rounded-full hover:bg-[#941B06] transition"
             >
               Go to Dashboard
             </button>
