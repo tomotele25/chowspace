@@ -37,6 +37,7 @@ export default function ContactSupport() {
           Authorization: `Bearer ${session?.user?.accessToken}`,
         },
       });
+      
       setMessages(res.data.messages || []);
       scrollToBottom();
     } catch (err) {
@@ -166,7 +167,7 @@ export default function ContactSupport() {
           {/* Header */}
           <div className="flex items-center justify-between p-4 bg-[#AE2108] rounded-t-2xl shadow-md">
             <h2 className="text-white font-semibold text-lg tracking-wide">
-            Chowspace Help
+              ChowSpace Help
             </h2>
             <div className="flex items-center gap-3">
               <button

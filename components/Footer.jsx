@@ -22,7 +22,7 @@ const Footer = () => {
               height={35}
             />
             <span className="text-xl font-semibold text-[#AE2108]">
-            Chowspace
+              ChowSpace
             </span>
           </div>
           <p className="text-sm text-gray-600">
