@@ -7,8 +7,7 @@ import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
-
-const BACKENDURL = "https://chowspace-backend.vercel.app";
+import { BACKENDURL } from "@/lib/api";
 
 const Login = () => {
   const [loading, setLoading] = useState(false);

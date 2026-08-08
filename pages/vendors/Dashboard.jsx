@@ -20,10 +20,7 @@ import axios from "axios";
 import { io } from "socket.io-client";
 import Notification from "@/components/Notification";
 import VendorLayout from "@/components/layouts/VendorLayout";
-
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
-const CHAT_URL = "http://localhost:2005";
+import { BACKENDURL, SOCKET_URL } from "@/lib/api";
 const CHAT_PROMPT_DISMISSED_KEY = "cs_chat_prompt_dismissed";
 
 function StatCard({ label, value, icon: Icon, trend, primary }) {
@@ -332,7 +329,7 @@ export default function VendorDashboard() {
   const fetchUnreadChats = async () => {
     if (!vendorId) return;
     try {
-      const res = await axios.get(`${CHAT_URL}/api/chat/vendor/${vendorId}`);
+      const res = await axios.get(`${BACKENDURL}/api/chat/vendor/${vendorId}`);
       setUnreadChats(
         (res.data.rooms || []).filter((r) => r.unreadCount > 0).length,
       );
@@ -349,7 +346,7 @@ export default function VendorDashboard() {
 
   useEffect(() => {
     if (!vendorId) return;
-    const socket = io(CHAT_URL, {
+    const socket = io(SOCKET_URL, {
       transports: ["websocket", "polling"],
       withCredentials: true,
       // The server derives senderType and vendor-room access from this, so

@@ -19,8 +19,7 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { requireAdminPage } from "@/lib/requireAdminPage";
-
-const BACKENDURL = "https://chowspace-backend.vercel.app";
+import { BACKENDURL } from "@/lib/api";
 
 const TABS = [
   { value: "under_review", label: "Awaiting review" },

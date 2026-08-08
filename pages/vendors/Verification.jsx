@@ -16,8 +16,7 @@ import {
   FileText,
   ShieldCheck,
 } from "lucide-react";
-
-const BACKENDURL = "https://chowspace-backend.vercel.app";
+import { BACKENDURL } from "@/lib/api";
 
 const DOCUMENT_HINTS = {
   cac: "Your CAC certificate or business name registration",

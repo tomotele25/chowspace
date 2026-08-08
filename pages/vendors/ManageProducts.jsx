@@ -19,6 +19,7 @@ import dynamic from "next/dynamic";
 
 import VendorLayout from "@/components/layouts/VendorLayout";
 import ManagerLayout from "@/components/layouts/ManagerLayout";
+import { BACKENDURL } from "@/lib/api";
 
 const ProductDragGrid = dynamic(
   () => import("@/components/vendor/ProductDragGrid"),
@@ -29,7 +30,6 @@ const ProductDragGrid = dynamic(
 export default function ManageProducts() {
   const { data: session } = useSession();
   const role = session?.user?.role;
-  const BACKENDURL = "https://chowspace-backend.vercel.app";
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);

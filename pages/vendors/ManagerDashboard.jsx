@@ -29,6 +29,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
 import ManagerLayout from "@/components/layouts/ManagerLayout";
+import { BACKENDURL, SOCKET_URL } from "@/lib/api";
 
 const STATUS_COLORS = {
   completed: { bg: "#ECFDF5", text: "#065F46", border: "#6EE7B7" },
@@ -65,9 +66,6 @@ export default function ManagerDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" 
-  const CHAT_URL = "http://localhost:2005";
   const vendorId = session?.user?.id;
 
   /* ── Fetch orders + vendor status ── */
@@ -113,7 +111,7 @@ const BACKENDURL =
   useEffect(() => {
     if (!vendorId) return;
     axios
-      .get(`${CHAT_URL}/api/chat/vendor/${vendorId}`)
+      .get(`${BACKENDURL}/api/chat/vendor/${vendorId}`)
       .then((res) => {
         const unread = (res.data.rooms || []).filter(
           (r) => r.unreadCount > 0,
@@ -126,7 +124,7 @@ const BACKENDURL =
   /* ── Real-time socket ── */
   useEffect(() => {
     if (!vendorId) return;
-    const socket = io(CHAT_URL, {
+    const socket = io(SOCKET_URL, {
       transports: ["websocket", "polling"],
       withCredentials: true,
       // The server derives senderType and vendor-room access from this, so

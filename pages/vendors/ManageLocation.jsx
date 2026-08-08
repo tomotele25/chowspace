@@ -23,6 +23,7 @@ import {
 import { useSession } from "next-auth/react";
 import ManagerLayout from "@/components/layouts/ManagerLayout";
 import { useRouter } from "next/navigation";
+import { BACKENDURL } from "@/lib/api";
 
 export default function ManageLocation() {
   const [location, setLocation] = useState("");
@@ -36,8 +37,6 @@ export default function ManageLocation() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" 
   const { data: session } = useSession();
   const router = useRouter();
   const token = session?.user?.accessToken;

@@ -22,8 +22,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-
-const BACKENDURL = "https://chowspace-backend.vercel.app";
+import { BACKENDURL } from "@/lib/api";
 
 // Matches the Vendor.category enum on the backend.
 const BUSINESS_TYPES = [

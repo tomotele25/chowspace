@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import ManagerLayout from "@/components/layouts/ManagerLayout";
+import { BACKENDURL } from "@/lib/api";
 import axios from "axios";
 import Link from "next/link";
 import {
@@ -332,8 +333,6 @@ export default function ManagerOrder() {
   const [dateFilter, setDateFilter] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
-
-  const BACKENDURL = "https://chowspace-backend.vercel.app";
 
   useEffect(() => {
     if (status !== "authenticated") return;

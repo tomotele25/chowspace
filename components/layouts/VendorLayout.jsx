@@ -10,8 +10,7 @@ import { User, AlertTriangle, ChevronRight } from "lucide-react";
 
 import DashboardShell from "./DashboardShell";
 import { VENDOR_NAV, VENDOR_VERIFICATION_ITEM } from "@/constants/navigation";
-
-const BACKENDURL = "https://chowspace-backend.vercel.app";
+import { BACKENDURL } from "@/lib/api";
 
 /**
  * A toggle is a temporary override on top of the store's schedule, so the

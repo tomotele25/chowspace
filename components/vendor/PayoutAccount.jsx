@@ -11,8 +11,7 @@ import {
   Pencil,
   ShieldCheck,
 } from "lucide-react";
-
-const BACKENDURL = "https://chowspace-backend.vercel.app";
+import { BACKENDURL } from "@/lib/api";
 
 /**
  * Where a vendor's money is sent.
