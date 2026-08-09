@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useState } from "react";
 import { Star } from "lucide-react";
 import axios from "axios";
@@ -10,8 +11,6 @@ const ReviewSection = ({ vendorId }) => {
   const [reviewText, setReviewText] = useState("");
   const [rating, setRating] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const BACKENDURL =
-    "https://chowspace-backend.vercel.app" || "http://localhost:2005";
   const { data: session } = useSession();
 
   const handleRating = (star) => {

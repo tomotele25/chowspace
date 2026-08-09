@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -37,8 +38,6 @@ import {
   Sparkles,
 } from "lucide-react";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" ||  "http://localhost:2005";
 
 const NOTIF_PREFS_KEY = "cs_notif_prefs";
 const DEFAULT_NOTIF_PREFS = { orders: true, chat: true, promos: false };
@@ -206,6 +205,9 @@ function StoreHoursModal({ open, onClose, vendorId, accessToken }) {
   const [savingAutoHours, setSavingAutoHours] = useState(false);
   const [liveStatus, setLiveStatus] = useState(null);
   const [activeDay, setActiveDay] = useState(0);
+  // The form shows 9am–9pm before anything is saved, which reads as though
+  // it already applies. Track whether these are really the vendor's hours.
+  const [usingDefaultHours, setUsingDefaultHours] = useState(false);
 
   // Mount/unmount with a tick of delay so the enter transition can play
   useEffect(() => {
@@ -241,6 +243,10 @@ function StoreHoursModal({ open, onClose, vendorId, accessToken }) {
                 },
             ),
           );
+          setUsingDefaultHours(false);
+        } else {
+          // Nothing stored — the form is showing the platform default.
+          setUsingDefaultHours(true);
         }
       } catch (err) {
         console.error(err);
@@ -328,6 +334,7 @@ function StoreHoursModal({ open, onClose, vendorId, accessToken }) {
         { openingHours: storeHours },
         { headers: { Authorization: `Bearer ${accessToken}` } },
       );
+      setUsingDefaultHours(false);
       toast.success("Store hours updated", { id: toastId });
     } catch (err) {
       console.error(err);
@@ -368,11 +375,9 @@ function StoreHoursModal({ open, onClose, vendorId, accessToken }) {
     } catch (err) {
       console.error(err);
       setUseAutoHours(previous);
-      toast.error(
-        err?.response?.data?.message ||
-          "Couldn't update this. Save your hours first.",
-        { id: toastId },
-      );
+      toast.error(err?.response?.data?.message || "Couldn't update this", {
+        id: toastId,
+      });
     } finally {
       setSavingAutoHours(false);
     }
@@ -485,6 +490,24 @@ function StoreHoursModal({ open, onClose, vendorId, accessToken }) {
               label="Open and close automatically"
             />
           </div>
+
+          {/* Nothing saved yet — say so, because the form below is already
+              filled in with the platform default and looks configured. */}
+          {!loading && usingDefaultHours && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3.5 flex items-start gap-3">
+              <Clock
+                size={15}
+                className="text-amber-600 mt-0.5 flex-shrink-0"
+              />
+              <p className="text-[11px] text-amber-900 leading-snug">
+                <span className="font-bold">
+                  You haven&apos;t set your own hours yet.
+                </span>{" "}
+                Your store follows Chowspace&apos;s default of 9:00 AM to 9:00
+                PM. Adjust the times below and save to use your own.
+              </p>
+            </div>
+          )}
 
           {/* Day picker — pill row */}
           <div>

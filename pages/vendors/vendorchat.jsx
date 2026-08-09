@@ -21,7 +21,8 @@ import {
   X,
   AlertCircle,
 } from "lucide-react";
-const BACKEND_URL = "https://chowspace-backend-1.onrender.com";
+import { cloudinaryResize } from "@/utils/captcha";
+import { BACKENDURL, SOCKET_URL } from "@/lib/api";
 const COMPLETED_ROOMS_KEY = "cs_vendor_completed_rooms";
 const loadCompletedRooms = () => {
   if (typeof window === "undefined") return new Set();
@@ -459,7 +460,7 @@ function ImageLightbox({ src, alt, onClose }) {
         ✕
       </button>
       <img
-        src={src}
+        src={cloudinaryResize(src, 1200)}
         alt={alt || "Image"}
         className="max-w-[92vw] max-h-[88vh] rounded-2xl shadow-2xl object-contain"
         onClick={(e) => e.stopPropagation()}
@@ -503,7 +504,7 @@ function MessageBubble({ msg }) {
                   className="mt-2 block focus:outline-none"
                 >
                   <img
-                    src={msg.fileUrl}
+                    src={cloudinaryResize(msg.fileUrl, 300)}
                     alt={msg.fileName || "Image"}
                     className="rounded-xl max-w-[220px] max-h-[220px] w-full object-cover cursor-pointer hover:opacity-90 transition"
                   />
@@ -733,6 +734,9 @@ function RoomList({
   completedIds,
   onToggleComplete,
 }) {
+  // Needed for the socket handshake — the server uses it to decide whether
+  // this connection may join the vendor room.
+  const { data: session } = useSession();
   const [rooms, setRooms] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -743,7 +747,7 @@ function RoomList({
       if (!silent) setRefreshing(true);
       try {
         const { data } = await axios.get(
-          `${BACKEND_URL}/api/chat/vendor/${vendorId}`,
+          `${BACKENDURL}/api/chat/vendor/${vendorId}`,
         );
         setRooms(data.rooms || []);
       } catch (err) {
@@ -760,9 +764,12 @@ function RoomList({
   }, [vendorId, fetchRooms]);
   useEffect(() => {
     if (!vendorId) return;
-    const socket = io(BACKEND_URL, {
+    const socket = io(SOCKET_URL, {
       transports: ["websocket", "polling"],
       withCredentials: true,
+      // The server derives senderType and vendor-room access from this, so
+      // without it the dashboard is treated as an anonymous customer.
+      auth: { token: session?.user?.accessToken },
     });
     socket.on("connect", () => socket.emit("joinVendorRoom", vendorId));
     socket.on("newChatNotification", () => fetchRooms(true));
@@ -980,6 +987,9 @@ function ChatWindow({
   onBack,
   onComplete,
 }) {
+  // Needed for the socket handshake — the server derives senderType from it,
+  // so without it this vendor's messages would be recorded as a customer's.
+  const { data: session } = useSession();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -1057,7 +1067,7 @@ function ChatWindow({
     setHistoryLoading(true);
     setMessages([]);
     axios
-      .get(`${BACKEND_URL}/api/chat/${roomId}`)
+      .get(`${BACKENDURL}/api/chat/${roomId}`)
       .then(({ data }) => {
         setMessages(
           (data.messages || []).map((m) => ({
@@ -1080,9 +1090,12 @@ function ChatWindow({
   }, [roomId]);
   useEffect(() => {
     if (socketRef.current) socketRef.current.disconnect();
-    const socket = io(BACKEND_URL, {
+    const socket = io(SOCKET_URL, {
       transports: ["websocket", "polling"],
       withCredentials: true,
+      // The server derives senderType and vendor-room access from this, so
+      // without it the dashboard is treated as an anonymous customer.
+      auth: { token: session?.user?.accessToken },
     });
     socketRef.current = socket;
     socket.on("connect", () => {
@@ -1176,7 +1189,7 @@ function ChatWindow({
     try {
       const form = new FormData();
       form.append("file", file);
-      const { data } = await axios.post(`${BACKEND_URL}/api/upload`, form);
+      const { data } = await axios.post(`${BACKENDURL}/api/upload`, form);
       sendMessage({ fileUrl: data.url, fileName: file.name });
     } catch {
       sendMessage({ text: `📎 ${file.name} (upload failed)` });
@@ -1237,7 +1250,7 @@ function ChatWindow({
               type="button"
               onClick={() => setShowPaymentModal(true)}
               aria-label="Request payment"
-              className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#AE2108] text-white text-xs font-semibold hover:bg-[#8E1A06] active:scale-95 transition flex-shrink-0"
+              className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#AE2108] text-white text-xs font-semibold hover:bg-[#941B06] active:scale-95 transition flex-shrink-0"
             >
               <CreditCard size={13} />
               <span className="hidden sm:inline">Request payment</span>
@@ -1464,7 +1477,7 @@ function ChatWindow({
             onClick={() => sendMessage({ text: input.trim() })}
             disabled={!input.trim() || uploading || !connected}
             aria-label="Send"
-            className="w-10 h-10 rounded-full bg-[#AE2108] text-white flex items-center justify-center hover:bg-[#8E1A06] active:scale-95 transition disabled:opacity-40 flex-shrink-0"
+            className="w-10 h-10 rounded-full bg-[#AE2108] text-white flex items-center justify-center hover:bg-[#941B06] active:scale-95 transition disabled:opacity-40 flex-shrink-0"
           >
             <Send size={15} />
           </button>

@@ -1,3 +1,4 @@
+import { BACKENDURL } from "@/lib/api";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
@@ -21,6 +22,8 @@ import {
 import { useCart } from "@/context/CartContext";
 import Head from "next/head";
 import { cloudinaryResize } from "@/utils/captcha";
+import ErrorState from "@/components/ErrorState";
+import EmptyState from "@/components/EmptyState";
 
 const VendorMenuPage = ({
   vendorMeta,
@@ -40,6 +43,7 @@ const VendorMenuPage = ({
   const [products, setProducts] = useState(initialProducts || []);
   const [loading, setLoading] = useState(!vendorMeta);
   const [error, setError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
   const [cartOpen, setCartOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
 
@@ -63,7 +67,6 @@ const VendorMenuPage = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendor?._id, coverImages.length]);
 
-  const BACKENDURL = "https://chowspace-backend.vercel.app";
 
   const {
     cart,
@@ -95,6 +98,7 @@ const VendorMenuPage = ({
     let cancelled = false;
     const fetchData = async () => {
       try {
+        setError("");
         const res = await axios.get(
           `${BACKENDURL}/api/product/vendor/slug/${slug}`,
         );
@@ -120,7 +124,7 @@ const VendorMenuPage = ({
     return () => {
       cancelled = true;
     };
-  }, [slug, vendorMeta]);
+  }, [slug, vendorMeta, retryCount]);
 
   const categories = [
     "All",
@@ -476,7 +480,14 @@ const VendorMenuPage = ({
           </h2>
 
           {error ? (
-            <p className="text-red-600">{error}</p>
+            <ErrorState
+              title="Couldn't load the menu"
+              message={error}
+              onRetry={() => {
+                setLoading(true);
+                setRetryCount((c) => c + 1);
+              }}
+            />
           ) : sortedAndFilteredProducts.length > 0 ? (
             <div className="grid pb-40 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
               {sortedAndFilteredProducts.map((product, index) => {
@@ -565,11 +576,14 @@ const VendorMenuPage = ({
               })}
             </div>
           ) : (
-            <p className="text-gray-500">
-              {selectedCategory === "All"
-                ? "No items on the menu yet."
-                : `No items in ${selectedCategory} yet.`}
-            </p>
+            <EmptyState
+              icon={Package}
+              title={
+                selectedCategory === "All"
+                  ? "No items on the menu yet"
+                  : `No items in ${selectedCategory} yet`
+              }
+            />
           )}
 
           {/* ═══════════════════════════════════════════
@@ -950,7 +964,7 @@ const VendorMenuPage = ({
 export async function getStaticPaths() {
   try {
     const res = await fetch(
-      "https://chowspace-backend.vercel.app/api/vendor/getVendors",
+      `${BACKENDURL}/api/vendor/getVendors`,
     );
     const data = await res.json();
     const paths = (data.vendors || [])
@@ -969,7 +983,7 @@ export async function getStaticPaths() {
 export async function getStaticProps({ params }) {
   try {
     const res = await fetch(
-      `https://chowspace-backend.vercel.app/api/product/vendor/slug/${params.slug}`,
+      `${BACKENDURL}/api/product/vendor/slug/${params.slug}`,
     );
     const data = await res.json();
     const vendor = data.vendor || null;

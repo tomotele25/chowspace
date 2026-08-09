@@ -1,4 +1,5 @@
 "use client";
+import { BACKENDURL } from "@/lib/api";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Link from "next/link";
@@ -20,11 +21,11 @@ import {
   XCircle,
   Menu,
 } from "lucide-react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import ManagerLayout from "@/components/layouts/ManagerLayout";
 import { useRouter } from "next/navigation";
 
 export default function ManageLocation() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [location, setLocation] = useState("");
   const [price, setPrice] = useState("");
   const [message, setMessage] = useState(null);
@@ -36,8 +37,6 @@ export default function ManageLocation() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" 
   const { data: session } = useSession();
   const router = useRouter();
   const token = session?.user?.accessToken;
@@ -45,7 +44,6 @@ const BACKENDURL =
   const sessionVendorId = session?.user?.vendorId; // only on vendor role
   const sessionUserId = session?.user?.id;
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   useEffect(() => {
     if (!role || !token) return;
@@ -87,6 +85,10 @@ const BACKENDURL =
         setLocations(res.data.locations || []);
       } catch (err) {
         console.error("Failed to fetch locations:", err);
+        setMessage({
+          type: "error",
+          text: "Couldn't load delivery locations. Please refresh.",
+        });
       }
     };
     fetchLocations();
@@ -166,118 +168,13 @@ const handleSubmit = async (e) => {
     }
   };
 
-  const handleLogout = () => signOut({ callbackUrl: "/Login" });
-
-  const navLinks = [
-    {
-      href: "/vendors/ManagerDashboard",
-      label: "Dashboard",
-      icon: LayoutDashboard,
-    },
-    {
-      href: "/vendors/ManageLocation",
-      label: "Locations",
-      icon: MapPin,
-      active: true,
-    },
-    { href: "/manager/ManagerOrder", label: "Orders", icon: UtensilsCrossed },
-    { href: "/vendors/ManageProducts", label: "Products", icon: PackageOpen },
-    { href: "/manager/Profile", label: "Profile", icon: Settings },
-  ];
 
   return (
-    <div className="flex min-h-screen bg-[#F7F5F2] font-sans">
-      {/* Sidebar Overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm md:hidden"
-          onClick={toggleSidebar}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`fixed top-0 left-0 z-40 h-full w-64 bg-white flex flex-col justify-between transition-transform duration-300 ease-in-out border-r border-gray-100 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0`}
-      >
-        <div>
-          <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-lg bg-[#AE2108] flex items-center justify-center">
-                <MapPin size={16} className="text-white" />
-              </span>
-              <span className="text-lg font-black text-gray-900 tracking-tight">
-                ChowSpace
-              </span>
-            </div>
-            <button
-              onClick={toggleSidebar}
-              className="md:hidden text-gray-400 hover:text-gray-600"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          <div className="px-3 py-4">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-2">
-              Menu
-            </p>
-            <nav className="space-y-0.5">
-              {navLinks.map(({ href, label, icon: Icon, active }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 ${
-                    active
-                      ? "bg-[#AE2108]/10 text-[#AE2108]"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
-                >
-                  <Icon size={17} />
-                  {label}
-                  {active && (
-                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#AE2108]" />
-                  )}
-                </Link>
-              ))}
-            </nav>
-          </div>
-        </div>
-
-        <div className="px-3 py-4 border-t border-gray-100">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 w-full transition-all duration-150"
-          >
-            <LogOut size={17} />
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* Main content */}
-      <div className="flex-1 md:ml-64 flex flex-col">
-        {/* Top bar */}
-        <header className="sticky top-0 z-20 bg-[#F7F5F2]/90 backdrop-blur-md border-b border-gray-200/60 px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <button
-                onClick={toggleSidebar}
-                className="md:hidden w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-600 hover:text-[#AE2108]"
-              >
-                <Menu size={18} />
-              </button>
-              <div className="min-w-0">
-                <h1 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">
-                  Delivery Locations
-                </h1>
-                <p className="text-xs text-gray-400 hidden sm:block">
-                  Manage where you deliver and set prices
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+    <ManagerLayout
+      title="Delivery Locations"
+      subtitle="Manage where you deliver and set prices"
+      actions={
+        <>
               <button
                 onClick={() => router.back()}
                 className="hidden sm:flex items-center gap-1.5 text-sm font-semibold text-gray-600 hover:text-gray-900 transition"
@@ -291,10 +188,9 @@ const handleSubmit = async (e) => {
                 <Plus size={16} />
                 <span>Add Location</span>
               </button>
-            </div>
-          </div>
-        </header>
-
+        </>
+      }
+    >
         {/* Toast */}
         {message && (
           <div
@@ -469,7 +365,6 @@ const handleSubmit = async (e) => {
             )}
           </div>
         </div>
-      </div>
 
       {/* Add Location Modal */}
       {formOpen && (
@@ -586,6 +481,6 @@ const handleSubmit = async (e) => {
           </div>
         </div>
       )}
-    </div>
+    </ManagerLayout>
   );
 }

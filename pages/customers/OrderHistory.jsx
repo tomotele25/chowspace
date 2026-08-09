@@ -1,13 +1,12 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
 const OrderHistory = () => {
   const { data: session } = useSession();
@@ -149,7 +148,7 @@ const OrderHistory = () => {
 
               <button
                 onClick={() => handleReorder(order)}
-                className="mt-3 px-4 py-2 text-sm bg-[#AE2108] text-white rounded hover:bg-[#951b06] transition"
+                className="mt-3 px-4 py-2 text-sm bg-[#AE2108] text-white rounded hover:bg-[#941B06] transition"
               >
                 Reorder
               </button>

@@ -9,8 +9,13 @@ import Loader from "@/components/Loader";
 import { useState, useEffect } from "react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
+import { installAxiosSafety } from "@/lib/axiosSafety";
 // import PWAInstallPrompt from "../components/PWAInstallPromt";
 // import IOSInstallNotice from "@/components/IOSInstallNotice";
+
+// Registered at module scope so it is in place before any component mounts
+// and fires its first request.
+installAxiosSafety();
 
 export default function App({ Component, pageProps }) {
   const router = useRouter();
@@ -44,7 +49,7 @@ export default function App({ Component, pageProps }) {
 
       <CategoryProvider>
         <CartProvider>
-          <SessionProvider session={pageProps.session}>
+          <SessionProvider session={pageProps.session} refetchOnWindowFocus={false}>
             <NetworkStatus />
             {loading ? <Loader /> : <Component {...pageProps} />}
             {/* <PWAInstallPrompt /> */}

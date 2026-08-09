@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -212,8 +213,6 @@ const Profile = () => {
   const [coverSlots, setCoverSlots] = useState([null, null]);
   const [activeCoverSlot, setActiveCoverSlot] = useState(null);
 
-  const BACKENDURL =
-    "https://chowspace-backend.vercel.app" ||  "http://localhost:2005";
 
   const isVerified =
     !!session?.user?.isVerified ||

@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import React, { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -15,8 +16,6 @@ const Signup = () => {
     password: "",
     confirmPassword: "",
   });
-  const BACKENDURL =
-    "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -202,12 +201,20 @@ const Signup = () => {
 
             <p className="text-sm text-gray-600 mt-4 text-center">
               Already have an account?{" "}
-              <a
-                aria-label="View cart "
-                href="/Login"
-                className="text-[#AE2108] hover:underline"
-              >
+              <a href="/Login" className="text-[#AE2108] hover:underline">
                 Log In
+              </a>
+            </p>
+
+            {/* This form creates a CUSTOMER account. A vendor landing here by
+                mistake would sign up as a customer with no route to a store. */}
+            <p className="text-sm text-gray-600 mt-2 text-center">
+              Want to sell on Chowspace?{" "}
+              <a
+                href="/vendors/Signup"
+                className="text-[#AE2108] font-semibold hover:underline"
+              >
+                Register your business
               </a>
             </p>
           </div>

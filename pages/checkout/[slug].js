@@ -6,6 +6,7 @@ import axios from "axios";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import { useCart } from "@/context/CartContext";
+import { BACKENDURL } from "@/lib/api";
 import toast, { Toaster } from "react-hot-toast";
 import {
   User,
@@ -18,25 +19,18 @@ import {
   X,
   ChevronDown,
   RefreshCw,
+  Clock,
 } from "lucide-react";
 
-const formatCurrency = (n) =>
-  typeof n === "number" ? n.toLocaleString() : "0";
-
-const formatPhoneNumber = (number) => {
-  let d = String(number).replace(/\D/g, "");
-  if (d.startsWith("0")) d = "234" + d.slice(1);
-  return d;
-};
-
-const generateOrderId = () =>
-  `CS-${Math.floor(100000 + Math.random() * 900000)}`;
-
-const isAbeokutaVendor = (v) =>
-  v?.location?.toLowerCase().trim() === "abeokuta";
-
-const BACKENDURL =
-  "https://chowspace-backend-1.onrender.com" || "http://localhost:2005";
+import {
+  formatCurrency,
+  formatPhoneNumber,
+  generateOrderId,
+  isAbeokutaVendor,
+  isVendorStillOpen,
+  validatePhone,
+  validateName,
+} from "@/lib/checkout";
 
 const BIRTHDAY_KEY = "cs_birthday_saved";
 
@@ -60,19 +54,6 @@ const inputCls =
 
 const inputErrCls =
   "w-full pl-10 pr-4 py-3.5 rounded-2xl border border-red-400 bg-white text-sm text-gray-800 placeholder-gray-400 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-400/15";
-
-const validatePhone = (raw) => {
-  const d = raw.replace(/\D/g, "");
-  return d.length >= 7 && d.length <= 15;
-};
-
-const validateName = (name) => {
-  const trimmed = name.trim();
-  if (trimmed.length < 2) return false;
-  if (!/^[a-zA-Z\s'-]+$/.test(trimmed)) return false;
-  if (/^(.)\1+$/.test(trimmed.replace(/\s/g, ""))) return false;
-  return true;
-};
 
 function BirthdayNudge({ phone: prefillPhone, vendorId }) {
   const [phone, setPhone] = useState(prefillPhone || "");
@@ -140,7 +121,7 @@ function BirthdayNudge({ phone: prefillPhone, vendorId }) {
     setSaving(true);
     try {
       await axios.post(
-        `https://chowspace-backend.vercel.app/api/customers/birthday`,
+        `${BACKENDURL}/api/customers/birthday`,
         {
           phone: formatPhoneNumber(cleanPhone),
           month: dobMonth,
@@ -268,6 +249,8 @@ export default function CheckoutPage() {
 
   const [vendor, setVendor] = useState(null);
   const [vendorId, setVendorId] = useState(null);
+  // Set when the store closes while the customer is on this page.
+  const [vendorClosed, setVendorClosed] = useState(false);
   const [locations, setLocations] = useState([]);
   const [locationsLoading, setLocationsLoading] = useState(false);
   const [locationsFailed, setLocationsFailed] = useState(false);
@@ -341,11 +324,14 @@ export default function CheckoutPage() {
     (async () => {
       try {
         const vr = await axios.get(
-          `https://chowspace-backend.vercel.app/api/vendor/${slug}`,
+          `${BACKENDURL}/api/vendor/${slug}`,
         );
         const vd = vr.data.vendor;
         setVendor(vd);
         setVendorId(vd._id);
+        // Vendors now open and close on a schedule, so warn on arrival rather
+        // than letting the customer fill in the whole form first.
+        setVendorClosed(vd.status === "closed");
         if (typeof vd.packingFee === "number")
           setPackingFeePerPack(vd.packingFee);
         if (vd?.location?.toLowerCase().trim() === "abeokuta") {
@@ -450,6 +436,19 @@ export default function CheckoutPage() {
       return;
     }
 
+    // Re-check the store before doing anything irreversible. Cart state
+    // survives navigation, so a customer can load a menu at 8:59pm and land
+    // here after closing time — and below this point WhatsApp opens before
+    // the order POST, so a late rejection would arrive too late to help.
+    const stillOpen = await isVendorStillOpen(vendor._id);
+    if (!stillOpen) {
+      toast.error(`${vendor.businessName} has closed and can't take orders.`);
+      setVendorClosed(true);
+      setLoading(false);
+      isSubmitting.current = false;
+      return;
+    }
+
     const orderId = generateOrderId();
 
     if (!isLocalVendor) {
@@ -534,9 +533,13 @@ export default function CheckoutPage() {
             }
           : { guestInfo: { name, phone } }),
         deliveryMethod: isLocalVendor ? "whatsapp" : "chat",
+        // The server prices the order itself from Product.price, the vendor's
+        // delivery zones and their packing fee. These two tell it which zone
+        // and how many packs; totalAmount is only what we think it comes to,
+        // and the order is refused if the server's figure is higher.
+        deliveryLocation: deliveryDetails.location || null,
+        packCount: cart.length,
         totalAmount: finalTotal,
-        deliveryFee,
-        packFees: packFee,
       });
       setPlacedOrderId(orderId);
       if (clearCart) clearCart();
@@ -701,6 +704,25 @@ export default function CheckoutPage() {
                   ? "Pick your area and drop your address"
                   : "The vendor will reach out to arrange delivery"}
               </p>
+
+              {vendorClosed && (
+                <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+                  <Clock
+                    size={18}
+                    className="text-amber-600 mt-0.5 flex-shrink-0"
+                  />
+                  <div>
+                    <p className="text-sm font-bold text-amber-900">
+                      {vendor?.businessName || "This vendor"} is closed right
+                      now
+                    </p>
+                    <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">
+                      They aren&apos;t taking orders at the moment. Your cart is
+                      saved — come back when they reopen.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <form
                 onSubmit={(e) => {

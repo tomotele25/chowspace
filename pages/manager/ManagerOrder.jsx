@@ -1,7 +1,9 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useEffect, useState, useRef } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import ManagerLayout from "@/components/layouts/ManagerLayout";
 import axios from "axios";
 import Link from "next/link";
 import {
@@ -321,7 +323,6 @@ export default function ManagerOrder() {
   const [assigning, setAssigning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [newOrderIds, setNewOrderIds] = useState([]);
   const [assignStep, setAssignStep] = useState(1);
@@ -332,8 +333,6 @@ export default function ManagerOrder() {
   const [dateFilter, setDateFilter] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
-
-  const BACKENDURL = "https://chowspace-backend.vercel.app";
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -447,23 +446,6 @@ export default function ManagerOrder() {
       .reduce((s, o) => s + Number(o.totalAmount || 0), 0),
   };
 
-  const navLinks = [
-    {
-      href: "/vendors/ManagerDashboard",
-      label: "Dashboard",
-      icon: LayoutDashboard,
-    },
-    { href: "/vendors/ManageLocation", label: "Locations", icon: MapPin },
-    {
-      href: "/manager/ManagerOrder",
-      label: "Orders",
-      icon: UtensilsCrossed,
-      active: true,
-    },
-    { href: "/vendors/ManageProducts", label: "Products", icon: PackageOpen },
-    { href: "/manager/Profile", label: "Profile", icon: Settings },
-  ];
-
   const filterTabs = [
     { key: "all", label: "All" },
     { key: "pending", label: "Pending" },
@@ -475,106 +457,10 @@ export default function ManagerOrder() {
   ];
 
   return (
-    <div
-      className="flex h-screen overflow-hidden"
-      style={{ background: "#FBF8F4" }}
-    >
-      <Toaster position="top-right" />
-      <audio ref={audioRef} src="/notification.mp3" preload="auto" />
-
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/30 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* ── Sidebar ── */}
-      <aside
-        className={`fixed top-0 left-0 z-40 h-full w-64 bg-white border-r border-[#F0E8E0] flex flex-col justify-between transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
-      >
-        <div>
-          <div className="px-6 py-5 border-b border-[#F0E8E0] flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-2xl bg-[#AE2108] flex items-center justify-center">
-                <Flame size={16} className="text-white" />
-              </div>
-              <div>
-                <p className="font-black text-gray-900 text-sm leading-tight">
-                Chowspace
-                </p>
-                <p className="text-[10px] text-gray-400 font-semibold">
-                  Manager
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="md:hidden text-gray-400 hover:text-gray-600"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          <div className="px-3 py-5">
-            <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest px-3 mb-2">
-              Menu
-            </p>
-            <nav className="space-y-0.5">
-              {navLinks.map(({ href, label, icon: Icon, active }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => setSidebarOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-bold transition-colors"
-                  style={
-                    active
-                      ? { background: "#AE2108", color: "white" }
-                      : { color: "#6B7280" }
-                  }
-                >
-                  <Icon size={16} />
-                  {label}
-                  {active && (
-                    <ChevronRight size={14} className="ml-auto opacity-60" />
-                  )}
-                </Link>
-              ))}
-            </nav>
-          </div>
-        </div>
-
-        <div className="px-3 py-4 border-t border-[#F0E8E0]">
-          <button
-            onClick={() => signOut({ callbackUrl: "/Login" })}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-bold text-red-500 hover:bg-red-50 w-full transition-colors"
-          >
-            <LogOut size={16} /> Sign Out
-          </button>
-        </div>
-      </aside>
-
-      {/* ── Main ── */}
-      <div className="flex-1 md:ml-64 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="flex-shrink-0 bg-white border-b border-[#F0E8E0] px-4 sm:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500"
-            >
-              <Menu size={18} />
-            </button>
-            <div>
-              <h1 className="text-lg sm:text-2xl font-black text-gray-900 tracking-tight">
-                Order Management
-              </h1>
-              <p className="text-xs text-gray-400 font-semibold">
-                Live · refreshes every 3s
-              </p>
-            </div>
-          </div>
-
+    <ManagerLayout
+      title="Order Management"
+      subtitle="Live · refreshes every 3s"
+      actions={
           <label className="flex items-center gap-2 bg-[#FBF8F4] border-2 border-[#F0E8E0] rounded-2xl px-3.5 py-2 cursor-pointer hover:border-[#AE2108]/40 transition-colors">
             <CalendarDays size={15} className="text-[#AE2108] flex-shrink-0" />
             <input
@@ -587,8 +473,8 @@ export default function ManagerOrder() {
               className="text-xs sm:text-sm font-bold text-gray-700 bg-transparent focus:outline-none w-28 sm:w-36"
             />
           </label>
-        </header>
-
+      }
+    >
         {/* Stats */}
         <div className="flex-shrink-0 px-4 sm:px-8 py-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
@@ -740,7 +626,6 @@ export default function ManagerOrder() {
             </div>
           )}
         </div>
-      </div>
 
       {/* ── Assign Modal ── */}
       {assignModal && (
@@ -1022,6 +907,6 @@ export default function ManagerOrder() {
           </div>
         </div>
       )}
-    </div>
+    </ManagerLayout>
   );
 }

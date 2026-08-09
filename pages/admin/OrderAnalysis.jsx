@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/router";
@@ -35,6 +36,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
+import AdminLayout from "@/components/layouts/AdminLayout";
 import {
   XAxis,
   YAxis,
@@ -47,22 +49,8 @@ import {
   Bar,
   Cell,
 } from "recharts";
+import { requireAdminPage } from "@/lib/requireAdminPage";
 
-const menuItems = [
-  { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
-  { name: "Manage Vendors", icon: Users, path: "/admin/ManageVendor" },
-  { name: "Order Analysis", icon: BarChart3, path: "/admin/OrderAnalysis" },
-  { name: "Promotion", icon: Star, path: "/admin/Promotion" },
-  {
-    name: "Contact Support",
-    icon: PhoneCall,
-    path: "/admin/AdminContactSupport",
-  },
-  { name: "Settings", icon: Settings, path: "/admin/settings" },
-];
-
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2005";
 
 /* ─────────────────────────────────────────────────────────────────────────
    ── Commission engine (date-aware)
@@ -195,7 +183,6 @@ function Tile({ icon: Icon, label, value, sub, accent }) {
 export default function AdminAnalytics() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [vendors, setVendors] = useState([]);
   const [orders, setOrders] = useState([]);
   const [analyticsData, setAnalyticsData] = useState([]);
@@ -210,6 +197,15 @@ export default function AdminAnalytics() {
   const [billMode, setBillMode] = useState("today"); // "today" | "pending"
   const [copied, setCopied] = useState(false);
   const [analyticsRange, setAnalyticsRange] = useState("week"); // today|week|month|all
+
+  // Vendors with no orders in any of the three weeks are hidden by default —
+  // on a platform with a long tail of signed-up-but-dormant stores they would
+  // otherwise be most of the table.
+  const [showInactiveVendors, setShowInactiveVendors] = useState(false);
+
+  // How many weeks back the per-vendor table reaches. Four covers "is this
+  // vendor slipping"; twelve is for spotting a season.
+  const [weeksShown, setWeeksShown] = useState(4);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/Login");
@@ -419,6 +415,87 @@ export default function AdminAnalytics() {
     { label: "Commission", value: wCom, delta: pct(wCom, lwCom), money: true },
   ];
 
+  // Four-week order counts, per vendor ------------------------------------------
+  // Counting orders only — not revenue, and not restricted to paid — so the
+  // numbers answer "who is busy" rather than "who earned".
+  //
+  // Weeks are held as a list rather than named fields so the count is one
+  // number to change, and so the table header and the row cells can never
+  // drift out of step with the buckets they describe.
+  const weekBuckets = Array.from({ length: weeksShown }, (_, i) => {
+    const { start, end } = getWeekRange(
+      new Date(Date.now() - i * 7 * 86400000),
+    );
+    return {
+      start,
+      end,
+      label: i === 0 ? "This week" : i === 1 ? "Last week" : `${i} weeks ago`,
+      // Beyond a couple of weeks "5 weeks ago" stops locating anything, so the
+      // date the week began goes underneath it.
+      sub:
+        i < 2
+          ? null
+          : start.toLocaleDateString("en-NG", {
+              day: "numeric",
+              month: "short",
+            }),
+    };
+  });
+
+  const zeroes = () => Array(weeksShown).fill(0);
+  const weeklyByVendor = new Map();
+  const weeklyTotals = zeroes();
+  // An order whose vendor has since been deleted still happened, and still
+  // belongs in the platform total — but it has no row to sit in. Counted
+  // separately so the column adds up instead of quietly losing orders.
+  const weeklyUnattributed = zeroes();
+
+  // One pass over orders rather than a filter per vendor per week: that would
+  // be 4N scans of a list holding every order the platform has ever taken.
+  orders.forEach((o) => {
+    const d = new Date(o.createdAt);
+    const i = weekBuckets.findIndex((b) => d >= b.start && d <= b.end);
+    if (i === -1) return;
+
+    weeklyTotals[i] += 1;
+
+    const id = o.vendorId?._id;
+    if (!id) {
+      weeklyUnattributed[i] += 1;
+      return;
+    }
+
+    if (!weeklyByVendor.has(id)) weeklyByVendor.set(id, zeroes());
+    weeklyByVendor.get(id)[i] += 1;
+  });
+
+  // A vendor can also be gone from the vendors list while its orders remain,
+  // which would drop them from the rows below without dropping them from the
+  // total. Fold those in with the genuinely vendorless ones.
+  const knownVendorIds = new Set(vendors.map((v) => v._id));
+  weeklyByVendor.forEach((counts, id) => {
+    if (knownVendorIds.has(id)) return;
+    counts.forEach((n, i) => (weeklyUnattributed[i] += n));
+  });
+
+  const unattributedTotal = weeklyUnattributed.reduce((s, n) => s + n, 0);
+
+  const weeklyRows = vendors
+    .map((v) => {
+      const counts = weeklyByVendor.get(v._id) || zeroes();
+      return {
+        id: v._id,
+        name: v.businessName || v.fullname || "Unnamed vendor",
+        counts,
+        total: counts.reduce((s, n) => s + n, 0),
+      };
+    })
+    .sort((a, b) => b.counts[0] - a.counts[0] || b.total - a.total);
+
+  const activeWeeklyRows = weeklyRows.filter((r) => r.total > 0);
+  const inactiveWeeklyCount = weeklyRows.length - activeWeeklyRows.length;
+  const visibleWeeklyRows = showInactiveVendors ? weeklyRows : activeWeeklyRows;
+
   // Monthly growth + cumulative -------------------------------------------------
   const monthMap = {};
   orders.forEach((o) => {
@@ -560,225 +637,327 @@ export default function AdminAnalytics() {
   ];
 
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-50">
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 z-20 md:hidden backdrop-blur-sm"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* ── Sidebar ── */}
-      <aside
-        className={`fixed z-30 inset-y-0 left-0 w-64 bg-white border-r border-gray-100 flex flex-col shadow-xl transform transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:relative md:translate-x-0 md:shadow-none`}
-      >
-        <div className="flex items-center justify-between px-5 h-16 border-b border-gray-100 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#AE2108] flex items-center justify-center">
-              <span className="text-white font-black text-xs">CS</span>
-            </div>
-            <span className="font-bold text-gray-900 text-sm tracking-tight">
-              <span className="text-[#AE2108]">Chowspace</span> Admin
-            </span>
-          </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="md:hidden w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center"
-          >
-            <X size={14} className="text-gray-500" />
-          </button>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-          {menuItems.map(({ name, icon: Icon, path }) => {
-            const isActive = router.pathname === path;
-            return (
-              <Link
-                key={name}
-                href={path}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all group
-                  ${isActive ? "bg-[#AE2108] text-white shadow-sm" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"}`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon
-                    size={16}
-                    className={
-                      isActive
-                        ? "text-white"
-                        : "text-gray-400 group-hover:text-gray-600"
-                    }
-                  />
-                  <span>{name}</span>
-                </div>
-                {isActive && (
-                  <ChevronRight size={13} className="text-white/60" />
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="px-3 py-3 border-t border-gray-100 flex-shrink-0">
-          <button
-            onClick={logout}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 transition"
-          >
-            <LogOut size={16} /> Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* ── Main ── */}
-      <main className="flex-1 overflow-y-auto">
-        <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-gray-100 px-5 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              className="md:hidden w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu size={18} className="text-gray-600" />
-            </button>
+    <AdminLayout
+      title="Analytics"
+      subtitle={`Week of ${wStart.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${wEnd.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
+    >
+      <div className="px-5 py-6 max-w-7xl mx-auto space-y-6">
+        {/* ── Welcome banner ── */}
+        <div className="relative overflow-hidden rounded-2xl bg-[#AE2108] px-6 py-5 shadow-lg shadow-[#AE2108]/15">
+          <div className="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-white/5 pointer-events-none" />
+          <div className="absolute right-10 -bottom-8 w-32 h-32 rounded-full bg-white/5 pointer-events-none" />
+          <div className="absolute right-36 top-2 w-20 h-20 rounded-full bg-white/5 pointer-events-none" />
+          <div className="relative flex items-center justify-between gap-4">
             <div>
-              <h1 className="text-sm font-bold text-gray-900 leading-tight">
-                Analytics
-              </h1>
-              <p className="text-[11px] text-gray-400 hidden sm:block leading-tight">
-                Week of{" "}
-                {wStart.toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })}{" "}
-                –{" "}
-                {wEnd.toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
+              <p className="text-white/60 text-xs font-medium mb-0.5">
+                Platform Overview
+              </p>
+              <h2 className="text-white text-lg font-bold leading-tight">
+                {loading
+                  ? "Loading data…"
+                  : `${totalOrders} orders · ₦${totalRevenue.toLocaleString()} revenue`}
+              </h2>
+              <p className="text-white/60 text-xs mt-1.5">
+                Sunday–Saturday · Commission ₦{totalCommission.toLocaleString()}{" "}
+                this week
               </p>
             </div>
+            <div className="hidden sm:flex items-center gap-1.5 bg-white/15 px-3 py-1.5 rounded-xl">
+              <Calendar size={13} className="text-white/70" />
+              <span className="text-white text-xs font-semibold">
+                This Week
+              </span>
+            </div>
           </div>
-        </header>
+        </div>
 
-        <div className="px-5 py-6 max-w-7xl mx-auto space-y-6">
-          {/* ── Welcome banner ── */}
-          <div className="relative overflow-hidden rounded-2xl bg-[#AE2108] px-6 py-5 shadow-lg shadow-[#AE2108]/15">
-            <div className="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-white/5 pointer-events-none" />
-            <div className="absolute right-10 -bottom-8 w-32 h-32 rounded-full bg-white/5 pointer-events-none" />
-            <div className="absolute right-36 top-2 w-20 h-20 rounded-full bg-white/5 pointer-events-none" />
-            <div className="relative flex items-center justify-between gap-4">
-              <div>
-                <p className="text-white/60 text-xs font-medium mb-0.5">
-                  Platform Overview
-                </p>
-                <h2 className="text-white text-lg font-bold leading-tight">
-                  {loading
-                    ? "Loading data…"
-                    : `${totalOrders} orders · ₦${totalRevenue.toLocaleString()} revenue`}
-                </h2>
-                <p className="text-white/60 text-xs mt-1.5">
-                  Sunday–Saturday · Commission ₦
-                  {totalCommission.toLocaleString()} this week
-                </p>
+        {/* ── pricing notice ── */}
+        <div className="flex items-center gap-2.5 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+          <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <TrendingUp size={15} className="text-amber-600" />
+          </div>
+          <p className="text-xs text-amber-800">
+            Commission is now{" "}
+            <span className="font-bold">₦{NEW_RATE}/order</span> from{" "}
+            {RATE_CHANGE_DATE.toLocaleDateString("en-NG", {
+              month: "long",
+              day: "numeric",
+            })}
+            . Orders before that still bill at ₦{OLD_RATE}, so mixed periods are
+            split automatically.
+          </p>
+        </div>
+
+        {/* ── Stat cards ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          {statCards.map(({ label, value, icon: Icon, iconClass, primary }) => (
+            <div
+              key={label}
+              className={`relative overflow-hidden rounded-2xl p-4 border transition-all hover:-translate-y-0.5 hover:shadow-lg
+                  ${primary ? "bg-[#AE2108] border-[#AE2108] shadow-[0_4px_24px_rgba(174,33,8,0.2)]" : "bg-white border-gray-100 shadow-sm"}`}
+            >
+              {primary && (
+                <>
+                  <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full bg-white/10 pointer-events-none" />
+                  <div className="absolute -right-1 bottom-0 w-12 h-12 rounded-full bg-white/5 pointer-events-none" />
+                </>
+              )}
+              <div className="relative flex items-start justify-between mb-3">
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center ${primary ? "bg-white/20" : iconClass}`}
+                >
+                  <Icon size={16} className={primary ? "text-white" : ""} />
+                </div>
               </div>
-              <div className="hidden sm:flex items-center gap-1.5 bg-white/15 px-3 py-1.5 rounded-xl">
-                <Calendar size={13} className="text-white/70" />
-                <span className="text-white text-xs font-semibold">
-                  This Week
+              <p
+                className={`text-xl font-bold mb-0.5 ${primary ? "text-white" : "text-gray-900"}`}
+              >
+                {value}
+              </p>
+              <p
+                className={`text-[10px] font-medium ${primary ? "text-white/70" : "text-gray-400"}`}
+              >
+                {label}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Weekly chart ── */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">
+                Orders & Revenue
+              </h3>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                Sun → Sat this week
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#AE2108]" />
+                <span className="text-[10px] text-gray-500 font-medium">
+                  Orders
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                <span className="text-[10px] text-gray-500 font-medium">
+                  Revenue
                 </span>
               </div>
             </div>
           </div>
-
-          {/* ── pricing notice ── */}
-          <div className="flex items-center gap-2.5 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
-            <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-              <TrendingUp size={15} className="text-amber-600" />
-            </div>
-            <p className="text-xs text-amber-800">
-              Commission is now{" "}
-              <span className="font-bold">₦{NEW_RATE}/order</span> from{" "}
-              {RATE_CHANGE_DATE.toLocaleDateString("en-NG", {
-                month: "long",
-                day: "numeric",
-              })}
-              . Orders before that still bill at ₦{OLD_RATE}, so mixed periods
-              are split automatically.
-            </p>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={analyticsData}
+                margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="gradOrders" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#AE2108" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#AE2108" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="gradRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.12} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 11, fill: "#9ca3af" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: "#9ca3af" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="orders"
+                  stroke="#AE2108"
+                  strokeWidth={2}
+                  fill="url(#gradOrders)"
+                  name="Orders"
+                  dot={{ r: 3, fill: "#AE2108" }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  fill="url(#gradRevenue)"
+                  name="Revenue (₦)"
+                  dot={{ r: 3, fill: "#10b981" }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
+        </div>
 
-          {/* ── Stat cards ── */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            {statCards.map(
-              ({ label, value, icon: Icon, iconClass, primary }) => (
-                <div
-                  key={label}
-                  className={`relative overflow-hidden rounded-2xl p-4 border transition-all hover:-translate-y-0.5 hover:shadow-lg
-                  ${primary ? "bg-[#AE2108] border-[#AE2108] shadow-[0_4px_24px_rgba(174,33,8,0.2)]" : "bg-white border-gray-100 shadow-sm"}`}
-                >
-                  {primary && (
-                    <>
-                      <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full bg-white/10 pointer-events-none" />
-                      <div className="absolute -right-1 bottom-0 w-12 h-12 rounded-full bg-white/5 pointer-events-none" />
-                    </>
-                  )}
-                  <div className="relative flex items-start justify-between mb-3">
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center ${primary ? "bg-white/20" : iconClass}`}
-                    >
-                      <Icon size={16} className={primary ? "text-white" : ""} />
-                    </div>
-                  </div>
-                  <p
-                    className={`text-xl font-bold mb-0.5 ${primary ? "text-white" : "text-gray-900"}`}
-                  >
-                    {value}
-                  </p>
-                  <p
-                    className={`text-[10px] font-medium ${primary ? "text-white/70" : "text-gray-400"}`}
-                  >
-                    {label}
-                  </p>
-                </div>
-              ),
+        {/* ═════════════════════ BUSINESS SNAPSHOT (all-time) ═════════════════════ */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles size={15} className="text-[#AE2108]" />
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                Business Snapshot · All Time
+              </p>
+            </div>
+            {startDate && (
+              <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+                Live since{" "}
+                {startDate.toLocaleDateString("en-NG", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}{" "}
+                · {daysLive} days
+              </span>
             )}
           </div>
 
-          {/* ── Weekly chart ── */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Tile
+              icon={ShoppingBag}
+              label="Lifetime Orders"
+              value={orders.length.toLocaleString()}
+              sub={`${ordersPerDay} / day avg`}
+              accent="bg-[#AE2108]/8 text-[#AE2108]"
+            />
+            <Tile
+              icon={Wallet}
+              label="Lifetime Revenue"
+              value={`₦${lifetimeGross.toLocaleString()}`}
+              sub={`₦${lifetimeAOV.toLocaleString()} avg order`}
+              accent="bg-emerald-50 text-emerald-600"
+            />
+            <Tile
+              icon={ArrowUpRight}
+              label="Commission Earned"
+              value={`₦${lifetimeCommission.toLocaleString()}`}
+              sub="all vendors, all time"
+              accent="bg-purple-50 text-purple-500"
+            />
+            <Tile
+              icon={Users}
+              label="Unique Customers"
+              value={uniqueCustomers.toLocaleString()}
+              sub={`${ordersPerCustomer} orders each`}
+              accent="bg-blue-50 text-blue-500"
+            />
+            <Tile
+              icon={Repeat}
+              label="Repeat Rate"
+              value={`${repeatRate}%`}
+              sub={`${repeatCustomers} returning`}
+              accent="bg-amber-50 text-amber-500"
+            />
+            <Tile
+              icon={CalendarDays}
+              label="Business Start"
+              value={
+                startDate
+                  ? startDate.toLocaleDateString("en-NG", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : "—"
+              }
+              sub={`${daysLive} days operating`}
+              accent="bg-rose-50 text-rose-500"
+            />
+            <Tile
+              icon={Flame}
+              label="Busiest Day Ever"
+              value={busiestDay ? `${busiestDay[1]} orders` : "—"}
+              sub={
+                busiestDay
+                  ? new Date(busiestDay[0]).toLocaleDateString("en-NG", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : ""
+              }
+              accent="bg-orange-50 text-orange-500"
+            />
+            <Tile
+              icon={Activity}
+              label="Avg Order Value"
+              value={`₦${lifetimeAOV.toLocaleString()}`}
+              sub="across all orders"
+              accent="bg-teal-50 text-teal-600"
+            />
+          </div>
+        </div>
+
+        {/* ═════════════════════ MOMENTUM (WoW) ═════════════════════ */}
+        <div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">
+            Momentum · this week vs last
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {momentum.map((m) => {
+              const up = m.delta >= 0;
+              return (
+                <div
+                  key={m.label}
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center justify-between"
+                >
+                  <div>
+                    <p className="text-[11px] text-gray-400 font-medium mb-1">
+                      {m.label} this week
+                    </p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {m.money ? `₦${m.value.toLocaleString()}` : m.value}
+                    </p>
+                  </div>
+                  <div
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold ${
+                      up
+                        ? "bg-emerald-50 text-emerald-600"
+                        : "bg-red-50 text-red-500"
+                    }`}
+                  >
+                    {up ? (
+                      <ArrowUpRight size={14} />
+                    ) : (
+                      <ArrowDownRight size={14} />
+                    )}
+                    {Math.abs(m.delta)}%
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ═════════════════════ GROWTH OVER TIME ═════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Monthly orders + revenue */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h3 className="text-sm font-bold text-gray-900">
-                  Orders & Revenue
-                </h3>
-                <p className="text-[11px] text-gray-400 mt-0.5">
-                  Sun → Sat this week
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#AE2108]" />
-                  <span className="text-[10px] text-gray-500 font-medium">
-                    Orders
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                  <span className="text-[10px] text-gray-500 font-medium">
-                    Revenue
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="h-64">
+            <h3 className="text-sm font-bold text-gray-900 mb-1">
+              Monthly Growth
+            </h3>
+            <p className="text-[11px] text-gray-400 mb-4">
+              Last {monthly.length} months
+            </p>
+            <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
-                  data={analyticsData}
+                  data={monthly}
                   margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
                 >
                   <defs>
-                    <linearGradient id="gradOrders" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="gMonth" x1="0" y1="0" x2="0" y2="1">
                       <stop
                         offset="5%"
                         stopColor="#AE2108"
@@ -786,24 +965,10 @@ export default function AdminAnalytics() {
                       />
                       <stop offset="95%" stopColor="#AE2108" stopOpacity={0} />
                     </linearGradient>
-                    <linearGradient
-                      id="gradRevenue"
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop
-                        offset="5%"
-                        stopColor="#10b981"
-                        stopOpacity={0.12}
-                      />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                    </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis
-                    dataKey="name"
+                    dataKey="label"
                     tick={{ fontSize: 11, fill: "#9ca3af" }}
                     axisLine={false}
                     tickLine={false}
@@ -812,6 +977,7 @@ export default function AdminAnalytics() {
                     tick={{ fontSize: 11, fill: "#9ca3af" }}
                     axisLine={false}
                     tickLine={false}
+                    allowDecimals={false}
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Area
@@ -819,303 +985,317 @@ export default function AdminAnalytics() {
                     dataKey="orders"
                     stroke="#AE2108"
                     strokeWidth={2}
-                    fill="url(#gradOrders)"
+                    fill="url(#gMonth)"
                     name="Orders"
                     dot={{ r: 3, fill: "#AE2108" }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    fill="url(#gradRevenue)"
-                    name="Revenue (₦)"
-                    dot={{ r: 3, fill: "#10b981" }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* ═════════════════════ BUSINESS SNAPSHOT (all-time) ═════════════════════ */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
+          {/* Cumulative curve */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <h3 className="text-sm font-bold text-gray-900 mb-1">
+              Cumulative Orders
+            </h3>
+            <p className="text-[11px] text-gray-400 mb-4">
+              Total orders growing over time
+            </p>
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={cumulative}
+                  margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id="gCum" x1="0" y1="0" x2="0" y2="1">
+                      <stop
+                        offset="5%"
+                        stopColor="#10b981"
+                        stopOpacity={0.18}
+                      />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11, fill: "#9ca3af" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "#9ca3af" }}
+                    axisLine={false}
+                    tickLine={false}
+                    allowDecimals={false}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey="total"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    fill="url(#gCum)"
+                    name="Total orders"
+                    dot={{ r: 3, fill: "#10b981" }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        {/* ═════════════════════ PEAK HOURS + PROJECTION ═════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Peak hours */}
+          <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
-                <Sparkles size={15} className="text-[#AE2108]" />
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  Business Snapshot · All Time
-                </p>
+                <Clock size={15} className="text-[#AE2108]" />
+                <h3 className="text-sm font-bold text-gray-900">Peak Hours</h3>
               </div>
-              {startDate && (
-                <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
-                  Live since{" "}
-                  {startDate.toLocaleDateString("en-NG", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}{" "}
-                  · {daysLive} days
+              {hourMax > 0 && (
+                <span className="text-[11px] font-semibold text-[#AE2108] bg-[#AE2108]/8 px-2.5 py-1 rounded-full">
+                  Busiest: {peakHour.label} ({peakHour.orders})
                 </span>
               )}
             </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Tile
-                icon={ShoppingBag}
-                label="Lifetime Orders"
-                value={orders.length.toLocaleString()}
-                sub={`${ordersPerDay} / day avg`}
-                accent="bg-[#AE2108]/8 text-[#AE2108]"
-              />
-              <Tile
-                icon={Wallet}
-                label="Lifetime Revenue"
-                value={`₦${lifetimeGross.toLocaleString()}`}
-                sub={`₦${lifetimeAOV.toLocaleString()} avg order`}
-                accent="bg-emerald-50 text-emerald-600"
-              />
-              <Tile
-                icon={ArrowUpRight}
-                label="Commission Earned"
-                value={`₦${lifetimeCommission.toLocaleString()}`}
-                sub="all vendors, all time"
-                accent="bg-purple-50 text-purple-500"
-              />
-              <Tile
-                icon={Users}
-                label="Unique Customers"
-                value={uniqueCustomers.toLocaleString()}
-                sub={`${ordersPerCustomer} orders each`}
-                accent="bg-blue-50 text-blue-500"
-              />
-              <Tile
-                icon={Repeat}
-                label="Repeat Rate"
-                value={`${repeatRate}%`}
-                sub={`${repeatCustomers} returning`}
-                accent="bg-amber-50 text-amber-500"
-              />
-              <Tile
-                icon={CalendarDays}
-                label="Business Start"
-                value={
-                  startDate
-                    ? startDate.toLocaleDateString("en-NG", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })
-                    : "—"
-                }
-                sub={`${daysLive} days operating`}
-                accent="bg-rose-50 text-rose-500"
-              />
-              <Tile
-                icon={Flame}
-                label="Busiest Day Ever"
-                value={busiestDay ? `${busiestDay[1]} orders` : "—"}
-                sub={
-                  busiestDay
-                    ? new Date(busiestDay[0]).toLocaleDateString("en-NG", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })
-                    : ""
-                }
-                accent="bg-orange-50 text-orange-500"
-              />
-              <Tile
-                icon={Activity}
-                label="Avg Order Value"
-                value={`₦${lifetimeAOV.toLocaleString()}`}
-                sub="across all orders"
-                accent="bg-teal-50 text-teal-600"
-              />
-            </div>
-          </div>
-
-          {/* ═════════════════════ MOMENTUM (WoW) ═════════════════════ */}
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">
-              Momentum · this week vs last
+            <p className="text-[11px] text-gray-400 mb-4">
+              When orders come in ({rangeLabel.toLowerCase()})
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {momentum.map((m) => {
-                const up = m.delta >= 0;
-                return (
-                  <div
-                    key={m.label}
-                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center justify-between"
-                  >
-                    <div>
-                      <p className="text-[11px] text-gray-400 font-medium mb-1">
-                        {m.label} this week
-                      </p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {m.money ? `₦${m.value.toLocaleString()}` : m.value}
-                      </p>
-                    </div>
-                    <div
-                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold ${
-                        up
-                          ? "bg-emerald-50 text-emerald-600"
-                          : "bg-red-50 text-red-500"
-                      }`}
-                    >
-                      {up ? (
-                        <ArrowUpRight size={14} />
-                      ) : (
-                        <ArrowDownRight size={14} />
-                      )}
-                      {Math.abs(m.delta)}%
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="h-52">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={hours}
+                  margin={{ top: 4, right: 4, left: -28, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#f0f0f0"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 9, fill: "#9ca3af" }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={1}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "#9ca3af" }}
+                    axisLine={false}
+                    tickLine={false}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    content={<CustomTooltip />}
+                    cursor={{ fill: "#f9fafb" }}
+                  />
+                  <Bar dataKey="orders" name="Orders" radius={[4, 4, 0, 0]}>
+                    {hours.map((h, i) => (
+                      <Cell
+                        key={i}
+                        fill={
+                          h.orders === hourMax && hourMax > 0
+                            ? "#AE2108"
+                            : "#f0c4bc"
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
-          {/* ═════════════════════ GROWTH OVER TIME ═════════════════════ */}
+          {/* Run-rate projection */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col">
+            <div className="flex items-center gap-2 mb-1">
+              <Rocket size={15} className="text-[#AE2108]" />
+              <h3 className="text-sm font-bold text-gray-900">
+                {now.toLocaleDateString("en-US", { month: "long" })} Projection
+              </h3>
+            </div>
+            <p className="text-[11px] text-gray-400 mb-4">
+              Day {dayOfMonth} of {daysInMonth} · current run-rate
+            </p>
+
+            <div className="space-y-3 flex-1">
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[11px] text-gray-400 font-medium">
+                    Orders
+                  </p>
+                  <p className="text-[11px] text-gray-400">
+                    {monthOrders.length} so far
+                  </p>
+                </div>
+                <p className="text-2xl font-bold text-gray-900">
+                  ≈ {projOrders.toLocaleString()}
+                </p>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  projected month-end
+                </p>
+              </div>
+
+              <div className="bg-[#AE2108]/5 border border-[#AE2108]/10 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[11px] text-[#AE2108]/70 font-medium">
+                    Commission
+                  </p>
+                  <p className="text-[11px] text-[#AE2108]/70">
+                    ₦{monthCommission.toLocaleString()} so far
+                  </p>
+                </div>
+                <p className="text-2xl font-bold text-[#AE2108]">
+                  ≈ ₦{projCommission.toLocaleString()}
+                </p>
+                <p className="text-[10px] text-[#AE2108]/60 mt-0.5">
+                  projected to earn this month
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ═════════════════════ RANGE-BASED BLOCK ═════════════════════ */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                Breakdown Explorer
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {rangeLabel} · {rangeOrders.length} orders
+              </p>
+            </div>
+            <div className="flex items-center gap-1 bg-white border border-gray-100 shadow-sm rounded-xl p-1">
+              {[
+                { k: "today", l: "Today" },
+                { k: "week", l: "Week" },
+                { k: "month", l: "Month" },
+                { k: "all", l: "All" },
+              ].map(({ k, l }) => (
+                <button
+                  key={k}
+                  onClick={() => setAnalyticsRange(k)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                    analyticsRange === k
+                      ? "bg-[#AE2108] text-white shadow-sm"
+                      : "text-gray-500 hover:bg-gray-50"
+                  }`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* range KPI row */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <p className="text-[10px] text-gray-400 font-medium mb-1">
+                Gross Revenue
+              </p>
+              <p className="text-xl font-bold text-gray-900">
+                ₦{rangeGross.toLocaleString()}
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <p className="text-[10px] text-gray-400 font-medium mb-1">
+                Commission Owed
+              </p>
+              <p className="text-xl font-bold text-[#AE2108]">
+                ₦{rangeOwed.toLocaleString()}
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 col-span-2 lg:col-span-1">
+              <p className="text-[10px] text-gray-400 font-medium mb-1">
+                Rate Split
+              </p>
+              <p className="text-sm font-bold text-gray-900">
+                {rangeSplit.old}{" "}
+                <span className="text-gray-400 font-medium">@ ₦{OLD_RATE}</span>
+                <span className="text-gray-300 mx-1.5">·</span>
+                {rangeSplit.neu}{" "}
+                <span className="text-gray-400 font-medium">@ ₦{NEW_RATE}</span>
+              </p>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Monthly orders + revenue */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h3 className="text-sm font-bold text-gray-900 mb-1">
-                Monthly Growth
-              </h3>
-              <p className="text-[11px] text-gray-400 mb-4">
-                Last {monthly.length} months
-              </p>
-              <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={monthly}
-                    margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
-                  >
-                    <defs>
-                      <linearGradient id="gMonth" x1="0" y1="0" x2="0" y2="1">
-                        <stop
-                          offset="5%"
-                          stopColor="#AE2108"
-                          stopOpacity={0.15}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="#AE2108"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis
-                      dataKey="label"
-                      tick={{ fontSize: 11, fill: "#9ca3af" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11, fill: "#9ca3af" }}
-                      axisLine={false}
-                      tickLine={false}
-                      allowDecimals={false}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area
-                      type="monotone"
-                      dataKey="orders"
-                      stroke="#AE2108"
-                      strokeWidth={2}
-                      fill="url(#gMonth)"
-                      name="Orders"
-                      dot={{ r: 3, fill: "#AE2108" }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Cumulative curve */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h3 className="text-sm font-bold text-gray-900 mb-1">
-                Cumulative Orders
-              </h3>
-              <p className="text-[11px] text-gray-400 mb-4">
-                Total orders growing over time
-              </p>
-              <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={cumulative}
-                    margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
-                  >
-                    <defs>
-                      <linearGradient id="gCum" x1="0" y1="0" x2="0" y2="1">
-                        <stop
-                          offset="5%"
-                          stopColor="#10b981"
-                          stopOpacity={0.18}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="#10b981"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis
-                      dataKey="label"
-                      tick={{ fontSize: 11, fill: "#9ca3af" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11, fill: "#9ca3af" }}
-                      axisLine={false}
-                      tickLine={false}
-                      allowDecimals={false}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area
-                      type="monotone"
-                      dataKey="total"
-                      stroke="#10b981"
-                      strokeWidth={2}
-                      fill="url(#gCum)"
-                      name="Total orders"
-                      dot={{ r: 3, fill: "#10b981" }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-
-          {/* ═════════════════════ PEAK HOURS + PROJECTION ═════════════════════ */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Peak hours */}
-            <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <div className="flex items-center justify-between mb-1">
+            {/* Leaderboard — who owes most */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
                 <div className="flex items-center gap-2">
-                  <Clock size={15} className="text-[#AE2108]" />
+                  <Crown size={15} className="text-[#AE2108]" />
                   <h3 className="text-sm font-bold text-gray-900">
-                    Peak Hours
+                    Commission Owed — by vendor
                   </h3>
                 </div>
-                {hourMax > 0 && (
-                  <span className="text-[11px] font-semibold text-[#AE2108] bg-[#AE2108]/8 px-2.5 py-1 rounded-full">
-                    Busiest: {peakHour.label} ({peakHour.orders})
-                  </span>
-                )}
+                <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+                  Bill priority
+                </span>
               </div>
+              {vendorLeaderboard.length === 0 ? (
+                <div className="py-10 text-center text-sm text-gray-400">
+                  No orders in this range
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-50 max-h-[360px] overflow-y-auto">
+                  {vendorLeaderboard.map((row, i) => (
+                    <div
+                      key={row.vendor._id}
+                      className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50/70 transition-colors"
+                    >
+                      <span
+                        className={`w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-black flex-shrink-0 ${
+                          i === 0
+                            ? "bg-[#AE2108] text-white"
+                            : "bg-gray-100 text-gray-500"
+                        }`}
+                      >
+                        {i + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {row.vendor.businessName}
+                        </p>
+                        <p className="text-[11px] text-gray-400">
+                          {row.count} orders · ₦{row.gross.toLocaleString()}{" "}
+                          gross
+                        </p>
+                      </div>
+                      <p className="text-sm font-bold text-[#AE2108] flex-shrink-0">
+                        ₦{row.owed.toLocaleString()}
+                      </p>
+                      <button
+                        onClick={() => openVendorModal(row.vendor)}
+                        className="flex-shrink-0 text-[11px] font-semibold text-gray-600 bg-gray-100 hover:bg-[#AE2108] hover:text-white px-3 py-1.5 rounded-lg transition"
+                      >
+                        Bill
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Orders by day of week */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h3 className="text-sm font-bold text-gray-900 mb-1">
+                Orders by Day
+              </h3>
               <p className="text-[11px] text-gray-400 mb-4">
-                When orders come in ({rangeLabel.toLowerCase()})
+                {rangeLabel} distribution
               </p>
-              <div className="h-52">
+              <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={hours}
-                    margin={{ top: 4, right: 4, left: -28, bottom: 0 }}
+                    data={dowData}
+                    margin={{ top: 4, right: 4, left: -24, bottom: 0 }}
                   >
                     <CartesianGrid
                       strokeDasharray="3 3"
@@ -1123,11 +1303,10 @@ export default function AdminAnalytics() {
                       vertical={false}
                     />
                     <XAxis
-                      dataKey="label"
-                      tick={{ fontSize: 9, fill: "#9ca3af" }}
+                      dataKey="name"
+                      tick={{ fontSize: 11, fill: "#9ca3af" }}
                       axisLine={false}
                       tickLine={false}
-                      interval={1}
                     />
                     <YAxis
                       tick={{ fontSize: 11, fill: "#9ca3af" }}
@@ -1139,12 +1318,12 @@ export default function AdminAnalytics() {
                       content={<CustomTooltip />}
                       cursor={{ fill: "#f9fafb" }}
                     />
-                    <Bar dataKey="orders" name="Orders" radius={[4, 4, 0, 0]}>
-                      {hours.map((h, i) => (
+                    <Bar dataKey="orders" name="Orders" radius={[6, 6, 0, 0]}>
+                      {dowData.map((d, i) => (
                         <Cell
                           key={i}
                           fill={
-                            h.orders === hourMax && hourMax > 0
+                            d.orders === dowMax && dowMax > 0
                               ? "#AE2108"
                               : "#f0c4bc"
                           }
@@ -1155,343 +1334,273 @@ export default function AdminAnalytics() {
                 </ResponsiveContainer>
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* Run-rate projection */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col">
-              <div className="flex items-center gap-2 mb-1">
-                <Rocket size={15} className="text-[#AE2108]" />
-                <h3 className="text-sm font-bold text-gray-900">
-                  {now.toLocaleDateString("en-US", { month: "long" })}{" "}
-                  Projection
-                </h3>
-              </div>
-              <p className="text-[11px] text-gray-400 mb-4">
-                Day {dayOfMonth} of {daysInMonth} · current run-rate
-              </p>
-
-              <div className="space-y-3 flex-1">
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-[11px] text-gray-400 font-medium">
-                      Orders
-                    </p>
-                    <p className="text-[11px] text-gray-400">
-                      {monthOrders.length} so far
-                    </p>
-                  </div>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ≈ {projOrders.toLocaleString()}
-                  </p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">
-                    projected month-end
-                  </p>
-                </div>
-
-                <div className="bg-[#AE2108]/5 border border-[#AE2108]/10 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-[11px] text-[#AE2108]/70 font-medium">
-                      Commission
-                    </p>
-                    <p className="text-[11px] text-[#AE2108]/70">
-                      ₦{monthCommission.toLocaleString()} so far
-                    </p>
-                  </div>
-                  <p className="text-2xl font-bold text-[#AE2108]">
-                    ≈ ₦{projCommission.toLocaleString()}
-                  </p>
-                  <p className="text-[10px] text-[#AE2108]/60 mt-0.5">
-                    projected to earn this month
-                  </p>
-                </div>
-              </div>
+        {/* ── Weekly order counts, per vendor ── */}
+        <div>
+          <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+              Orders by week
+            </p>
+            <div className="flex items-center gap-3">
+              {inactiveWeeklyCount > 0 && (
+                <button
+                  onClick={() => setShowInactiveVendors((v) => !v)}
+                  className="text-[10px] font-bold text-[#AE2108] hover:underline"
+                >
+                  {showInactiveVendors
+                    ? "Hide inactive"
+                    : `Show ${inactiveWeeklyCount} inactive`}
+                </button>
+              )}
+              <select
+                value={weeksShown}
+                onChange={(e) => setWeeksShown(Number(e.target.value))}
+                className="border border-gray-200 bg-white rounded-lg px-2.5 py-1 text-[11px] font-semibold text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#AE2108]/20"
+                aria-label="Number of weeks to show"
+              >
+                {[4, 6, 8, 12].map((n) => (
+                  <option key={n} value={n}>
+                    {n} weeks
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          {/* ═════════════════════ RANGE-BASED BLOCK ═════════════════════ */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  Breakdown Explorer
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {rangeLabel} · {rangeOrders.length} orders
-                </p>
-              </div>
-              <div className="flex items-center gap-1 bg-white border border-gray-100 shadow-sm rounded-xl p-1">
-                {[
-                  { k: "today", l: "Today" },
-                  { k: "week", l: "Week" },
-                  { k: "month", l: "Month" },
-                  { k: "all", l: "All" },
-                ].map(({ k, l }) => (
-                  <button
-                    key={k}
-                    onClick={() => setAnalyticsRange(k)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                      analyticsRange === k
-                        ? "bg-[#AE2108] text-white shadow-sm"
-                        : "text-gray-500 hover:bg-gray-50"
-                    }`}
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* range KPI row */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                <p className="text-[10px] text-gray-400 font-medium mb-1">
-                  Gross Revenue
-                </p>
-                <p className="text-xl font-bold text-gray-900">
-                  ₦{rangeGross.toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                <p className="text-[10px] text-gray-400 font-medium mb-1">
-                  Commission Owed
-                </p>
-                <p className="text-xl font-bold text-[#AE2108]">
-                  ₦{rangeOwed.toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 col-span-2 lg:col-span-1">
-                <p className="text-[10px] text-gray-400 font-medium mb-1">
-                  Rate Split
-                </p>
-                <p className="text-sm font-bold text-gray-900">
-                  {rangeSplit.old}{" "}
-                  <span className="text-gray-400 font-medium">
-                    @ ₦{OLD_RATE}
-                  </span>
-                  <span className="text-gray-300 mx-1.5">·</span>
-                  {rangeSplit.neu}{" "}
-                  <span className="text-gray-400 font-medium">
-                    @ ₦{NEW_RATE}
-                  </span>
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Leaderboard — who owes most */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <Crown size={15} className="text-[#AE2108]" />
-                    <h3 className="text-sm font-bold text-gray-900">
-                      Commission Owed — by vendor
-                    </h3>
-                  </div>
-                  <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
-                    Bill priority
-                  </span>
-                </div>
-                {vendorLeaderboard.length === 0 ? (
-                  <div className="py-10 text-center text-sm text-gray-400">
-                    No orders in this range
-                  </div>
-                ) : (
-                  <div className="divide-y divide-gray-50 max-h-[360px] overflow-y-auto">
-                    {vendorLeaderboard.map((row, i) => (
-                      <div
-                        key={row.vendor._id}
-                        className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50/70 transition-colors"
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="px-5 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      Vendor
+                    </th>
+                    {weekBuckets.map((b, i) => (
+                      <th
+                        key={b.label}
+                        className={`py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right whitespace-nowrap ${
+                          i === weekBuckets.length - 1 ? "px-5" : "px-4"
+                        }`}
                       >
-                        <span
-                          className={`w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-black flex-shrink-0 ${
-                            i === 0
-                              ? "bg-[#AE2108] text-white"
-                              : "bg-gray-100 text-gray-500"
+                        {b.label}
+                        {/* Two days measured against full weeks reads as a
+                            collapse in orders unless it says so. */}
+                        {(i === 0 || b.sub) && (
+                          <span className="block font-medium normal-case tracking-normal text-gray-300">
+                            {i === 0 ? "so far" : b.sub}
+                          </span>
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleWeeklyRows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={weekBuckets.length + 1}
+                        className="px-5 py-8 text-center text-xs text-gray-400"
+                      >
+                        No orders in the last {weeksShown} weeks.
+                      </td>
+                    </tr>
+                  ) : (
+                    visibleWeeklyRows.map((row) => (
+                      <tr
+                        key={row.id}
+                        className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors"
+                      >
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-[#AE2108]/10 flex items-center justify-center flex-shrink-0">
+                              <span className="text-[#AE2108] font-black text-[10px]">
+                                {row.name.slice(0, 2).toUpperCase()}
+                              </span>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-800 truncate max-w-[180px]">
+                              {row.name}
+                            </span>
+                          </div>
+                        </td>
+                        {row.counts.map((n, i) => (
+                          <td
+                            key={i}
+                            className={`py-3 text-right text-sm tabular-nums ${
+                              i === 0
+                                ? "font-bold text-gray-900"
+                                : "text-gray-500"
+                            } ${i === row.counts.length - 1 ? "px-5" : "px-4"}`}
+                          >
+                            {n}
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  )}
+
+                  {unattributedTotal > 0 && (
+                    <tr className="border-b border-gray-50 last:border-0 bg-amber-50/40">
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0">
+                            <span className="text-gray-500 font-black text-[10px]">
+                              ?
+                            </span>
+                          </div>
+                          <span className="text-sm font-semibold text-gray-500 italic">
+                            Deleted or unknown vendor
+                          </span>
+                        </div>
+                      </td>
+                      {weeklyUnattributed.map((n, i) => (
+                        <td
+                          key={i}
+                          className={`py-3 text-right text-sm text-gray-500 tabular-nums ${
+                            i === weeklyUnattributed.length - 1
+                              ? "px-5"
+                              : "px-4"
                           }`}
                         >
-                          {i + 1}
+                          {n}
+                        </td>
+                      ))}
+                    </tr>
+                  )}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-gray-50 border-t border-gray-100">
+                    <td className="px-5 py-3 text-xs font-black text-gray-700 uppercase tracking-wide">
+                      Platform total
+                    </td>
+                    {weeklyTotals.map((n, i) => (
+                      <td
+                        key={i}
+                        className={`py-3 text-right text-sm tabular-nums ${
+                          i === 0
+                            ? "font-black text-[#AE2108]"
+                            : "font-bold text-gray-700"
+                        } ${i === weeklyTotals.length - 1 ? "px-5" : "px-4"}`}
+                      >
+                        {n}
+                      </td>
+                    ))}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <p className="text-[10px] text-gray-400 mt-2">
+            Weeks run Sunday to Saturday. This week is still in progress, so it
+            counts fewer days than the ones beside it.
+          </p>
+        </div>
+
+        {/* ── Vendor cards ── */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+              Vendor Breakdown
+            </p>
+            <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
+              {vendors.length} vendors
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {vendors.map((vendor) => {
+              const vOrders = orders.filter(
+                (o) => o.vendorId?._id === vendor._id,
+              );
+              const gross = vOrders.reduce(
+                (s, o) => s + (o.totalAmount || 0),
+                0,
+              );
+              const commission = commissionForOrders(vOrders);
+              const net = gross - commission;
+
+              return (
+                <div
+                  key={vendor._id}
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-[#AE2108]/10 flex items-center justify-center flex-shrink-0">
+                        <span className="text-[#AE2108] font-black text-xs">
+                          {vendor.businessName?.slice(0, 2).toUpperCase()}
                         </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 truncate">
-                            {row.vendor.businessName}
-                          </p>
-                          <p className="text-[11px] text-gray-400">
-                            {row.count} orders · ₦{row.gross.toLocaleString()}{" "}
-                            gross
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-gray-900 truncate max-w-[140px]">
+                          {vendor.businessName}
+                        </p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${vendor.status === "opened" ? "bg-emerald-400" : "bg-gray-300"}`}
+                          />
+                          <p className="text-[10px] text-gray-400 capitalize">
+                            {vendor.status || "active"}
                           </p>
                         </div>
-                        <p className="text-sm font-bold text-[#AE2108] flex-shrink-0">
-                          ₦{row.owed.toLocaleString()}
-                        </p>
-                        <button
-                          onClick={() => openVendorModal(row.vendor)}
-                          className="flex-shrink-0 text-[11px] font-semibold text-gray-600 bg-gray-100 hover:bg-[#AE2108] hover:text-white px-3 py-1.5 rounded-lg transition"
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+                      {vOrders.length} orders
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    {[
+                      {
+                        label: "Gross",
+                        value: `₦${gross.toLocaleString()}`,
+                        color: "text-gray-900",
+                      },
+                      {
+                        label: "Commission",
+                        value: `₦${commission.toLocaleString()}`,
+                        color: "text-[#AE2108]",
+                      },
+                      {
+                        label: "Net",
+                        value: `₦${net.toLocaleString()}`,
+                        color: "text-emerald-600",
+                      },
+                    ].map(({ label, value, color }) => (
+                      <div
+                        key={label}
+                        className="bg-gray-50 rounded-xl p-2.5 text-center"
+                      >
+                        <p
+                          className={`text-xs font-bold ${color} leading-tight`}
                         >
-                          Bill
-                        </button>
+                          {value}
+                        </p>
+                        <p className="text-[9px] text-gray-400 mt-0.5">
+                          {label}
+                        </p>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
 
-              {/* Orders by day of week */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                <h3 className="text-sm font-bold text-gray-900 mb-1">
-                  Orders by Day
-                </h3>
-                <p className="text-[11px] text-gray-400 mb-4">
-                  {rangeLabel} distribution
-                </p>
-                <div className="h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={dowData}
-                      margin={{ top: 4, right: 4, left: -24, bottom: 0 }}
-                    >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke="#f0f0f0"
-                        vertical={false}
-                      />
-                      <XAxis
-                        dataKey="name"
-                        tick={{ fontSize: 11, fill: "#9ca3af" }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        tick={{ fontSize: 11, fill: "#9ca3af" }}
-                        axisLine={false}
-                        tickLine={false}
-                        allowDecimals={false}
-                      />
-                      <Tooltip
-                        content={<CustomTooltip />}
-                        cursor={{ fill: "#f9fafb" }}
-                      />
-                      <Bar dataKey="orders" name="Orders" radius={[6, 6, 0, 0]}>
-                        {dowData.map((d, i) => (
-                          <Cell
-                            key={i}
-                            fill={
-                              d.orders === dowMax && dowMax > 0
-                                ? "#AE2108"
-                                : "#f0c4bc"
-                            }
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Vendor cards ── */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                Vendor Breakdown
-              </p>
-              <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
-                {vendors.length} vendors
-              </span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {vendors.map((vendor) => {
-                const vOrders = orders.filter(
-                  (o) => o.vendorId?._id === vendor._id,
-                );
-                const gross = vOrders.reduce(
-                  (s, o) => s + (o.totalAmount || 0),
-                  0,
-                );
-                const commission = commissionForOrders(vOrders);
-                const net = gross - commission;
-
-                return (
-                  <div
-                    key={vendor._id}
-                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                  <button
+                    onClick={() => openVendorModal(vendor)}
+                    className="w-full flex items-center justify-center gap-1.5 bg-gray-50 hover:bg-[#AE2108] hover:text-white text-gray-600 text-xs font-semibold px-3 py-2.5 rounded-xl transition-all duration-200 group"
                   >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-[#AE2108]/10 flex items-center justify-center flex-shrink-0">
-                          <span className="text-[#AE2108] font-black text-xs">
-                            {vendor.businessName?.slice(0, 2).toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-900 truncate max-w-[140px]">
-                            {vendor.businessName}
-                          </p>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${vendor.status === "opened" ? "bg-emerald-400" : "bg-gray-300"}`}
-                            />
-                            <p className="text-[10px] text-gray-400 capitalize">
-                              {vendor.status || "active"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
-                        {vOrders.length} orders
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 mb-4">
-                      {[
-                        {
-                          label: "Gross",
-                          value: `₦${gross.toLocaleString()}`,
-                          color: "text-gray-900",
-                        },
-                        {
-                          label: "Commission",
-                          value: `₦${commission.toLocaleString()}`,
-                          color: "text-[#AE2108]",
-                        },
-                        {
-                          label: "Net",
-                          value: `₦${net.toLocaleString()}`,
-                          color: "text-emerald-600",
-                        },
-                      ].map(({ label, value, color }) => (
-                        <div
-                          key={label}
-                          className="bg-gray-50 rounded-xl p-2.5 text-center"
-                        >
-                          <p
-                            className={`text-xs font-bold ${color} leading-tight`}
-                          >
-                            {value}
-                          </p>
-                          <p className="text-[9px] text-gray-400 mt-0.5">
-                            {label}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <button
-                      onClick={() => openVendorModal(vendor)}
-                      className="w-full flex items-center justify-center gap-1.5 bg-gray-50 hover:bg-[#AE2108] hover:text-white text-gray-600 text-xs font-semibold px-3 py-2.5 rounded-xl transition-all duration-200 group"
-                    >
-                      View & Bill
-                      <ChevronRight
-                        size={12}
-                        className="group-hover:translate-x-0.5 transition-transform"
-                      />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+                    View & Bill
+                    <ChevronRight
+                      size={12}
+                      className="group-hover:translate-x-0.5 transition-transform"
+                    />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
-      </main>
+      </div>
 
       {/* ── Vendor orders modal ── */}
       {modalOpen && selectedVendor && (
@@ -1759,6 +1868,10 @@ export default function AdminAnalytics() {
           </div>
         </div>
       )}
-    </div>
+    </AdminLayout>
   );
 }
+
+// Gated before any HTML is sent — the client-side check alone let a
+// non-admin render the page and fire its data requests first.
+export const getServerSideProps = requireAdminPage();

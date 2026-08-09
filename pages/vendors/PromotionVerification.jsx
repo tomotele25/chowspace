@@ -1,10 +1,9 @@
+import { BACKENDURL } from "@/lib/api";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
 const PromotionVerification = () => {
   const router = useRouter();
@@ -60,7 +59,7 @@ const PromotionVerification = () => {
             </p>
             <button
               onClick={() => router.push("/vendor/dashboard")}
-              className="mt-6 bg-[#AE2108] text-white px-6 py-2 rounded-full hover:bg-[#901a06] transition"
+              className="mt-6 bg-[#AE2108] text-white px-6 py-2 rounded-full hover:bg-[#941B06] transition"
             >
               Go to Dashboard
             </button>

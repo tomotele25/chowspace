@@ -1,10 +1,13 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import React, { useState } from "react";
 import { Star, CheckCircle, Crown } from "lucide-react";
 import { useSession } from "next-auth/react";
 import axios from "axios";
 import toast from "react-hot-toast";
+
+import VendorLayout from "@/components/layouts/VendorLayout";
 
 const plans = [
   {
@@ -39,8 +42,6 @@ const plans = [
     border: "border-yellow-500",
   },
 ];
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
 const Subscribe = () => {
   const { data: session } = useSession();
@@ -76,58 +77,60 @@ const Subscribe = () => {
   };
 
   return (
-    <div className="min-h-screen py-12 px-4 md:px-20 bg-gray-50 text-gray-800">
-      <h1 className="text-3xl md:text-4xl font-bold text-center mb-6 text-[#AE2108]">
-        Boost Your Visibility on ChowSpace 🚀
-      </h1>
-      <p className="text-center text-gray-600 max-w-2xl mx-auto mb-10">
-        Choose a plan that fits your restaurant’s growth. Get discovered by more
-        customers and increase your orders with our promotional tiers.
-      </p>
-
-      <div className="grid md:grid-cols-2 gap-10">
-        {plans.map((plan, index) => (
-          <div
-            key={index}
-            className={`p-6 rounded-2xl shadow-md border-2 ${plan.border} ${plan.bg} transform transition duration-300 hover:scale-[1.02]`}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              {plan.icon}
-              <h2 className="text-2xl font-semibold">{plan.name} Plan</h2>
-            </div>
-
-            <div className="mb-4">
-              <span className="text-3xl font-bold">{plan.displayPrice}</span>
-              <span className="ml-2 text-gray-600">/ {plan.duration}</span>
-            </div>
-
-            <ul className="space-y-2 mb-6">
-              {plan.benefits.map((benefit, idx) => (
-                <li key={idx} className="flex items-center gap-2">
-                  <CheckCircle className="text-[#AE2108]" size={18} />
-                  <span>{benefit}</span>
-                </li>
-              ))}
-            </ul>
-
-            <button
-              onClick={() => handleSubscribe(plan)}
-              disabled={loading}
-              className="w-full py-2 px-4 bg-[#AE2108] text-white rounded-xl hover:bg-[#911b06] transition disabled:opacity-50"
-            >
-              {loading ? "Processing..." : "Subscribe Now"}
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-16 text-center">
-        <p className="text-gray-500 text-sm">
-          Your plan will activate immediately after payment and promotion will
-          begin.
+    <VendorLayout
+      title="Promote your store"
+      subtitle="Get discovered by more customers"
+    >
+      <div className="p-4 md:p-8 text-gray-800 max-w-4xl mx-auto">
+        <p className="text-center text-gray-600 max-w-2xl mx-auto mb-8">
+          Choose a plan that fits your restaurant’s growth. Get discovered by
+          more customers and increase your orders with our promotional tiers.
         </p>
+
+        <div className="grid md:grid-cols-2 gap-10">
+          {plans.map((plan, index) => (
+            <div
+              key={index}
+              className={`p-6 rounded-2xl shadow-md border-2 ${plan.border} ${plan.bg} transform transition duration-300 hover:scale-[1.02]`}
+            >
+              <div className="flex items-center gap-2 mb-4">
+                {plan.icon}
+                <h2 className="text-2xl font-semibold">{plan.name} Plan</h2>
+              </div>
+
+              <div className="mb-4">
+                <span className="text-3xl font-bold">{plan.displayPrice}</span>
+                <span className="ml-2 text-gray-600">/ {plan.duration}</span>
+              </div>
+
+              <ul className="space-y-2 mb-6">
+                {plan.benefits.map((benefit, idx) => (
+                  <li key={idx} className="flex items-center gap-2">
+                    <CheckCircle className="text-[#AE2108]" size={18} />
+                    <span>{benefit}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                onClick={() => handleSubscribe(plan)}
+                disabled={loading}
+                className="w-full py-2 px-4 bg-[#AE2108] text-white rounded-xl hover:bg-[#911b06] transition disabled:opacity-50"
+              >
+                {loading ? "Processing..." : "Subscribe Now"}
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-12 text-center">
+          <p className="text-gray-500 text-sm">
+            Your plan will activate immediately after payment and promotion will
+            begin.
+          </p>
+        </div>
       </div>
-    </div>
+    </VendorLayout>
   );
 };
 

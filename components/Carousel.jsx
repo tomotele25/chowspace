@@ -1,5 +1,6 @@
 "use client";
 
+import { BACKENDURL } from "@/lib/api";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -9,8 +10,6 @@ import { ChevronLeft, ChevronRight, Clock, Crown } from "lucide-react";
 import "swiper/css";
 import "swiper/css/navigation";
 
-const BACKENDURL =
-  "https://chowspace-backend.vercel.app" || "http://localhost:2006";
 
 const Carousel = () => {
   const [vendors, setVendors] = useState([]);
@@ -146,8 +145,11 @@ const Carousel = () => {
                     <p className="text-sm text-gray-500 truncate">
                       {vendor.location || "Unknown location"}
                     </p>
+                    {/* Was "Opens Tomorrow", which is a guess — vendors now
+                        run on real schedules, and a store closed on a day
+                        they've marked closed may not reopen tomorrow. */}
                     <span className="inline-block mt-4 text-xs font-medium px-3 py-1 rounded-full bg-red-100 text-red-600">
-                      Opens Tomorrow
+                      Closed
                     </span>
                   </div>
                 </div>
