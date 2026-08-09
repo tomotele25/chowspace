@@ -22,6 +22,17 @@ const Login = () => {
     password: "",
   });
 
+  // Purely cosmetic — the form itself works for every role and routes by
+  // whatever the backend returns after auth. `as` just sets the heading so
+  // someone arriving from the vendor sign-in link isn't told they're on the
+  // customer page.
+  const [audience, setAudience] = useState(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const as = new URLSearchParams(window.location.search).get("as");
+    if (as === "customer" || as === "vendor") setAudience(as);
+  }, []);
+
   // The confirmation link lands back here with a result to report.
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -128,7 +139,11 @@ const Login = () => {
         <div className="md:w-1/2 flex items-center justify-center px-6 py-12 bg-white">
           <div className="w-full max-w-md">
             <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">
-              Login as Customer
+              {audience === "vendor"
+                ? "Vendor Login"
+                : audience === "customer"
+                  ? "Login as Customer"
+                  : "Login"}
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">

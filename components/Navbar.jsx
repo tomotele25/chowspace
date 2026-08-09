@@ -1,10 +1,71 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ChevronDown, User, Store } from "lucide-react";
 import { useSession } from "next-auth/react";
+
+/** Click-toggled "Customer / Vendor" dropdown, closes on an outside click. */
+function AuthDropdown({ label, options, scrolled, primary }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        className={
+          primary
+            ? "flex items-center gap-1 bg-[#AE2108] text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-[#941B06] transition-all shadow-md shadow-[#AE2108]/25 hover:shadow-[#AE2108]/40 hover:-translate-y-px active:translate-y-0"
+            : `flex items-center gap-1 text-sm font-semibold px-4 py-2 rounded-lg transition-all duration-200 ${
+                scrolled
+                  ? "text-[#AE2108] hover:bg-[#AE2108]/8"
+                  : "text-white/90 hover:text-white hover:bg-white/10"
+              }`
+        }
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        {label}
+        <ChevronDown
+          size={14}
+          className={`transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 mt-2 w-48 rounded-xl bg-white shadow-lg ring-1 ring-black/5 py-1.5 z-50"
+        >
+          {options.map((opt) => (
+            <Link
+              key={opt.href}
+              href={opt.href}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#AE2108]/5 hover:text-[#AE2108] transition-colors"
+            >
+              <opt.icon size={15} className="text-gray-400" />
+              {opt.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -82,22 +143,23 @@ const Navbar = () => {
             </Link>
           ) : (
             <>
-              <Link
-                href="/Login"
-                className={`text-sm font-semibold px-4 py-2 rounded-lg transition-all duration-200 ${
-                  scrolled
-                    ? "text-[#AE2108] hover:bg-[#AE2108]/8"
-                    : "text-white/90 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/Signup"
-                className="bg-[#AE2108] text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-[#941B06] transition-all shadow-md shadow-[#AE2108]/25 hover:shadow-[#AE2108]/40 hover:-translate-y-px active:translate-y-0"
-              >
-                Sign Up
-              </Link>
+              <AuthDropdown
+                label="Sign In"
+                scrolled={scrolled}
+                options={[
+                  { label: "I'm a Customer", href: "/Login?as=customer", icon: User },
+                  { label: "I'm a Vendor", href: "/Login?as=vendor", icon: Store },
+                ]}
+              />
+              <AuthDropdown
+                label="Sign Up"
+                scrolled={scrolled}
+                primary
+                options={[
+                  { label: "I'm a Customer", href: "/Signup", icon: User },
+                  { label: "I'm a Vendor", href: "/vendors/Signup", icon: Store },
+                ]}
+              />
             </>
           )}
         </div>
@@ -144,21 +206,49 @@ const Navbar = () => {
                 My Profile
               </Link>
             ) : (
-              <div className="flex gap-2">
-                <Link
-                  href="/Login"
-                  onClick={() => setIsOpen(false)}
-                  className="flex-1 text-center text-sm font-semibold text-[#AE2108] border border-[#AE2108]/30 px-4 py-2.5 rounded-xl hover:bg-[#AE2108]/5 transition-colors"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/Signup"
-                  onClick={() => setIsOpen(false)}
-                  className="flex-1 text-center bg-[#AE2108] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#941B06] transition-colors shadow-sm"
-                >
-                  Sign Up
-                </Link>
+              <div className="space-y-3">
+                <div>
+                  <p className="px-3 text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1.5 flex items-center gap-1.5">
+                    <User size={12} /> Customer
+                  </p>
+                  <div className="flex gap-2">
+                    <Link
+                      href="/Login?as=customer"
+                      onClick={() => setIsOpen(false)}
+                      className="flex-1 text-center text-sm font-semibold text-[#AE2108] border border-[#AE2108]/30 px-4 py-2.5 rounded-xl hover:bg-[#AE2108]/5 transition-colors"
+                    >
+                      Sign In
+                    </Link>
+                    <Link
+                      href="/Signup"
+                      onClick={() => setIsOpen(false)}
+                      className="flex-1 text-center bg-[#AE2108] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#941B06] transition-colors shadow-sm"
+                    >
+                      Sign Up
+                    </Link>
+                  </div>
+                </div>
+                <div>
+                  <p className="px-3 text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1.5 flex items-center gap-1.5">
+                    <Store size={12} /> Vendor
+                  </p>
+                  <div className="flex gap-2">
+                    <Link
+                      href="/Login?as=vendor"
+                      onClick={() => setIsOpen(false)}
+                      className="flex-1 text-center text-sm font-semibold text-[#AE2108] border border-[#AE2108]/30 px-4 py-2.5 rounded-xl hover:bg-[#AE2108]/5 transition-colors"
+                    >
+                      Sign In
+                    </Link>
+                    <Link
+                      href="/vendors/Signup"
+                      onClick={() => setIsOpen(false)}
+                      className="flex-1 text-center bg-[#AE2108] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#941B06] transition-colors shadow-sm"
+                    >
+                      Sign Up
+                    </Link>
+                  </div>
+                </div>
               </div>
             )}
           </div>
