@@ -26,7 +26,6 @@ import {
   formatCurrency,
   formatPhoneNumber,
   generateOrderId,
-  isAbeokutaVendor,
   isVendorStillOpen,
   validatePhone,
   validateName,
@@ -279,7 +278,12 @@ export default function CheckoutPage() {
   const serviceCharge = 100;
   const finalTotal =
     cartTotal + deliveryFee + packFee + serviceCharge - couponDiscount;
-  const isLocalVendor = isAbeokutaVendor(vendor);
+  // Most vendors take orders over WhatsApp; a few use a payment gateway
+  // instead. paymentMethods is the vendor's own configured preference (set
+  // at signup, changeable from their dashboard), and defaults to
+  // ["whatsapp"] — so this stays correct as vendors change their setup and
+  // for every new vendor going forward.
+  const isLocalVendor = vendor?.paymentMethods?.includes("whatsapp") ?? true;
 
   const resolvedPhone =
     session?.user?.phone ||
