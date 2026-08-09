@@ -24,7 +24,6 @@ import {
 import { useSession } from "next-auth/react";
 import ManagerLayout from "@/components/layouts/ManagerLayout";
 import { useRouter } from "next/navigation";
-import { BACKENDURL } from "@/lib/api";
 
 export default function ManageLocation() {
   const [location, setLocation] = useState("");
