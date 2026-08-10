@@ -42,6 +42,11 @@ const VendorMenuPage = ({
   const [vendor, setVendor] = useState(vendorMeta || null);
   const [products, setProducts] = useState(initialProducts || []);
   const [loading, setLoading] = useState(!vendorMeta);
+  // vendorMeta's status comes from the ISR-cached page (up to 60s stale, or
+  // baked in at build time), so a "closed" value there isn't trustworthy
+  // until the client-side fetch below confirms it live. Gate the closed
+  // screen on this instead of rendering it straight from stale props.
+  const [statusChecked, setStatusChecked] = useState(false);
   const [error, setError] = useState("");
   const [retryCount, setRetryCount] = useState(0);
   const [cartOpen, setCartOpen] = useState(false);
@@ -117,7 +122,10 @@ const VendorMenuPage = ({
       } catch (err) {
         if (!cancelled && !vendorMeta) setError("Failed to load data");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setStatusChecked(true);
+        }
       }
     };
     fetchData();
@@ -209,7 +217,7 @@ const VendorMenuPage = ({
   );
 
   /* ── Loading skeleton ── */
-  if (loading) {
+  if (loading || (vendor?.status === "closed" && !statusChecked)) {
     return (
       <>
         {meta}
@@ -243,8 +251,8 @@ const VendorMenuPage = ({
     );
   }
 
-  /* ── Vendor closed screen ── */
-  if (vendor && vendor?.status === "closed") {
+  /* ── Vendor closed screen (only once the live check has confirmed it) ── */
+  if (vendor && vendor?.status === "closed" && statusChecked) {
     return (
       <>
         {meta}
