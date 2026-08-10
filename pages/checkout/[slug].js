@@ -433,8 +433,17 @@ export default function CheckoutPage() {
     isSubmitting.current = true;
     setLoading(true);
 
+    // Browsers only allow window.open() to succeed when it's called
+    // synchronously inside the click handler. Everything below this line
+    // awaits a network call first, so opening the WhatsApp tab down there
+    // gets silently blocked as a popup on most mobile browsers. Open a
+    // blank tab now, while we still have the user gesture, and point it at
+    // the real WhatsApp URL once we know it — or close it if we bail out.
+    const waWindow = isLocalVendor ? window.open("", "_blank") : null;
+
     const { name, phone, address, location } = deliveryDetails;
     if (!validateInputs({ name, phone, address, location })) {
+      waWindow?.close();
       setLoading(false);
       isSubmitting.current = false;
       return;
@@ -446,6 +455,7 @@ export default function CheckoutPage() {
     // the order POST, so a late rejection would arrive too late to help.
     const stillOpen = await isVendorStillOpen(vendor._id);
     if (!stillOpen) {
+      waWindow?.close();
       toast.error(`${vendor.businessName} has closed and can't take orders.`);
       setVendorClosed(true);
       setLoading(false);
@@ -513,10 +523,12 @@ export default function CheckoutPage() {
         `Leave a Review ✍️\n🔗 https://chowspace.ng/ReviewPage/${vendor._id}`,
     );
 
-    window.open(
-      `https://wa.me/${formatPhoneNumber(vendor.contact)}?text=${waMessage}`,
-      "_blank",
-    );
+    const waUrl = `https://wa.me/${formatPhoneNumber(vendor.contact)}?text=${waMessage}`;
+    if (waWindow) {
+      waWindow.location.href = waUrl;
+    } else {
+      window.open(waUrl, "_blank");
+    }
 
     try {
       await axios.post(`${BACKENDURL}/api/orders`, {
