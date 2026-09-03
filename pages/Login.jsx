@@ -93,7 +93,15 @@ const Login = () => {
       const updatedSession = await getSession();
       const role = updatedSession?.user?.role;
 
-      if (role === "admin") {
+      // Honour ?callbackUrl for non-dashboard roles (e.g. a customer who
+      // followed the "leave a review" link from WhatsApp and had to sign in).
+      const callbackUrl =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("callbackUrl")
+          : null;
+      if (callbackUrl && callbackUrl.startsWith("/") && role === "customer") {
+        router.push(callbackUrl);
+      } else if (role === "admin") {
         router.push("/admin/AdminDashboard");
       } else if (role === "vendor") {
         router.push("/vendors/Dashboard");

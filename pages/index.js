@@ -7,6 +7,8 @@ import Footer from "@/components/Footer";
 import Hero from "@/components/Hero";
 import Carousel from "@/components/Carousel";
 import ScrollToTopBtn from "@/components/ScrollToTopBtn";
+import LocationButton from "@/components/LocationButton";
+import WrappedBanner from "@/components/WrappedBanner";
 import PromoBanner from "@/components/PromoBanner";
 import Faq from "@/components/Faq";
 import ContactSupport from "@/components/ContactSupport";
@@ -65,6 +67,27 @@ export default function Home() {
   const vendors = vendorsData?.vendors || [];
   const locations = locationsData?.locations || [];
   const loading = vendorsLoading;
+
+  // Restore the visitor's last chosen delivery area (set via the floating
+  // LocationButton). Runs once on mount so SSR markup stays "All".
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("chowspace_location");
+      if (saved) setSelectedLocation(saved);
+    } catch {
+      /* storage blocked — leave the default */
+    }
+  }, []);
+
+  const chooseLocation = (loc) => {
+    setSelectedLocation(loc);
+    setCurrentPage(1);
+    try {
+      localStorage.setItem("chowspace_location", loc);
+    } catch {
+      /* ignore */
+    }
+  };
 
   // New vendors sorted by createdAt (latest 10)
   const newVendors = [...vendors]
@@ -135,6 +158,12 @@ export default function Home() {
         return <StarHalf key={i} size={13} fill="currentColor" stroke="none" />;
       return <Star key={i} size={13} className="text-gray-300" fill="none" />;
     });
+
+  // The rating shown on a card: the backend's blended displayRating (real
+  // reviews + recent order volume, floored at 4.0). Falls back to the raw
+  // average, then to the same 4.3 default the backend seeds.
+  const vendorRating = (vendor) =>
+    vendor?.displayRating ?? vendor?.averageRating ?? 4.3;
 
   // Main vendor grid logic
   const filteredVendors = vendors
@@ -237,9 +266,15 @@ export default function Home() {
       </Head>
       <ScrollToTopBtn />
       <ContactSupport />
+      <LocationButton
+        locations={locations}
+        value={selectedLocation}
+        onSelect={chooseLocation}
+      />
       <main>
         <Navbar />
         <Hero />
+        <WrappedBanner />
         <Categories />
         <Carousel />
 
@@ -359,9 +394,12 @@ export default function Home() {
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-0.5 text-yellow-500">
-                          {renderStars(vendor.averageRating)}
+                          {renderStars(vendorRating(vendor))}
                           <span className="ml-1 text-xs text-gray-500">
-                            ({vendor.averageRating || 0})
+                            {vendorRating(vendor).toFixed(1)}
+                            {vendor.reviewCount
+                              ? ` · ${vendor.reviewCount}`
+                              : ""}
                           </span>
                         </div>
                         <span className="flex items-center gap-1 text-xs text-gray-500">
@@ -429,7 +467,7 @@ export default function Home() {
             />
             <select
               value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
+              onChange={(e) => chooseLocation(e.target.value)}
               className="w-full sm:w-1/4 px-4 py-3 rounded-xl border border-gray-300 shadow-md text-black text-sm sm:text-base focus:ring-2 focus:ring-[#AE2108] outline-none transition-all duration-300"
             >
               <option value="All">All Locations</option>
@@ -510,7 +548,7 @@ export default function Home() {
                       <div className="flex items-center justify-between flex-wrap gap-y-2">
                         <div className="flex items-center gap-1 text-yellow-500">
                           {Array.from({ length: 5 }).map((_, index) => {
-                            const rating = vendor.averageRating || 0;
+                            const rating = vendorRating(vendor);
                             if (rating >= index + 1)
                               return (
                                 <Star
@@ -540,7 +578,10 @@ export default function Home() {
                               );
                           })}
                           <span className="ml-1 text-xs text-gray-600">
-                            ({vendor.averageRating || 0})
+                            {vendorRating(vendor).toFixed(1)}
+                            {vendor.reviewCount
+                              ? ` · ${vendor.reviewCount}`
+                              : ""}
                           </span>
                         </div>
                         <span

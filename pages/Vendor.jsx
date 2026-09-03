@@ -238,7 +238,10 @@ const Vendor = () => {
                       <div className="flex items-center justify-between flex-wrap gap-y-2">
                         <div className="flex items-center gap-1 text-yellow-500">
                           {Array.from({ length: 5 }).map((_, index) => {
-                            const rating = vendor.averageRating || 0;
+                            const rating =
+                              vendor.displayRating ??
+                              vendor.averageRating ??
+                              4.3;
                             if (rating >= index + 1) {
                               return (
                                 <Star
@@ -269,7 +272,14 @@ const Vendor = () => {
                             }
                           })}
                           <span className="ml-1 text-xs text-gray-600">
-                            ({vendor.averageRating || 0})
+                            {(
+                              vendor.displayRating ??
+                              vendor.averageRating ??
+                              4.3
+                            ).toFixed(1)}
+                            {vendor.reviewCount
+                              ? ` · ${vendor.reviewCount}`
+                              : ""}
                           </span>
                         </div>
                         <span

@@ -70,6 +70,8 @@ function AuthDropdown({ label, options, scrolled, primary }) {
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  // Mobile auth: pick who you are once, then Log in / Sign up follow the choice.
+  const [mobileAudience, setMobileAudience] = useState("customer");
   const { data: session } = useSession();
 
   useEffect(() => {
@@ -179,10 +181,10 @@ const Navbar = () => {
       {/* Mobile menu */}
       <div
         className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
-          isOpen ? "max-h-80" : "max-h-0"
+          isOpen ? "max-h-[calc(100vh-4rem)]" : "max-h-0"
         }`}
       >
-        <div className="bg-white/97 backdrop-blur-xl border-t border-gray-100 px-5 py-4 space-y-1 shadow-lg">
+        <div className="bg-white/97 backdrop-blur-xl border-t border-gray-100 px-5 py-4 space-y-1 shadow-lg max-h-[calc(100vh-4rem)] overflow-y-auto overscroll-contain">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -206,50 +208,57 @@ const Navbar = () => {
                 My Profile
               </Link>
             ) : (
-              <div className="space-y-3">
-                <div>
-                  <p className="px-3 text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1.5 flex items-center gap-1.5">
-                    <User size={12} /> Customer
-                  </p>
-                  <div className="flex gap-2">
+              (() => {
+                const isVendor = mobileAudience === "vendor";
+                const loginHref = isVendor
+                  ? "/Login?as=vendor"
+                  : "/Login?as=customer";
+                const signupHref = isVendor ? "/vendors/Signup" : "/Signup";
+                return (
+                  <div className="space-y-2.5">
+                    {/* Who are you? */}
+                    <div className="flex p-1 bg-gray-100 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setMobileAudience("customer")}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                          !isVendor
+                            ? "bg-white text-[#AE2108] shadow-sm"
+                            : "text-gray-500"
+                        }`}
+                      >
+                        <User size={14} /> Customer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMobileAudience("vendor")}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                          isVendor
+                            ? "bg-white text-[#AE2108] shadow-sm"
+                            : "text-gray-500"
+                        }`}
+                      >
+                        <Store size={14} /> Vendor
+                      </button>
+                    </div>
+
                     <Link
-                      href="/Login?as=customer"
+                      href={loginHref}
                       onClick={() => setIsOpen(false)}
-                      className="flex-1 text-center text-sm font-semibold text-[#AE2108] border border-[#AE2108]/30 px-4 py-2.5 rounded-xl hover:bg-[#AE2108]/5 transition-colors"
+                      className="block w-full text-center text-sm font-semibold text-[#AE2108] border border-[#AE2108]/30 px-4 py-3 rounded-xl hover:bg-[#AE2108]/5 transition-colors"
                     >
-                      Sign In
+                      Log in{isVendor ? " as a vendor" : ""}
                     </Link>
                     <Link
-                      href="/Signup"
+                      href={signupHref}
                       onClick={() => setIsOpen(false)}
-                      className="flex-1 text-center bg-[#AE2108] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#941B06] transition-colors shadow-sm"
+                      className="block w-full text-center bg-[#AE2108] text-white px-4 py-3 rounded-xl text-sm font-semibold hover:bg-[#941B06] transition-colors shadow-sm"
                     >
-                      Sign Up
+                      Create {isVendor ? "a vendor" : "an"} account
                     </Link>
                   </div>
-                </div>
-                <div>
-                  <p className="px-3 text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1.5 flex items-center gap-1.5">
-                    <Store size={12} /> Vendor
-                  </p>
-                  <div className="flex gap-2">
-                    <Link
-                      href="/Login?as=vendor"
-                      onClick={() => setIsOpen(false)}
-                      className="flex-1 text-center text-sm font-semibold text-[#AE2108] border border-[#AE2108]/30 px-4 py-2.5 rounded-xl hover:bg-[#AE2108]/5 transition-colors"
-                    >
-                      Sign In
-                    </Link>
-                    <Link
-                      href="/vendors/Signup"
-                      onClick={() => setIsOpen(false)}
-                      className="flex-1 text-center bg-[#AE2108] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#941B06] transition-colors shadow-sm"
-                    >
-                      Sign Up
-                    </Link>
-                  </div>
-                </div>
-              </div>
+                );
+              })()
             )}
           </div>
         </div>

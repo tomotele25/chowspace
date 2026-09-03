@@ -542,9 +542,13 @@ export default function CheckoutPage() {
         })),
         ...(session?.user
           ? {
+              // Tie the order to the account so it shows in order history and
+              // the customer's Wrapped. Without this the order is anonymous.
+              customerId: session.user.id,
               customerInfo: {
-                name: session?.user?.name,
-                phone: session?.user?.phone,
+                name: session?.user?.fullname || session?.user?.name,
+                phone: session?.user?.contact || session?.user?.phone,
+                email: session?.user?.email,
               },
             }
           : { guestInfo: { name, phone } }),

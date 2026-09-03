@@ -1,136 +1,84 @@
 "use client";
 
+import { useRouter } from "next/router";
+import useSWR, { mutate } from "swr";
+import { Toaster } from "react-hot-toast";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import ReviewSection from "@/components/ReviewSection";
+import VendorReviews from "@/components/VendorReviews";
 import { BACKENDURL } from "@/lib/api";
-import { useState } from "react";
-import { Star } from "lucide-react";
-import axios from "axios";
-import { useSession, signIn } from "next-auth/react";
-import toast, { Toaster } from "react-hot-toast";
+import { fetcher } from "@/lib/fetcher";
 
-const ReviewSection = ({ vendorId }) => {
-  const [reviewText, setReviewText] = useState("");
-  const [rating, setRating] = useState(0);
-  const [submitting, setSubmitting] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
+/**
+ * Public review page. This is the URL sent to every customer over WhatsApp
+ * after checkout (pages/checkout/[slug].js):
+ *   https://chowspace.ng/ReviewPage/<vendorId>
+ *
+ * The vendor id comes from the route, not a prop — the previous version read a
+ * `vendorId` prop that a Next.js page never receives, so every submission went
+ * out with `vendorId: undefined`.
+ */
+const ReviewPage = () => {
+  const router = useRouter();
+  const { vendorId } = router.query;
 
+  const { data, error, isLoading } = useSWR(
+    router.isReady && vendorId
+      ? `${BACKENDURL}/api/vendor/${vendorId}/reviews?page=1&limit=1`
+      : null,
+    fetcher
+  );
 
-  const { data: session } = useSession();
-
-  const handleRating = (star) => setRating(star);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    // If not logged in, show modal
-    if (!session?.user) {
-      setShowLoginModal(true);
-      return;
-    }
-
-    if (!reviewText.trim() || !rating) {
-      toast.error("Please enter a review and select a rating.");
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      await axios.post(
-        `${BACKENDURL}/api/rateVendor`,
-        {
-          stars: rating,
-          comment: reviewText,
-          vendorId,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${session.user.accessToken}`,
-          },
-        }
-      );
-
-      toast.success("Review submitted!");
-      setReviewText("");
-      setRating(0);
-    } catch (error) {
-      console.error("Error submitting review:", error.response?.data || error);
-      toast.error("Something went wrong. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleLogin = () => {
-    // Redirect back to the same page after login
-    signIn("credentials", { callbackUrl: `/ReviewPage/${vendorId}` });
-  };
+  const notFound = error?.response?.status === 404;
 
   return (
-    <div className="mt-10 bg-white p-6 rounded-2xl shadow-md border border-gray-100 max-w-xl mx-auto">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Toaster position="top-right" />
-      <h3 className="text-lg font-semibold mb-4 text-gray-800">
-        Leave a Review
-      </h3>
+      <Navbar />
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="flex gap-1">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <Star
-              key={star}
-              size={24}
-              onClick={() => handleRating(star)}
-              className={`cursor-pointer ${
-                star <= rating ? "text-yellow-400" : "text-gray-300"
-              }`}
-              fill={star <= rating ? "currentColor" : "none"}
+      <main className="flex-1 px-4 py-10 max-w-2xl mx-auto w-full">
+        {!router.isReady || isLoading ? (
+          <p className="text-center text-gray-400 mt-10">Loading…</p>
+        ) : notFound ? (
+          <p className="text-center text-gray-600 mt-10">
+            This restaurant could not be found.
+          </p>
+        ) : (
+          <>
+            <h1 className="text-2xl font-bold text-gray-800 text-center">
+              Leave a review
+              {data?.businessName ? (
+                <>
+                  {" "}
+                  for <span className="text-[#AE2108]">{data.businessName}</span>
+                </>
+              ) : null}
+            </h1>
+            <p className="text-center text-gray-500 text-sm mt-1">
+              Tell others what your experience was like.
+            </p>
+
+            <ReviewSection
+              vendorId={vendorId}
+              callbackUrl={`/ReviewPage/${vendorId}`}
+              onSubmitted={() =>
+                mutate(
+                  (key) =>
+                    typeof key === "string" &&
+                    key.startsWith(VendorReviews.swrKeyPrefix(vendorId))
+                )
+              }
             />
-          ))}
-        </div>
 
-        <textarea
-          rows={4}
-          className="w-full border border-gray-300 p-2 rounded-md text-sm resize-none focus:ring-2 focus:ring-[#AE2108] focus:border-[#AE2108] transition"
-          placeholder="Write your experience here..."
-          value={reviewText}
-          onChange={(e) => setReviewText(e.target.value)}
-        />
+            <VendorReviews vendorId={vendorId} />
+          </>
+        )}
+      </main>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className={`w-full py-2 px-4 rounded-md text-sm text-white transition ${
-            submitting
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-[#AE2108] hover:bg-[#941B06]"
-          }`}
-        >
-          {submitting ? "Submitting..." : "Submit Review"}
-        </button>
-      </form>
-
-      {/* Login Modal */}
-      {showLoginModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded-xl shadow-lg max-w-sm w-full text-center">
-            <h2 className="text-lg font-semibold mb-4">Login Required</h2>
-            <p className="mb-6">You must be logged in to submit a review.</p>
-            <button
-              onClick={handleLogin}
-              className="bg-[#AE2108] hover:bg-[#941B06] text-white py-2 px-4 rounded-md w-full mb-3"
-            >
-              Login
-            </button>
-            <button
-              onClick={() => setShowLoginModal(false)}
-              className="border border-gray-300 py-2 px-4 rounded-md w-full"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+      <Footer />
     </div>
   );
 };
 
-export default ReviewSection;
+export default ReviewPage;

@@ -13,6 +13,7 @@ import {
   Heart,
   HelpCircle,
   Star,
+  Sparkles,
 } from "lucide-react";
 
 const CustomersProfile = () => {
@@ -68,6 +69,21 @@ const CustomersProfile = () => {
             Logout
           </button>
         </div>
+
+        {/* ChowSpace Wrapped */}
+        <Link href="/wrapped">
+          <div className="mb-4 flex items-center gap-4 overflow-hidden rounded-xl bg-gradient-to-r from-[#AE2108] via-[#C63210] to-[#7a1605] p-4 text-white transition hover:brightness-110">
+            <div className="rounded-full bg-white/15 p-2">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold">Your 2026 Wrapped</h4>
+              <p className="text-xs text-white/80">
+                See what you ordered this year
+              </p>
+            </div>
+          </div>
+        </Link>
 
         {/* Options */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

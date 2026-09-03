@@ -12,14 +12,20 @@ import VendorLayout from "@/components/layouts/VendorLayout";
 const Reviews = () => {
   const { data: session } = useSession();
   const [reviews, setReviews] = useState([]);
+  const [summary, setSummary] = useState(null);
 
   useEffect(() => {
     const fetchReviews = async () => {
       try {
         const response = await axios.get(
-          `${BACKENDURL}/api/vendor/${session?.user?.vendorId}/reviews`,
+          `${BACKENDURL}/api/vendor/${session?.user?.vendorId}/reviews?limit=100`,
         );
         setReviews(response.data.reviews);
+        setSummary({
+          averageRating: response.data.averageRating,
+          displayRating: response.data.displayRating,
+          reviewCount: response.data.reviewCount,
+        });
       } catch (error) {
         console.error("Failed to fetch reviews:", error);
         toast.error("Failed to load reviews");
@@ -29,18 +35,27 @@ const Reviews = () => {
     if (session?.user?.vendorId) fetchReviews();
   }, [session?.user?.vendorId]);
 
-  const average = reviews?.length
-    ? (
-        reviews.reduce((sum, r) => sum + (r.stars || 0), 0) / reviews.length
-      ).toFixed(1)
-    : null;
+  // Prefer the backend's figure; fall back to a local mean only if absent.
+  const average =
+    summary?.averageRating != null
+      ? Number(summary.averageRating).toFixed(1)
+      : reviews?.length
+        ? (
+            reviews.reduce((sum, r) => sum + (r.stars || 0), 0) / reviews.length
+          ).toFixed(1)
+        : null;
+  const reviewCount = summary?.reviewCount ?? reviews.length;
 
   return (
     <VendorLayout
       title="Customer Reviews"
       subtitle={
         average
-          ? `${average} out of 5 · ${reviews.length} review${reviews.length === 1 ? "" : "s"}`
+          ? `${average} out of 5 · ${reviewCount} review${reviewCount === 1 ? "" : "s"}${
+              summary?.displayRating != null
+                ? ` · shown as ${Number(summary.displayRating).toFixed(1)}★`
+                : ""
+            }`
           : undefined
       }
     >
@@ -69,10 +84,8 @@ const Reviews = () => {
                   &ldquo;{review.comment}&rdquo;
                 </p>
                 <p className="text-xs text-gray-500">
-                  <span className="font-medium text-[#AE2108]">
-                    Customer ID:
-                  </span>{" "}
-                  {review.customerId}
+                  <span className="font-medium text-[#AE2108]">From:</span>{" "}
+                  {review.customerId?.fullname || "Customer"}
                 </p>
               </div>
             ))}

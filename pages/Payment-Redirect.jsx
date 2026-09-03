@@ -222,7 +222,7 @@ export default function OrderConfirmed() {
                   <XIcon color="black" fontWeight=" bold " />
                 </button>
               </div>
-              <ReviewSection vendorId={order.vendorId} userId={order.userId} />
+              <ReviewSection vendorId={order.vendorId} />
             </div>
           </div>
         )}
