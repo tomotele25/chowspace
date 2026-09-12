@@ -38,24 +38,13 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
 }
-@font-face {
-  font-family: "Inter";
-  src: url("/font/web/InterDisplay-Regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Inter";
-  src: url("/font/web/InterDisplay-Bold.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
+/* Inter is now loaded via next/font/local in pages/_app.js — self-hosted,
+   preloaded, with fallback-metrics injection. Its generated className is
+   applied to the app's root wrapper, which is why body itself carries no
+   font-family: everything React renders inherits it from that wrapper. */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: "Inter";
 }
 
 .dark {
