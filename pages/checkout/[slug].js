@@ -7,6 +7,7 @@ import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import { useCart } from "@/context/CartContext";
 import { BACKENDURL } from "@/lib/api";
+import { getStoredReferralCode } from "@/lib/referral";
 import toast, { Toaster } from "react-hot-toast";
 import {
   User,
@@ -530,6 +531,8 @@ export default function CheckoutPage() {
       window.open(waUrl, "_blank");
     }
 
+    const referralCode = getStoredReferralCode();
+
     try {
       await axios.post(`${BACKENDURL}/api/orders`, {
         orderId,
@@ -560,6 +563,9 @@ export default function CheckoutPage() {
         deliveryLocation: deliveryDetails.location || null,
         packCount: cart.length,
         totalAmount: finalTotal,
+        // Invisible to the customer: whichever influencer link (if any) was
+        // followed to get here, within the last 30 days. See lib/referral.js.
+        ...(referralCode ? { referralCode } : {}),
       });
       setPlacedOrderId(orderId);
       if (clearCart) clearCart();

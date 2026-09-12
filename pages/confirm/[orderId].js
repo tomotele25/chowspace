@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
 import { CheckCircle } from "lucide-react";
+import GetAppBanner from "@/components/GetAppBanner";
 
 export default function OrderConfirmation() {
   const router = useRouter();
@@ -50,7 +51,7 @@ export default function OrderConfirmation() {
     );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-10">
       <div className="bg-white shadow-xl rounded-2xl p-8 max-w-md w-full animate-fadeIn">
         <div className="flex flex-col items-center">
           <CheckCircle className="text-green-500 w-16 h-16 mb-4" />
@@ -112,6 +113,9 @@ export default function OrderConfirmation() {
           </button>
         </div>
       </div>
+
+      {/* Shown only now that the order is confirmed — never during checkout. */}
+      <GetAppBanner compact />
     </div>
   );
 }

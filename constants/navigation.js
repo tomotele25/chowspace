@@ -135,6 +135,7 @@ export const ADMIN_NAV = [
       },
       { name: "Order Analysis", path: "/admin/OrderAnalysis", icon: BarChart },
       { name: "User Analysis", path: "/admin/UserAnalysis", icon: Users },
+      { name: "Influencers", path: "/admin/Influencers", icon: Megaphone },
       { name: "Support", path: "/admin/AdminContactSupport", icon: LifeBuoy },
     ],
   },
