@@ -16,6 +16,7 @@ import Categories from "@/components/Categories";
 import VendorSkeletonCard from "@/components/VendorSkeletonCard";
 import ErrorState from "@/components/ErrorState";
 import IOSInstallNotice from "@/components/IOSInstallNotice";
+import GetAppBanner from "@/components/GetAppBanner";
 import { cloudinaryResize } from "@/utils/captcha";
 import Image from "next/image";
 import Link from "next/link";
@@ -31,9 +32,29 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useCategory } from "@/context/CategoryContext";
+
+// Ratings repeat heavily across vendor cards (many share the same
+// displayRating), so the star icon array for a given rating is cached at
+// module scope instead of rebuilt from scratch for every card on every
+// render — outside the component since it has no dependency on component
+// state.
+const starsCache = new Map();
+function starsFor(rating = 0) {
+  const key = rating;
+  if (starsCache.has(key)) return starsCache.get(key);
+  const stars = Array.from({ length: 5 }).map((_, i) => {
+    if (rating >= i + 1)
+      return <Star key={i} size={13} fill="currentColor" stroke="none" />;
+    if (rating > i)
+      return <StarHalf key={i} size={13} fill="currentColor" stroke="none" />;
+    return <Star key={i} size={13} className="text-gray-300" fill="none" />;
+  });
+  starsCache.set(key, stars);
+  return stars;
+}
 
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -89,10 +110,16 @@ export default function Home() {
     }
   };
 
-  // New vendors sorted by createdAt (latest 10)
-  const newVendors = [...vendors]
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .slice(0, 10);
+  // New vendors sorted by createdAt (latest 10). Memoized so the 3.5s
+  // carousel auto-advance tick (below) — which changes newActiveIndex, not
+  // vendors — doesn't re-sort/re-slice the whole vendor list every time.
+  const newVendors = useMemo(
+    () =>
+      [...vendors]
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 10),
+    [vendors],
+  );
 
   // Auto-advance carousel
   useEffect(() => {
@@ -150,14 +177,7 @@ export default function Home() {
     return `${Math.floor(days / 30)}mo ago`;
   };
 
-  const renderStars = (rating = 0) =>
-    Array.from({ length: 5 }).map((_, i) => {
-      if (rating >= i + 1)
-        return <Star key={i} size={13} fill="currentColor" stroke="none" />;
-      if (rating > i)
-        return <StarHalf key={i} size={13} fill="currentColor" stroke="none" />;
-      return <Star key={i} size={13} className="text-gray-300" fill="none" />;
-    });
+  const renderStars = starsFor;
 
   // The rating shown on a card: the backend's blended displayRating (real
   // reviews + recent order volume, floored at 4.0). Falls back to the raw
@@ -165,30 +185,39 @@ export default function Home() {
   const vendorRating = (vendor) =>
     vendor?.displayRating ?? vendor?.averageRating ?? 4.3;
 
-  // Main vendor grid logic
-  const filteredVendors = vendors
-    .filter((vendor) => {
-      const matchSearch =
-        vendor.businessName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        vendor.category?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchLocation =
-        selectedLocation === "All" || vendor.location === selectedLocation;
-      const matchCategory =
-        !selectedCategory || selectedCategory === "All"
-          ? true
-          : vendor.category?.toLowerCase() === selectedCategory.toLowerCase();
-      return matchSearch && matchLocation && matchCategory;
-    })
-    .sort((a, b) => {
-      const aPromo =
-        a.promotionExpiresAt && new Date(a.promotionExpiresAt) > new Date();
-      const bPromo =
-        b.promotionExpiresAt && new Date(b.promotionExpiresAt) > new Date();
-      if (aPromo !== bPromo) return bPromo - aPromo;
-      if (a.status === "opened" && b.status === "closed") return -1;
-      if (a.status === "closed" && b.status === "opened") return 1;
-      return 0;
-    });
+  // Main vendor grid logic. Memoized for the same reason as newVendors above
+  // — this recomputed on every render otherwise, including every carousel
+  // tick, even though none of its actual inputs had changed.
+  const filteredVendors = useMemo(
+    () =>
+      vendors
+        .filter((vendor) => {
+          const matchSearch =
+            vendor.businessName
+              ?.toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+            vendor.category?.toLowerCase().includes(searchTerm.toLowerCase());
+          const matchLocation =
+            selectedLocation === "All" || vendor.location === selectedLocation;
+          const matchCategory =
+            !selectedCategory || selectedCategory === "All"
+              ? true
+              : vendor.category?.toLowerCase() ===
+                selectedCategory.toLowerCase();
+          return matchSearch && matchLocation && matchCategory;
+        })
+        .sort((a, b) => {
+          const aPromo =
+            a.promotionExpiresAt && new Date(a.promotionExpiresAt) > new Date();
+          const bPromo =
+            b.promotionExpiresAt && new Date(b.promotionExpiresAt) > new Date();
+          if (aPromo !== bPromo) return bPromo - aPromo;
+          if (a.status === "opened" && b.status === "closed") return -1;
+          if (a.status === "closed" && b.status === "opened") return 1;
+          return 0;
+        }),
+    [vendors, searchTerm, selectedLocation, selectedCategory],
+  );
 
   const totalPages = Math.ceil(filteredVendors.length / vendorsPerPage);
   const paginated = filteredVendors.slice(
@@ -275,6 +304,7 @@ export default function Home() {
         <Navbar />
         <Hero />
         <WrappedBanner />
+        <GetAppBanner />
         <Categories />
         <Carousel />
 
@@ -494,7 +524,7 @@ export default function Home() {
             </div>
           ) : paginated.length > 0 ? (
             <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {paginated.map((vendor) => {
+              {paginated.map((vendor, idx) => {
                 const isPromoted =
                   vendor.promotionExpiresAt &&
                   new Date(vendor.promotionExpiresAt) > new Date();
@@ -510,11 +540,17 @@ export default function Home() {
                     )}
                     <div className="relative w-full h-56">
                       <Image
-                        src={vendor.logo || "/logo.jpg"}
+                        src={cloudinaryResize(vendor.logo, 500) || "/logo.jpg"}
                         alt={vendor.businessName}
                         fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                         className="object-cover rounded-t-3xl"
-                        priority
+                        // Only the first card is realistically the LCP
+                        // element; marking every card priority forces the
+                        // browser to eager-fetch all 8 full images at once
+                        // instead of prioritizing the one actually above
+                        // the fold.
+                        priority={idx === 0}
                       />
                       {vendor.status === "closed" && (
                         <div className="absolute inset-0 backdrop-blur-sm bg-black/40 flex items-center justify-center rounded-t-3xl">
