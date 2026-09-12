@@ -75,19 +75,41 @@ export default function Home() {
   const router = useRouter();
   const vendorsPerPage = 8;
 
+  // A transient blip (a slow cold start, a dropped connection) shouldn't ever
+  // read as broken to a customer. SWR already retries failed requests on its
+  // own — this just keeps those retries silent behind the loading skeleton
+  // for a few attempts, so "Couldn't load vendors" only ever appears for a
+  // genuinely prolonged outage, not the first hiccup.
+  const [vendorsRetryCount, setVendorsRetryCount] = useState(0);
+  const SILENT_RETRIES = 4;
+
   const {
     data: vendorsData,
     error: vendorsError,
     isLoading: vendorsLoading,
     mutate: retryVendors,
-  } = useSWR(`${BACKENDURL}/api/vendor/getVendors`, fetcher);
+  } = useSWR(`${BACKENDURL}/api/vendor/getVendors`, fetcher, {
+    onErrorRetry: (error, key, config, revalidate, { retryCount }) => {
+      setVendorsRetryCount(retryCount);
+      // Capped backoff: 1s, 2s, 4s, 8s, then settle at 8s if it keeps failing
+      // beyond the silent window — still retrying, just no longer hidden.
+      setTimeout(
+        () => revalidate({ retryCount }),
+        Math.min(1000 * 2 ** retryCount, 8000),
+      );
+    },
+    onSuccess: () => setVendorsRetryCount(0),
+  });
   const { data: locationsData } = useSWR(
     `${BACKENDURL}/api/getLocations`,
     fetcher,
   );
   const vendors = vendorsData?.vendors || [];
   const locations = locationsData?.locations || [];
-  const loading = vendorsLoading;
+
+  // Still within the silent-retry window: treat it as loading, not broken.
+  const showVendorsError = vendorsError && vendorsRetryCount >= SILENT_RETRIES;
+  const loading = vendorsLoading || (vendorsError && !showVendorsError);
 
   // Restore the visitor's last chosen delivery area (set via the floating
   // LocationButton). Runs once on mount so SSR markup stays "All".
@@ -510,11 +532,14 @@ export default function Home() {
           </div>
 
           {/* Vendor Grid */}
-          {vendorsError ? (
+          {showVendorsError ? (
             <ErrorState
               title="Couldn't load vendors"
               message="Something went wrong fetching vendors. Please try again."
-              onRetry={() => retryVendors()}
+              onRetry={() => {
+                setVendorsRetryCount(0);
+                retryVendors();
+              }}
             />
           ) : loading ? (
             <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 animate-pulse">
